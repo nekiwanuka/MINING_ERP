@@ -34,6 +34,7 @@ TRANSPORT_MODULES = {
 }
 
 COMMERCIAL_DOCUMENT_MODULES = {UserModuleAccess.Module.COMMERCIAL_DOCUMENTS}
+FINANCIAL_MODULES = {UserModuleAccess.Module.FINANCIAL_REPORTS}
 FUEL_MODULES = {UserModuleAccess.Module.FUEL}
 VISA_MODULES = {UserModuleAccess.Module.VISAS}
 
@@ -67,6 +68,8 @@ def has_module_access(user, module, action):
         if module in PROCUREMENT_MODULES:
             return True
         if module in COMMERCIAL_DOCUMENT_MODULES:
+            return True
+        if module in FINANCIAL_MODULES:
             return True
         if module == UserModuleAccess.Module.REQUISITIONS:
             return action in {ACTION_READ, ACTION_UPDATE}

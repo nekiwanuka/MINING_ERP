@@ -48,6 +48,7 @@
             {% endif %}
             {% if can_read_transport_reports and not can_read_transport %}<a href="{% url 'transport_reports' %}">Reports</a>{% endif %}
             {% if can_read_commercial_documents %}<a href="{% url 'commercial_document_list' %}">Documents</a>{% endif %}
+            {% if can_read_financial_reports %}<a href="{% url 'financial_report' %}">Finance</a>{% endif %}
             {% if can_read_fuel %}
                 <details class="nav-group">
                     <summary aria-label="Open fuel menu">{{ 'Fuel'|tr:active_language }}</summary>
@@ -102,5 +103,43 @@
         {% endif %}
         {% block content %}{% endblock %}
     </main>
+    {{ ui_translations|json_script:"ui-translations" }}
+    <script>
+        (function () {
+            var script = document.getElementById('ui-translations');
+            if (!script) { return; }
+            var translations = JSON.parse(script.textContent || '{}');
+            var skipTags = { SCRIPT: true, STYLE: true, TEXTAREA: true, SELECT: true, OPTION: true };
+
+            function translateValue(value) {
+                var trimmed = String(value || '').trim();
+                return translations[trimmed] || null;
+            }
+
+            function translateTextNodes(root) {
+                var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+                var nodes = [];
+                while (walker.nextNode()) { nodes.push(walker.currentNode); }
+                nodes.forEach(function (node) {
+                    if (!node.parentElement || skipTags[node.parentElement.tagName]) { return; }
+                    var translated = translateValue(node.nodeValue);
+                    if (translated) { node.nodeValue = node.nodeValue.replace(node.nodeValue.trim(), translated); }
+                });
+            }
+
+            function translateAttributes(root) {
+                root.querySelectorAll('[placeholder], [title], [aria-label], input[type="submit"]').forEach(function (element) {
+                    ['placeholder', 'title', 'aria-label', 'value'].forEach(function (attribute) {
+                        if (!element.hasAttribute(attribute)) { return; }
+                        var translated = translateValue(element.getAttribute(attribute));
+                        if (translated) { element.setAttribute(attribute, translated); }
+                    });
+                });
+            }
+
+            translateTextNodes(document.body);
+            translateAttributes(document.body);
+        }());
+    </script>
 </body>
 </html>

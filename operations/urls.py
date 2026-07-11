@@ -179,6 +179,8 @@ urlpatterns = [
         views.business_client_create,
         name="business_client_create",
     ),
+    path("finance/", views.financial_report, name="financial_report"),
+    path("finance/new/", views.financial_record_create, name="financial_record_create"),
     path("fuel/", views.fuel_dashboard, name="fuel_dashboard"),
     path("fuel/batches/", views.fuel_batch_balance, name="fuel_batch_balance"),
     path("fuel/assets/new/", views.fuel_asset_create, name="fuel_asset_create"),

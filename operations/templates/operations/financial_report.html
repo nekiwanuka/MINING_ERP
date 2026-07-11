@@ -1,0 +1,63 @@
+{% extends 'operations/base.html' %}
+{% block title %}Financial Reports | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Financial Reports</p>
+        <h1>Cash movement report</h1>
+        <p>Record cash in, cash out expenses, and losses in one simple report.</p>
+    </div>
+    <a class="primary-button" href="{% url 'financial_record_create' %}">New financial record</a>
+</section>
+
+<section class="metric-grid">
+    <article class="metric-card"><span>Cash in</span><strong>{{ cash_in_total|floatformat:2 }}</strong></article>
+    <article class="metric-card"><span>Cash out</span><strong>{{ cash_out_total|floatformat:2 }}</strong></article>
+    <article class="metric-card"><span>Loss</span><strong>{{ loss_total|floatformat:2 }}</strong></article>
+    <article class="metric-card"><span>Net balance</span><strong>{{ net_total|floatformat:2 }}</strong></article>
+</section>
+
+<section class="panel">
+    <form method="get" class="list-filter-form list-filter-form-wide">
+        <label>Search
+            <input class="field-control" type="search" name="q" value="{{ query }}" placeholder="Record, client, supplier, document, reference">
+        </label>
+        <label>Type
+            <select class="field-control" name="type">
+                <option value="all" {% if record_type == 'all' %}selected{% endif %}>All types</option>
+                {% for value, label in record_types %}
+                    <option value="{{ value }}" {% if record_type == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Date
+            <input class="field-control" type="date" name="date" value="{{ date_value }}">
+        </label>
+        <div class="list-filter-actions">
+            <button class="small-button" type="submit">Filter</button>
+            <a class="secondary-button" href="{% url 'financial_report' %}">Reset</a>
+        </div>
+    </form>
+    <p class="empty-copy">Showing up to 5 of {{ matching_count }} matching financial record(s).</p>
+    <div class="table-wrap compact">
+        <table>
+            <thead><tr><th>Record</th><th>Type</th><th>Description</th><th>Party</th><th>Reference</th><th>Amount</th><th>Date</th></tr></thead>
+            <tbody>
+                {% for record in records %}
+                    <tr>
+                        <td>{{ record.record_number }}</td>
+                        <td>{{ record.get_record_type_display }}</td>
+                        <td>{{ record.description }}</td>
+                        <td>{% if record.client %}{{ record.client }}{% elif record.supplier %}{{ record.supplier }}{% else %}-{% endif %}</td>
+                        <td>{% if record.document %}{{ record.document.document_number }}{% else %}{{ record.reference|default:'-' }}{% endif %}</td>
+                        <td>{{ record.currency }} {{ record.amount|floatformat:2 }}</td>
+                        <td>{{ record.record_date }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7" class="empty-cell">No financial records yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

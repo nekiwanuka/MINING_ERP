@@ -49,6 +49,7 @@ class Command(BaseCommand):
                     UserModuleAccess.Module.PURCHASE_ORDERS,
                     UserModuleAccess.Module.PURCHASE_RECEIPTS,
                     UserModuleAccess.Module.COMMERCIAL_DOCUMENTS,
+                    UserModuleAccess.Module.FINANCIAL_REPORTS,
                 ]:
                     self.grant(
                         user, module, create=True, read=True, update=True, delete=True

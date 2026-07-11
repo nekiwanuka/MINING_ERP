@@ -10,6 +10,7 @@ from .models import (
     CommercialDocument,
     Expatriate,
     ExpatriateVisa,
+    FinancialRecord,
     FuelAsset,
     FuelIssue,
     FuelStockBatch,
@@ -410,6 +411,33 @@ class CommercialDocumentForm(StyledModelForm):
                 client.save(update_fields=[*update_fields, "updated_at"])
             return client
         return self.cleaned_data.get("client")
+
+
+class FinancialRecordForm(StyledModelForm):
+    class Meta:
+        model = FinancialRecord
+        fields = [
+            "record_type",
+            "record_date",
+            "description",
+            "reference",
+            "client",
+            "supplier",
+            "document",
+            "amount",
+            "currency",
+            "notes",
+        ]
+        labels = {
+            "record_type": "Record type",
+            "record_date": "Date",
+            "document": "Linked business document",
+        }
+        widgets = {
+            "record_date": DATE_WIDGET,
+            "amount": MONEY_WIDGET,
+            "notes": forms.Textarea(attrs={"rows": 3}),
+        }
 
 
 class FuelAssetForm(StyledModelForm):

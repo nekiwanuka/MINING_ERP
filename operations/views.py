@@ -10,7 +10,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.dateparse import parse_date
@@ -52,6 +52,7 @@ from .forms import (
     DirectPurchaseOrderForm,
     ExpatriateForm,
     ExpatriateVisaForm,
+    FinancialRecordForm,
     FuelAssetForm,
     FuelIssueForm,
     FuelStockBatchForm,
@@ -78,6 +79,7 @@ from .models import (
     CommercialDocument,
     Expatriate,
     ExpatriateVisa,
+    FinancialRecord,
     FuelAsset,
     FuelIssue,
     FuelStockBatch,
@@ -856,6 +858,7 @@ def dashboard(request):
         "inquiry_count": PurchaseInquiry.objects.count(),
         "transport_count": TransportRecord.objects.count(),
         "commercial_document_count": CommercialDocument.objects.count(),
+        "financial_record_count": FinancialRecord.objects.count(),
         "status_breakdown": Requisition.objects.values("status")
         .annotate(total=Count("id"))
         .order_by("status"),
@@ -2375,6 +2378,79 @@ def business_client_create(request):
             "title": "New Client",
             "action_label": "Save client",
             "cancel_url": "commercial_document_list",
+        },
+    )
+
+
+@access_required(UserModuleAccess.Module.FINANCIAL_REPORTS, ACTION_READ)
+def financial_report(request):
+    query = request.GET.get("q", "").strip()
+    record_type = request.GET.get("type", "all").strip() or "all"
+    date_value = request.GET.get("date", "").strip()
+    search_date = parse_date(date_value) if date_value else None
+    records = FinancialRecord.objects.select_related(
+        "client", "supplier", "document", "recorded_by"
+    )
+    if query:
+        records = records.filter(
+            Q(record_number__icontains=query)
+            | Q(description__icontains=query)
+            | Q(reference__icontains=query)
+            | Q(client__name__icontains=query)
+            | Q(supplier__name__icontains=query)
+            | Q(document__document_number__icontains=query)
+        ).distinct()
+    allowed_types = {code for code, _label in FinancialRecord.RecordType.choices}
+    if record_type in allowed_types:
+        records = records.filter(record_type=record_type)
+    if search_date:
+        records = records.filter(record_date=search_date)
+    totals = records.values("record_type").annotate(total=Sum("amount"))
+    total_map = {row["record_type"]: row["total"] or Decimal("0") for row in totals}
+    cash_in_total = total_map.get(FinancialRecord.RecordType.CASH_IN, Decimal("0"))
+    expense_total = total_map.get(FinancialRecord.RecordType.CASH_OUT, Decimal("0"))
+    loss_total = total_map.get(FinancialRecord.RecordType.LOSS, Decimal("0"))
+    cash_out_total = expense_total + loss_total
+    matching_count = records.count()
+    records = records[:LIST_RESULTS_LIMIT]
+    return render(
+        request,
+        "operations/financial_report.html",
+        {
+            "records": records,
+            "query": query,
+            "record_type": record_type,
+            "record_types": FinancialRecord.RecordType.choices,
+            "date_value": date_value,
+            "matching_count": matching_count,
+            "cash_in_total": cash_in_total,
+            "cash_out_total": cash_out_total,
+            "expense_total": expense_total,
+            "loss_total": loss_total,
+            "net_total": cash_in_total - cash_out_total,
+        },
+    )
+
+
+@access_required(UserModuleAccess.Module.FINANCIAL_REPORTS, ACTION_CREATE)
+def financial_record_create(request):
+    form = FinancialRecordForm(
+        request.POST or None, initial={"record_date": date.today()}
+    )
+    if request.method == "POST" and form.is_valid():
+        record = form.save(commit=False)
+        record.recorded_by = request.user
+        record.save()
+        messages.success(request, f"Financial record {record.record_number} saved.")
+        return redirect("financial_report")
+    return render(
+        request,
+        "operations/form_page.html",
+        {
+            "form": form,
+            "title": "New financial record",
+            "action_label": "Save record",
+            "cancel_url": "financial_report",
         },
     )
 

@@ -6,6 +6,7 @@ from .models import (
     CommercialDocument,
     Expatriate,
     ExpatriateVisa,
+    FinancialRecord,
     FuelAsset,
     FuelIssue,
     FuelStockBatch,
@@ -180,6 +181,26 @@ class CommercialDocumentAdmin(admin.ModelAdmin):
         "transport__transit_number",
         "purchase_order__order_number",
         "requisition__requisition_number",
+    )
+
+
+@admin.register(FinancialRecord)
+class FinancialRecordAdmin(admin.ModelAdmin):
+    list_display = (
+        "record_number",
+        "record_type",
+        "record_date",
+        "description",
+        "amount",
+        "currency",
+    )
+    list_filter = ("record_type", "record_date", "currency")
+    search_fields = (
+        "record_number",
+        "description",
+        "reference",
+        "client__name",
+        "supplier__name",
     )
 
 

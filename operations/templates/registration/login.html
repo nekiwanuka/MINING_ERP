@@ -58,13 +58,25 @@
             </form>
         </section>
     </main>
+    {{ ui_translations|json_script:"ui-translations" }}
     <script>
         (function () {
+            var translationScript = document.getElementById('ui-translations');
+            var translations = translationScript ? JSON.parse(translationScript.textContent || '{}') : {};
             var usernameInput = document.getElementById('id_username');
             var passwordInput = document.getElementById('id_password');
             var rememberInput = document.getElementById('remember_me');
             var toggleButton = document.querySelector('.password-toggle');
             var savedUsername = window.localStorage.getItem('miningErpUsername');
+
+            document.querySelectorAll('[aria-label], [title]').forEach(function (element) {
+                ['aria-label', 'title'].forEach(function (attribute) {
+                    var value = element.getAttribute(attribute);
+                    if (translations[value]) {
+                        element.setAttribute(attribute, translations[value]);
+                    }
+                });
+            });
 
             if (usernameInput && rememberInput && savedUsername && !usernameInput.value) {
                 usernameInput.value = savedUsername;

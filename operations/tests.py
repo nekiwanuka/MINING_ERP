@@ -17,6 +17,7 @@ from .models import (
     CommercialDocument,
     Expatriate,
     ExpatriateVisa,
+    FinancialRecord,
     FuelAsset,
     FuelIssue,
     FuelStockBatch,
@@ -339,6 +340,7 @@ class UserAccessManagementTests(TestCase):
         self.assertContains(form_page, "Fuel Department")
         self.assertContains(form_page, "Visa Department")
         self.assertContains(form_page, "Business Documents")
+        self.assertContains(form_page, "Financial Reports")
 
         response = self.client.post(
             "/access/users/new/",
@@ -368,6 +370,10 @@ class UserAccessManagementTests(TestCase):
                         "read",
                         "update",
                     },
+                    UserModuleAccess.Module.FINANCIAL_REPORTS: {
+                        "create",
+                        "read",
+                    },
                 }
             ),
         )
@@ -383,6 +389,9 @@ class UserAccessManagementTests(TestCase):
         document_access = UserModuleAccess.objects.get(
             user=user, module=UserModuleAccess.Module.COMMERCIAL_DOCUMENTS
         )
+        finance_access = UserModuleAccess.objects.get(
+            user=user, module=UserModuleAccess.Module.FINANCIAL_REPORTS
+        )
         fuel_access = UserModuleAccess.objects.get(
             user=user, module=UserModuleAccess.Module.FUEL
         )
@@ -397,6 +406,9 @@ class UserAccessManagementTests(TestCase):
         self.assertTrue(document_access.can_read)
         self.assertTrue(document_access.can_update)
         self.assertFalse(document_access.can_delete)
+        self.assertTrue(finance_access.can_create)
+        self.assertTrue(finance_access.can_read)
+        self.assertFalse(finance_access.can_update)
         self.assertTrue(fuel_access.can_create)
         self.assertTrue(fuel_access.can_read)
         self.assertTrue(fuel_access.can_update)
@@ -1097,6 +1109,72 @@ class BusinessDocumentTests(TestCase):
         self.assertContains(list_page, document.document_number)
         self.assertContains(detail_page, "Proforma Invoice")
         self.assertContains(detail_page, "Kilembe Smelter")
+
+
+class FinancialReportTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="finance", password="MiningERP2026!"
+        )
+        UserModuleAccess.objects.create(
+            user=self.user,
+            module=UserModuleAccess.Module.FINANCIAL_REPORTS,
+            can_create=True,
+            can_read=True,
+        )
+        self.client.login(username="finance", password="MiningERP2026!")
+
+    def create_record(self, record_type, amount, description):
+        return FinancialRecord.objects.create(
+            record_type=record_type,
+            record_date=timezone.localdate(),
+            description=description,
+            amount=Decimal(amount),
+            recorded_by=self.user,
+        )
+
+    def test_financial_report_summarizes_cash_in_cash_out_and_loss(self):
+        self.create_record(
+            FinancialRecord.RecordType.CASH_IN, "1000.00", "Customer receipt"
+        )
+        self.create_record(
+            FinancialRecord.RecordType.CASH_OUT, "250.00", "Fuel expense"
+        )
+        self.create_record(
+            FinancialRecord.RecordType.LOSS, "75.00", "Damaged stock loss"
+        )
+
+        response = self.client.get("/finance/")
+
+        self.assertContains(response, "Cash movement report")
+        self.assertContains(response, "1000.00")
+        self.assertContains(response, "325.00")
+        self.assertContains(response, "75.00")
+        self.assertContains(response, "675.00")
+
+    def test_financial_record_create_records_expense_as_cash_out(self):
+        response = self.client.post(
+            "/finance/new/",
+            {
+                "record_type": FinancialRecord.RecordType.CASH_OUT,
+                "record_date": str(timezone.localdate()),
+                "description": "Road toll expense",
+                "reference": "TOLL-88",
+                "client": "",
+                "supplier": "",
+                "document": "",
+                "amount": "40.00",
+                "currency": "USD",
+                "notes": "Paid at checkpoint",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        record = FinancialRecord.objects.get()
+        self.assertTrue(record.record_number.startswith("FIN-"))
+        self.assertEqual(record.record_type, FinancialRecord.RecordType.CASH_OUT)
+        self.assertEqual(record.cash_out_amount, Decimal("40.00"))
+        self.assertEqual(record.cash_in_amount, Decimal("0"))
 
 
 class FuelManagementTests(TestCase):

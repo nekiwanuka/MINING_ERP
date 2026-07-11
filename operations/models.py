@@ -40,6 +40,10 @@ def commercial_document_number():
     return prefixed_number("DOC")
 
 
+def financial_record_number():
+    return prefixed_number("FIN")
+
+
 def fuel_batch_number():
     return prefixed_number("FB")
 
@@ -192,6 +196,7 @@ class UserModuleAccess(TimeStampedModel):
         TRANSPORT = "transport", "Transport"
         TRANSPORT_REPORTS = "transport_reports", "Transport Reports"
         COMMERCIAL_DOCUMENTS = "commercial_documents", "Business Documents"
+        FINANCIAL_REPORTS = "financial_reports", "Financial Reports"
         FUEL = "fuel", "Fuel Department"
         VISAS = "visas", "Visa Department"
 
@@ -494,6 +499,71 @@ class CommercialDocument(TimeStampedModel):
         if self.client:
             return self.client.name
         return self.client_name or "Unassigned client"
+
+
+class FinancialRecord(TimeStampedModel):
+    class RecordType(models.TextChoices):
+        CASH_IN = "cash_in", "Cash in"
+        CASH_OUT = "cash_out", "Cash out"
+        LOSS = "loss", "Loss"
+
+    record_number = models.CharField(
+        max_length=32,
+        unique=True,
+        default=financial_record_number,
+        editable=False,
+    )
+    record_type = models.CharField(max_length=24, choices=RecordType.choices)
+    record_date = models.DateField(default=timezone.localdate)
+    description = models.CharField(max_length=220)
+    reference = models.CharField(max_length=120, blank=True)
+    client = models.ForeignKey(
+        BusinessClient,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="financial_records",
+    )
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="financial_records",
+    )
+    document = models.ForeignKey(
+        CommercialDocument,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="financial_records",
+    )
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    currency = models.CharField(max_length=12, default="USD")
+    notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="financial_records",
+    )
+
+    class Meta:
+        ordering = ["-record_date", "-created_at"]
+
+    def __str__(self):
+        return self.record_number
+
+    @property
+    def cash_in_amount(self):
+        return (
+            self.amount if self.record_type == self.RecordType.CASH_IN else Decimal("0")
+        )
+
+    @property
+    def cash_out_amount(self):
+        if self.record_type in {self.RecordType.CASH_OUT, self.RecordType.LOSS}:
+            return self.amount
+        return Decimal("0")
 
 
 class FuelAsset(TimeStampedModel):

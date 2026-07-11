@@ -1,5 +1,5 @@
 from .access import ACTION_CREATE, ACTION_READ, has_module_access
-from .i18n import LANGUAGE_LABELS, normalize_language, translate
+from .i18n import LANGUAGE_LABELS, TRANSLATIONS, normalize_language, translate
 from .models import ApplicationSetting, UserModuleAccess
 
 
@@ -19,6 +19,7 @@ def module_access(request):
             for code, label in ApplicationSetting.Language.choices
         ],
         "active_language": active_language,
+        "ui_translations": TRANSLATIONS.get(active_language, {}),
         "t": lambda text: translate(text, active_language),
         "can_create_requisitions": has_module_access(
             user, UserModuleAccess.Module.REQUISITIONS, ACTION_CREATE
@@ -37,6 +38,9 @@ def module_access(request):
         ),
         "can_read_commercial_documents": has_module_access(
             user, UserModuleAccess.Module.COMMERCIAL_DOCUMENTS, ACTION_READ
+        ),
+        "can_read_financial_reports": has_module_access(
+            user, UserModuleAccess.Module.FINANCIAL_REPORTS, ACTION_READ
         ),
         "can_read_fuel": has_module_access(
             user, UserModuleAccess.Module.FUEL, ACTION_READ
