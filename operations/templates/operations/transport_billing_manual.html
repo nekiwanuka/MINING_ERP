@@ -1,0 +1,34 @@
+{% extends 'operations/base.html' %}
+{% block title %}Transport Billing Manual | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading form-page-heading">
+    <div>
+        <p class="eyebrow">Workflow Manual</p>
+        <h1>Shared vehicle customer billing</h1>
+        <p>Use this process when one transit carries cargo for more than one customer.</p>
+    </div>
+</section>
+
+<section class="panel narrow-panel centered-form-panel">
+    <div class="form-section"><h2>1. Create one transit record</h2></div>
+    <p class="muted-copy">Create a transport record for the vehicle trip. The system generates one unique transit number. All cargo, route points, fees, and invoices stay attached to that transit.</p>
+
+    <div class="form-section"><h2>2. Add customer cargo rows</h2></div>
+    <p class="muted-copy">For every customer sharing the vehicle, record the customer name, purchase order, cargo description, package details, weight or CBM, loading point, offloading point, and direct customer charges.</p>
+
+    <div class="form-section"><h2>3. Mark route sequence</h2></div>
+    <p class="muted-copy">Use loading sequence, offloading sequence, and fee route sequence to show when cargo is onboard. A fee at sequence 3 only applies to customers whose cargo has loaded by sequence 3 and has not offloaded before it.</p>
+
+    <div class="form-section"><h2>4. Add transit and government fees</h2></div>
+    <p class="muted-copy">Enter each border, toll, customs, duty, permit, tax, or checkpoint fee as a separate fee row. Include the place, sequence, reference, category, fee name, and amount.</p>
+
+    <div class="form-section"><h2>5. Generate customer invoices</h2></div>
+    <p class="muted-copy">Open the transport detail page and click Generate invoices. The system creates one draft invoice for each customer cargo row.</p>
+
+    <div class="form-section"><h2>6. How billing is calculated</h2></div>
+    <p class="muted-copy">Direct customer charges go fully to that customer. Shared fleet charges are allocated by chargeable units multiplied by billable distance. Transit and government fees are allocated only among customers onboard at the fee sequence.</p>
+
+    <div class="form-section"><h2>7. Review before sending</h2></div>
+    <p class="muted-copy">Open each generated invoice and confirm the line items. The invoice explains the direct charges, shared fleet allocation, and transit/government fees for that customer.</p>
+</section>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends 'operations/base.html' %}
+{% block title %}Procurement Workflow Manual | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading form-page-heading">
+    <div>
+        <p class="eyebrow">Workflow Manual</p>
+        <h1>Reviewed requisition to supplier purchase order</h1>
+        <p>Use this process when procurement needs to review, edit, split, and send purchase orders to suppliers.</p>
+    </div>
+</section>
+
+<section class="panel narrow-panel centered-form-panel">
+    <div class="form-section"><h2>1. Review the requester requisition</h2></div>
+    <p class="muted-copy">Open Procurement, then choose Review / edit. Confirm the requester's items, urgency, language, and pieces. Correct descriptions or item counts before accepting.</p>
+
+    <div class="form-section"><h2>2. Accept after review</h2></div>
+    <p class="muted-copy">Saving the review accepts the requisition and makes each item available for supplier purchase orders.</p>
+
+    <div class="form-section"><h2>3. Split by item type or quantity</h2></div>
+    <p class="muted-copy">For each item, click Split / Create PO. Enter the quantity to order now. Use the full remaining quantity for one supplier, or enter a smaller quantity to split the item across multiple suppliers.</p>
+
+    <div class="form-section"><h2>4. Create the supplier purchase order</h2></div>
+    <p class="muted-copy">Choose an existing supplier or type a new supplier name with contact, email, and phone. Confirm the item description, split quantity, amount, order date, send method, and supplier message.</p>
+
+    <div class="form-section"><h2>5. Send to supplier</h2></div>
+    <p class="muted-copy">Open the purchase order detail page. Use Send email when the supplier has email, Send WhatsApp when the supplier has a phone number, or Print PO for a hard copy.</p>
+
+    <div class="form-section"><h2>6. Continue until complete</h2></div>
+    <p class="muted-copy">If an item was split, repeat purchase order creation for the remaining quantity. Once every item quantity is fully ordered, the requisition becomes Purchased.</p>
+</section>
+{% endblock %}

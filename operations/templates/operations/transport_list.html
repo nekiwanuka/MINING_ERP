@@ -1,0 +1,53 @@
+{% extends 'operations/base.html' %}
+{% block title %}Transport | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Transport</p>
+        <h1>Transport records</h1>
+    </div>
+    <div class="button-row">
+        <a class="secondary-button" href="{% url 'transport_invoice_list' %}">Invoices</a>
+        <a class="secondary-button" href="{% url 'transport_billing_manual' %}">Billing manual</a>
+        <a class="primary-button" href="{% url 'transport_create' %}">New transport record</a>
+    </div>
+</section>
+
+<section class="panel list-filter-panel" aria-label="Search transport records">
+    <form method="get" class="list-filter-form">
+        <label class="list-filter-field"><span>Search</span><input type="search" name="q" value="{{ query }}" placeholder="Vehicle, transit, customer, supplier, route..."></label>
+        <label class="list-filter-field"><span>Date</span><input type="date" name="date" value="{{ date_value }}"></label>
+        <div class="list-filter-actions">
+            <button class="primary-button" type="submit">Search</button>
+            <a class="secondary-button" href="{% url 'transport_list' %}">Clear</a>
+        </div>
+    </form>
+    <p class="list-results-note">Showing up to 5 results{% if matching_count is not None %} from {{ matching_count }} matching records{% endif %}.</p>
+</section>
+
+<section class="panel">
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Number</th><th>Date</th><th>Vehicle</th><th>Transit</th><th>Customers</th><th>Purchase Orders</th><th>Transit Points</th><th>Suppliers</th><th>Destination</th><th>Total Cost</th></tr></thead>
+            <tbody>
+                {% for record in records %}
+                    <tr>
+                        <td><a href="{% url 'transport_detail' record.pk %}">{{ record.transport_number }}</a></td>
+                        <td>{{ record.date }}</td>
+                        <td>{{ record.vehicle }}</td>
+                        <td>{{ record.transit_number|default:'-' }}</td>
+                        <td>{{ record.customer_names_summary|default:'-' }}</td>
+                        <td>{{ record.purchase_orders_summary|default:'-' }}</td>
+                        <td>{{ record.transit_points_summary|default:'-' }}</td>
+                        <td>{{ record.supplier_names_summary|default:'-' }}</td>
+                        <td>{{ record.destination }}</td>
+                        <td>{{ record.total_cost|floatformat:2 }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="10" class="empty-cell">No transport records yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

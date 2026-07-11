@@ -1,0 +1,62 @@
+{% extends 'operations/base.html' %}
+{% block title %}Transport Invoices | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Transport</p>
+        <h1>Customer invoices</h1>
+    </div>
+    <div class="button-row">
+        <a class="secondary-button" href="{% url 'transport_list' %}">Transport records</a>
+        <a class="secondary-button" href="{% url 'transport_billing_manual' %}">Billing manual</a>
+    </div>
+</section>
+
+<section class="panel list-filter-panel" aria-label="Search transport invoices">
+    <form method="get" class="list-filter-form list-filter-form-wide">
+        <label class="list-filter-field"><span>Search</span><input type="search" name="q" value="{{ query }}" placeholder="Invoice, customer, transit, vehicle..."></label>
+        <label class="list-filter-field"><span>Status</span>
+            <select name="status">
+                <option value="all" {% if status == 'all' %}selected{% endif %}>All statuses</option>
+                {% for code, label in status_options %}<option value="{{ code }}" {% if status == code %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </label>
+        <label class="list-filter-field"><span>Date</span><input type="date" name="date" value="{{ date_value }}"></label>
+        <div class="list-filter-actions">
+            <button class="primary-button" type="submit">Search</button>
+            <a class="secondary-button" href="{% url 'transport_invoice_list' %}">Clear</a>
+        </div>
+    </form>
+    <p class="list-results-note">Showing up to 5 results{% if matching_count is not None %} from {{ matching_count }} matching invoices{% endif %}.</p>
+</section>
+
+<section class="panel">
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Invoice</th><th>Customer</th><th>Transit</th><th>Vehicle</th><th>Date</th><th>Status</th><th>Total</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for invoice in invoices %}
+                    <tr>
+                        <td><a href="{% url 'transport_invoice_detail' invoice.pk %}">{{ invoice.invoice_number }}</a></td>
+                        <td>{{ invoice.customer_name }}</td>
+                        <td><a href="{% url 'transport_detail' invoice.transport.pk %}">{{ invoice.transport.transit_number }}</a></td>
+                        <td>{{ invoice.transport.vehicle }}</td>
+                        <td>{{ invoice.invoice_date }}</td>
+                        <td><span class="status-pill">{{ invoice.get_status_display }}</span></td>
+                        <td>{{ invoice.total_amount|floatformat:2 }}</td>
+                        <td>
+                            <div class="table-actions">
+                                <a href="{% url 'transport_invoice_detail' invoice.pk %}">View</a>
+                                <a href="{% url 'transport_invoice_print' invoice.pk %}" target="_blank" rel="noopener">Print</a>
+                                <a href="{% url 'transport_invoice_download' invoice.pk %}">Download</a>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="8" class="empty-cell">No transport customer invoices generated yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

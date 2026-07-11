@@ -1,0 +1,27 @@
+{% extends 'operations/base.html' %}
+{% block title %}Application Setup | {{ app_setting.application_name }}{% endblock %}
+{% block content %}
+<section class="page-heading form-page-heading">
+    <div>
+        <p class="eyebrow">Setup</p>
+        <h1>{{ title }}</h1>
+        <p>Configure the web application name, logo, address, theme, and language options.</p>
+    </div>
+</section>
+
+<section class="panel narrow-panel centered-form-panel setup-panel">
+    {% if app_setting.logo %}
+        <div class="setup-logo-preview">
+            <img src="{{ app_setting.logo.url }}" alt="{{ app_setting.application_name }} logo">
+        </div>
+    {% endif %}
+    <form method="post" enctype="multipart/form-data" class="stacked-form">
+        {% csrf_token %}
+        {% include 'operations/partials/form_fields.html' with form=form %}
+        <div class="form-actions">
+            <a class="secondary-button" href="{% url 'dashboard' %}">Cancel</a>
+            <button class="primary-button" type="submit">Save setup</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

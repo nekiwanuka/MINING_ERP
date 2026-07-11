@@ -1,0 +1,95 @@
+{% extends 'operations/base.html' %}
+{% block title %}Fuel Batch Balances | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading fuel-heading">
+    <div>
+        <p class="eyebrow">Fuel Department</p>
+        <h1>Batch balances</h1>
+        <p>See every fuel batch, what came in, what has been issued, and what remains available.</p>
+    </div>
+    <div class="button-row">
+        <a class="secondary-button" href="{% url 'fuel_dashboard' %}">Fuel dashboard</a>
+        <a class="secondary-button" href="{% url 'fuel_batch_create' %}">Receive fuel</a>
+        <a class="primary-button" href="{% url 'fuel_issue_create' %}">Record refill</a>
+    </div>
+</section>
+
+<section class="fuel-summary-grid" aria-label="Fuel batch balance summary">
+    <article class="fuel-summary-card">
+        <span>Total received</span>
+        <strong>{{ total_received|floatformat:3 }} L</strong>
+    </article>
+    <article class="fuel-summary-card">
+        <span>Total issued</span>
+        <strong>{{ total_issued|floatformat:3 }} L</strong>
+    </article>
+    <article class="fuel-summary-card">
+        <span>Available balance</span>
+        <strong>{{ total_available|floatformat:3 }} L</strong>
+    </article>
+</section>
+
+<section class="panel list-filter-panel" aria-label="Search fuel batches">
+    <form method="get" class="list-filter-form list-filter-form-wide">
+        <label class="list-filter-field"><span>Search</span><input type="search" name="q" value="{{ query }}" placeholder="Batch, truck, notes..."></label>
+        <label class="list-filter-field"><span>Fuel type</span>
+            <select name="fuel_type">
+                <option value="all" {% if fuel_type == 'all' %}selected{% endif %}>All fuel</option>
+                {% for code, label in fuel_type_options %}<option value="{{ code }}" {% if fuel_type == code %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </label>
+        <label class="list-filter-field"><span>Storage</span>
+            <select name="storage">
+                <option value="all" {% if storage == 'all' %}selected{% endif %}>All storage</option>
+                {% for code, label in storage_options %}<option value="{{ code }}" {% if storage == code %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </label>
+        <div class="list-filter-actions">
+            <button class="primary-button" type="submit">Search</button>
+            <a class="secondary-button" href="{% url 'fuel_batch_balance' %}">Clear</a>
+        </div>
+    </form>
+    <p class="list-results-note">Showing up to 5 results{% if matching_count is not None %} from {{ matching_count }} matching batches{% endif %}.</p>
+</section>
+
+<section class="panel fuel-history-panel">
+    <div class="panel-header">
+        <h2>Stock by batch</h2>
+        <span>{{ batches|length }} batches</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Batch</th>
+                    <th>Fuel type</th>
+                    <th>Received date</th>
+                    <th>Truck / source</th>
+                    <th>Storage</th>
+                    <th>Containers</th>
+                    <th>Received</th>
+                    <th>Issued</th>
+                    <th>Available</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for batch in batches %}
+                    <tr>
+                        <td>{{ batch.batch_number }}</td>
+                        <td>{{ batch.get_fuel_type_display }}</td>
+                        <td>{{ batch.received_date }}</td>
+                        <td>{{ batch.source_truck|default:"-" }}</td>
+                        <td>{{ batch.get_storage_method_display }}</td>
+                        <td>{{ batch.container_count }}</td>
+                        <td>{{ batch.litres_received|floatformat:3 }} L</td>
+                        <td>{{ batch.issued_litres|floatformat:3 }} L</td>
+                        <td><strong class="fuel-balance-value">{{ batch.available_litres|floatformat:3 }} L</strong></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="9" class="empty-cell">No fuel batches have been received yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

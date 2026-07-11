@@ -1,0 +1,70 @@
+{% load operations_i18n %}
+<section class="panel printable-po-document">
+    <header class="po-letterhead">
+        <div class="po-brand-block">
+            {% if app_setting.logo %}
+                <img class="po-logo" src="{{ app_setting.logo.url }}" alt="{{ app_setting.application_name }} logo">
+            {% else %}
+                <span class="po-mark">{{ app_setting.application_name|slice:":2"|upper }}</span>
+            {% endif %}
+            <div>
+                <strong>{{ app_setting.application_name }}</strong>
+                {% if app_setting.address %}<address>{{ app_setting.address }}</address>{% endif %}
+            </div>
+        </div>
+        <div class="po-title-block">
+            <span>{{ 'Purchase Order'|tr:active_language }}</span>
+            <strong>{{ order.order_number }}</strong>
+            <small>{{ order.order_date }}</small>
+        </div>
+    </header>
+
+    <section class="po-document-grid">
+        <article class="po-document-card">
+            <span>{{ 'Supplier'|tr:active_language }}</span>
+            <strong>{{ order.supplier.name }}</strong>
+            <p>{{ order.supplier.contact_person|default:'-' }}</p>
+            <p>{{ order.supplier.email|default:'-' }}</p>
+            <p>{{ order.supplier.phone|default:'-' }}</p>
+        </article>
+        <article class="po-document-card">
+            <span>{{ 'Order Reference'|tr:active_language }}</span>
+            <dl class="po-compact-list">
+                <div><dt>{{ 'Requisition'|tr:active_language }}</dt><dd>{{ order.inquiry.requisition.requisition_number }}</dd></div>
+                <div><dt>{{ 'Prepared by'|tr:active_language }}</dt><dd>{{ order.created_by }}</dd></div>
+                <div><dt>{{ 'Delivery'|tr:active_language }}</dt><dd>{{ order.get_delivery_method_display }}</dd></div>
+                <div><dt>{{ 'Status'|tr:active_language }}</dt><dd>{{ order.get_status_display }}</dd></div>
+            </dl>
+        </article>
+    </section>
+
+    <div class="table-wrap compact po-line-table">
+        <table>
+            <thead><tr><th>{{ 'Description'|tr:active_language }}</th><th>{{ 'Quantity'|tr:active_language }}</th><th>{{ 'Amount'|tr:active_language }}</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td>{{ order.inquiry.description }}</td>
+                    <td>{{ order.inquiry.quantity|floatformat:2 }}</td>
+                    <td>{{ order.amount|floatformat:2 }}</td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr><th colspan="2">{{ 'Total'|tr:active_language }}</th><th>{{ order.amount|floatformat:2 }}</th></tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <section class="po-message-block">
+        <h3>{{ 'Supplier message'|tr:active_language }}</h3>
+        <pre class="message-preview">{{ message }}</pre>
+    </section>
+
+    <footer class="po-document-footer">
+        <div>
+            <span>{{ 'Authorized Signature'|tr:active_language }}</span>
+        </div>
+        <div>
+            <span>{{ 'Supplier Acknowledgement'|tr:active_language }}</span>
+        </div>
+    </footer>
+</section>

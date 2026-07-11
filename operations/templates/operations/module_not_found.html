@@ -1,0 +1,20 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Module Not Found | Mining ERP</title>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body class="error-body">
+    <main class="error-shell" role="main">
+        <section class="error-card">
+            <span class="error-code">404</span>
+            <h1>Module not found</h1>
+            <p>The address or module you requested is not available. Contact administrator for access or correction.</p>
+            <a class="primary-button" href="{% url 'dashboard' %}">Return to dashboard</a>
+        </section>
+    </main>
+</body>
+</html>

@@ -1,0 +1,188 @@
+{% extends 'operations/base.html' %}
+{% block title %}New Transport Record | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Transport</p>
+        <h1>New transport record</h1>
+    </div>
+</section>
+
+<form method="post" class="panel transport-form">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-error">{{ form.non_field_errors }}</div>{% endif %}
+
+    <div class="form-section item-section-header">
+        <div>
+            <h2>Cargo details and customer charges</h2>
+            <p>Record each customer sharing this vehicle, their cargo, and the charges for their items.</p>
+        </div>
+        <button class="secondary-button add-item-trigger" type="button" id="add-customer-order-button">Add customer cargo</button>
+    </div>
+    {{ order_formset.management_form }}
+    {% if order_formset.non_form_errors %}
+        <div class="alert alert-error">{{ order_formset.non_form_errors }}</div>
+    {% endif %}
+    <div class="item-form-list" data-customer-order-form-list>
+        {% for order_form in order_formset %}
+            <details class="item-accordion customer-order-accordion" {% if order_form.customer_name.value or order_form.purchase_order.value or order_form.cargo_description.value or order_form.errors %}open{% endif %}>
+                <summary>
+                    <span class="item-number">{{ forloop.counter }}</span>
+                    <span>Customer cargo {{ forloop.counter }}</span>
+                </summary>
+                <div class="item-form-row">
+                    {% include 'operations/partials/form_fields.html' with form=order_form %}
+                </div>
+            </details>
+        {% endfor %}
+    </div>
+    <template id="empty-customer-order-template">
+        <details class="item-accordion customer-order-accordion" open>
+            <summary>
+                <span class="item-number">__number__</span>
+                <span>Customer cargo __number__</span>
+            </summary>
+            <div class="item-form-row">
+                {% include 'operations/partials/form_fields.html' with form=order_formset.empty_form %}
+            </div>
+        </details>
+    </template>
+
+    <div class="form-section"><h2>Vehicle and driver details</h2></div>
+    <div class="form-grid">
+        <label class="field-block"><span>{{ form.date.label }}</span>{{ form.date }}{% for error in form.date.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.vehicle.label }}</span>{{ form.vehicle }}{% for error in form.vehicle.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.driver.label }}</span>{{ form.driver }}{% for error in form.driver.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.container_number.label }}</span>{{ form.container_number }}{% for error in form.container_number.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+    </div>
+
+    <div class="form-section"><h2>Route and shipment measurements</h2></div>
+    <div class="form-grid">
+        <label class="field-block"><span>{{ form.origin.label }}</span>{{ form.origin }}{% for error in form.origin.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.destination.label }}</span>{{ form.destination }}{% for error in form.destination.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.distance_km.label }}</span>{{ form.distance_km }}{% for error in form.distance_km.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.requisition.label }}</span>{{ form.requisition }}{% for error in form.requisition.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.supplier.label }}</span>{{ form.supplier }}{% for error in form.supplier.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.weight_tons.label }}</span>{{ form.weight_tons }}{% for error in form.weight_tons.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.length.label }}</span>{{ form.length }}{% for error in form.length.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.width.label }}</span>{{ form.width }}{% for error in form.width.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.height.label }}</span>{{ form.height }}{% for error in form.height.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.cbm_quantity.label }}</span>{{ form.cbm_quantity }}{% for error in form.cbm_quantity.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+    </div>
+
+    <div class="form-section"><h2>Shared fleet charges</h2></div>
+    <div class="form-grid">
+        <label class="field-block"><span>{{ form.freight.label }}</span>{{ form.freight }}{% for error in form.freight.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.fuel.label }}</span>{{ form.fuel }}{% for error in form.fuel.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.driver_allowance.label }}</span>{{ form.driver_allowance }}{% for error in form.driver_allowance.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.insurance.label }}</span>{{ form.insurance }}{% for error in form.insurance.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.escort_fees.label }}</span>{{ form.escort_fees }}{% for error in form.escort_fees.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.handling_charges.label }}</span>{{ form.handling_charges }}{% for error in form.handling_charges.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.loading.label }}</span>{{ form.loading }}{% for error in form.loading.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.offloading.label }}</span>{{ form.offloading }}{% for error in form.offloading.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.storage.label }}</span>{{ form.storage }}{% for error in form.storage.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.demurrage.label }}</span>{{ form.demurrage }}{% for error in form.demurrage.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.miscellaneous.label }}</span>{{ form.miscellaneous }}{% for error in form.miscellaneous.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+    </div>
+
+    <div class="form-section item-section-header">
+        <div>
+            <h2>Transit and government fees</h2>
+            <p>Add each border, toll gate, customs point, tax checkpoint, duty, permit, or other fee as its own row.</p>
+        </div>
+        <button class="secondary-button add-item-trigger" type="button" id="add-transit-point-button">Add fee row</button>
+    </div>
+    {{ transit_formset.management_form }}
+    {% if transit_formset.non_form_errors %}
+        <div class="alert alert-error">{{ transit_formset.non_form_errors }}</div>
+    {% endif %}
+    <div class="item-form-list" data-transit-point-form-list>
+        {% for transit_form in transit_formset %}
+            <details class="item-accordion transit-point-accordion" {% if transit_form.place_name.value or transit_form.reference_number.value or transit_form.errors %}open{% endif %}>
+                <summary>
+                    <span class="item-number">{{ forloop.counter }}</span>
+                    <span>Fee row {{ forloop.counter }}</span>
+                </summary>
+                <div class="item-form-row">
+                    {% include 'operations/partials/form_fields.html' with form=transit_form %}
+                </div>
+            </details>
+        {% endfor %}
+    </div>
+    <template id="empty-transit-point-template">
+        <details class="item-accordion transit-point-accordion" open>
+            <summary>
+                <span class="item-number">__number__</span>
+                <span>Fee row __number__</span>
+            </summary>
+            <div class="item-form-row">
+                {% include 'operations/partials/form_fields.html' with form=transit_formset.empty_form %}
+            </div>
+        </details>
+    </template>
+
+    <div class="form-actions">
+        <a class="secondary-button" href="{% url 'transport_list' %}">Cancel</a>
+        <button class="primary-button" type="submit">Create transport record</button>
+    </div>
+</form>
+<script>
+    function hasMeaningfulValue(item, selectors) {
+        return selectors.some((selector) => {
+            const field = item.querySelector(selector);
+            if (!field) return false;
+            const value = field.value.trim();
+            return value && value !== '0' && value !== '0.00' && value !== '0.000';
+        });
+    }
+
+    function setupDynamicFormset({ listSelector, buttonSelector, totalSelector, templateSelector, itemSelector, valueSelectors }) {
+        const list = document.querySelector(listSelector);
+        const button = document.querySelector(buttonSelector);
+        const totalForms = document.querySelector(totalSelector);
+        const template = document.querySelector(templateSelector);
+        if (!list || !button || !totalForms || !template) return;
+
+        document.querySelectorAll(itemSelector).forEach((item, index) => {
+            item.hidden = index > 0 && !hasMeaningfulValue(item, valueSelectors);
+        });
+
+        button.addEventListener('click', () => {
+            const hiddenItem = list.querySelector(`${itemSelector}[hidden]`);
+            if (hiddenItem) {
+                hiddenItem.hidden = false;
+                hiddenItem.open = true;
+                hiddenItem.querySelector('textarea, input, select')?.focus();
+                return;
+            }
+
+            const nextIndex = Number.parseInt(totalForms.value, 10);
+            const nextNumber = nextIndex + 1;
+            const markup = template.innerHTML
+                .replaceAll('__prefix__', nextIndex)
+                .replaceAll('__number__', nextNumber);
+            list.insertAdjacentHTML('beforeend', markup);
+            totalForms.value = nextNumber;
+            list.lastElementChild.querySelector('textarea, input, select')?.focus();
+        });
+    }
+
+    setupDynamicFormset({
+        listSelector: '[data-customer-order-form-list]',
+        buttonSelector: '#add-customer-order-button',
+        totalSelector: '#id_customer_orders-TOTAL_FORMS',
+        templateSelector: '#empty-customer-order-template',
+        itemSelector: '.customer-order-accordion',
+        valueSelectors: ['[name$="-customer_name"]', '[name$="-purchase_order"]', '[name$="-cargo_description"]', '[name$="-package_type"]', '[name$="-cargo_charge"]', '[name$="-handling_charge"]', '[name$="-loading_charge"]', '[name$="-offloading_charge"]', '[name$="-storage_charge"]', '[name$="-miscellaneous_charge"]'],
+    });
+
+    setupDynamicFormset({
+        listSelector: '[data-transit-point-form-list]',
+        buttonSelector: '#add-transit-point-button',
+        totalSelector: '#id_transit_points-TOTAL_FORMS',
+        templateSelector: '#empty-transit-point-template',
+        itemSelector: '.transit-point-accordion',
+        valueSelectors: ['[name$="-fee_name"]', '[name$="-place_name"]', '[name$="-reference_number"]', '[name$="-amount"]', '[name$="-notes"]'],
+    });
+</script>
+{% endblock %}

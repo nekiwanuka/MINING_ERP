@@ -1,0 +1,58 @@
+{% extends 'operations/base.html' %}
+{% block title %}User Access | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Administration</p>
+        <h1>User access</h1>
+    </div>
+    <a class="primary-button" href="{% url 'user_access_create' %}">Create user</a>
+</section>
+
+<section class="panel list-filter-panel" aria-label="Search users">
+    <form method="get" class="list-filter-form">
+        <label class="list-filter-field"><span>Search</span><input type="search" name="q" value="{{ query }}" placeholder="Username, email, module..."></label>
+        <label class="list-filter-field"><span>Status</span>
+            <select name="status">
+                <option value="all" {% if status == 'all' %}selected{% endif %}>All users</option>
+                <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+        </label>
+        <div class="list-filter-actions">
+            <button class="primary-button" type="submit">Search</button>
+            <a class="secondary-button" href="{% url 'user_access_list' %}">Clear</a>
+        </div>
+    </form>
+    <p class="list-results-note">Showing up to 5 results{% if matching_count is not None %} from {{ matching_count }} matching users{% endif %}.</p>
+</section>
+
+<section class="panel">
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>User</th><th>Email</th><th>Status</th><th>Module access</th><th></th></tr></thead>
+            <tbody>
+                {% for managed_user in managed_users %}
+                    <tr>
+                        <td><strong>{{ managed_user.username }}</strong></td>
+                        <td>{{ managed_user.email|default:'-' }}</td>
+                        <td>{% if managed_user.is_active %}<span class="status-pill">Active</span>{% else %}<span class="urgent-pill">Inactive</span>{% endif %}</td>
+                        <td>
+                            <div class="access-chip-list">
+                                {% for access in managed_user.module_access.all %}
+                                    <span class="access-chip">{{ access.get_module_display }}: {{ access.enabled_actions }}</span>
+                                {% empty %}
+                                    <span class="muted-copy">No module access</span>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td><a class="small-button" href="{% url 'user_access_edit' managed_user.pk %}">Edit</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5" class="empty-cell">No users found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

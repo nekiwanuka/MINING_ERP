@@ -1,0 +1,128 @@
+{% extends 'operations/base.html' %}
+{% block title %}Fuel Department | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading fuel-heading">
+    <div>
+        <p class="eyebrow">Fuel Department</p>
+        <h1>Fuel accountability</h1>
+        <p>Track fuel brought on site, storage batches, every refill, and the responsible driver or operator.</p>
+    </div>
+    <div class="button-row">
+        <a class="secondary-button" href="{% url 'fuel_asset_create' %}">New fleet / machine</a>
+        <a class="secondary-button" href="{% url 'fuel_batch_create' %}">Receive fuel</a>
+        <a class="primary-button" href="{% url 'fuel_issue_create' %}">Record refill</a>
+    </div>
+</section>
+
+<section class="fuel-summary-grid" aria-label="Fuel stock summary">
+    <article class="fuel-summary-card">
+        <span>Total received</span>
+        <strong>{{ total_received|floatformat:3 }} L</strong>
+    </article>
+    <article class="fuel-summary-card">
+        <span>Total issued</span>
+        <strong>{{ total_issued|floatformat:3 }} L</strong>
+    </article>
+    <article class="fuel-summary-card">
+        <span>Available stock</span>
+        <strong>{{ total_available|floatformat:3 }} L</strong>
+    </article>
+</section>
+
+<section class="fuel-grid">
+    <article class="panel fuel-panel">
+        <div class="panel-header">
+            <h2>Available fuel batches</h2>
+            <a href="{% url 'fuel_batch_create' %}">Receive fuel</a>
+        </div>
+        <div class="fuel-list">
+            {% for batch in batches %}
+                <div class="fuel-list-item">
+                    <div>
+                        <strong>{{ batch.batch_number }} &middot; {{ batch.get_fuel_type_display }}</strong>
+                        <span>{{ batch.get_storage_method_display }}{% if batch.container_count %} &middot; {{ batch.container_count }} containers{% endif %}{% if batch.source_truck %} &middot; {{ batch.source_truck }}{% endif %}</span>
+                    </div>
+                    <div class="fuel-litres">
+                        <span>Available</span>
+                        <strong>{{ batch.available_litres|floatformat:3 }} L</strong>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="empty-state">
+                    <strong>No fuel stock yet</strong>
+                    <span>Record fuel brought on site before field refills.</span>
+                </div>
+            {% endfor %}
+        </div>
+    </article>
+
+    <article class="panel fuel-panel">
+        <div class="panel-header">
+            <h2>Fleet / machines</h2>
+            <a href="{% url 'fuel_asset_create' %}">Add asset</a>
+        </div>
+        <div class="fuel-list">
+            {% for asset in assets %}
+                <div class="fuel-list-item">
+                    <div>
+                        <strong>{{ asset.name }}</strong>
+                        <span>{{ asset.get_asset_type_display }}{% if asset.mine_line_name %} &middot; {{ asset.mine_line_name }}{% endif %}{% if asset.responsible_person %} &middot; {{ asset.responsible_person }}{% endif %}</span>
+                    </div>
+                    <div class="fuel-litres">
+                        <span>Expected</span>
+                        <strong>{{ asset.expected_consumption_per_hour|floatformat:3 }} L/hr</strong>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="empty-state">
+                    <strong>No fleet registered</strong>
+                    <span>Add machines, cars, generators, or mine lines before issuing fuel.</span>
+                </div>
+            {% endfor %}
+        </div>
+    </article>
+</section>
+
+<section class="panel fuel-history-panel">
+    <div class="panel-header">
+        <h2>Recent refills</h2>
+        <a href="{% url 'fuel_issue_create' %}">Record refill</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Issue</th>
+                    <th>Date</th>
+                    <th>Batch</th>
+                    <th>Fleet / machine</th>
+                    <th>Driver / operator</th>
+                    <th>Location</th>
+                    <th>Before</th>
+                    <th>After</th>
+                    <th>Issued</th>
+                    <th>Variance</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for issue in issues %}
+                    <tr>
+                        <td>{{ issue.issue_number }}</td>
+                        <td>{{ issue.issue_date }}</td>
+                        <td>{{ issue.batch.batch_number }}</td>
+                        <td>{{ issue.asset.name }}</td>
+                        <td>{{ issue.driver_operator }}</td>
+                        <td>{{ issue.route_or_location|default:"-" }}</td>
+                        <td>{{ issue.fuel_before_refill|floatformat:3 }}</td>
+                        <td>{{ issue.fuel_after_refill|floatformat:3 }}</td>
+                        <td>{{ issue.litres_issued|floatformat:3 }} L</td>
+                        <td>{{ issue.variance_litres|floatformat:3 }} L</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="10" class="empty-cell">No refills recorded yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

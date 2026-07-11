@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{{ order.order_number }} | {{ app_setting.application_name }}</title>
+    <style>
+        body { margin: 0; padding: 32px; color: #14201b; font-family: Aptos, Candara, Calibri, sans-serif; background: #f4f1e8; }
+        .panel { width: min(920px, 100%); margin: 0 auto; padding: 28px; background: #fff; border: 1px solid #dbe2dd; border-radius: 8px; }
+        .po-letterhead { display: flex; justify-content: space-between; gap: 24px; padding-bottom: 22px; border-bottom: 2px solid #14201b; }
+        .po-brand-block { display: flex; gap: 14px; align-items: center; }
+        .po-logo { width: 62px; height: 62px; object-fit: contain; border: 1px solid #dbe2dd; border-radius: 8px; }
+        .po-mark { display: grid; place-items: center; width: 62px; height: 62px; border-radius: 8px; background: #14201b; color: #fff; font-weight: 900; }
+        .po-brand-block strong { display: block; font-size: 1.35rem; }
+        address { max-width: 360px; margin-top: 6px; color: #68736c; font-style: normal; line-height: 1.45; }
+        .po-title-block { text-align: right; display: grid; gap: 4px; }
+        .po-title-block span { color: #68736c; font-weight: 900; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.75rem; }
+        .po-title-block strong { font-size: 2rem; }
+        .po-title-block small { color: #68736c; font-weight: 800; }
+        .po-document-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 22px 0; }
+        .po-document-card { padding: 16px; border: 1px solid #dbe2dd; border-radius: 8px; background: #f9faf7; }
+        .po-document-card span, .po-message-block h3 { display: block; margin: 0 0 8px; color: #68736c; font-size: 0.78rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; }
+        .po-document-card strong { display: block; margin-bottom: 8px; font-size: 1.15rem; }
+        .po-document-card p { margin: 4px 0; color: #68736c; }
+        .po-compact-list { display: grid; gap: 8px; margin: 0; }
+        .po-compact-list div { display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px solid #dbe2dd; padding-bottom: 6px; }
+        .po-compact-list dt { color: #68736c; font-weight: 800; }
+        .po-compact-list dd { margin: 0; font-weight: 800; text-align: right; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid #dbe2dd; vertical-align: top; }
+        th { color: #68736c; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.78rem; }
+        tfoot th { color: #14201b; font-size: 1rem; }
+        .po-message-block { margin-top: 22px; padding: 16px; border: 1px solid #dbe2dd; border-radius: 8px; }
+        .message-preview { white-space: pre-wrap; margin: 0; font: inherit; font-weight: 700; line-height: 1.55; }
+        .po-document-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 34px; }
+        .po-document-footer div { height: 72px; border-top: 1px solid #14201b; display: flex; align-items: end; color: #68736c; font-weight: 800; }
+        @media print { body { padding: 0; background: #fff; } .panel { border: 0; } }
+    </style>
+</head>
+<body>
+    {% include 'operations/partials/purchase_order_document.html' %}
+</body>
+</html>

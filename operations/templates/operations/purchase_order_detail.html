@@ -1,0 +1,59 @@
+{% extends 'operations/base.html' %}
+{% load operations_i18n %}
+{% block title %}{{ order.order_number }} | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">{{ 'Purchase Order'|tr:active_language }}</p>
+        <h1>{{ order.order_number }}</h1>
+        <p>{{ order.supplier.name }} · {{ order.get_delivery_method_display }}</p>
+    </div>
+    <div class="button-row">
+        <a class="secondary-button" href="{% url 'procurement_dashboard' %}">{{ 'Back to procurement'|tr:active_language }}</a>
+        <a class="secondary-button" href="{% url 'purchase_order_download' order.pk %}?language={{ active_language }}">{{ 'Download PO'|tr:active_language }}</a>
+        <a class="primary-button" target="_blank" rel="noopener" href="{% url 'purchase_order_print' order.pk %}?language={{ active_language }}">{{ 'Print PO'|tr:active_language }}</a>
+    </div>
+</section>
+
+{% include 'operations/partials/purchase_order_document.html' %}
+
+<div class="po-screen-content">
+<section class="metric-grid">
+    <article class="metric-card"><span>{{ 'Amount'|tr:active_language }}</span><strong>{{ order.amount|floatformat:2 }}</strong></article>
+    <article class="metric-card"><span>{{ 'Quantity'|tr:active_language }}</span><strong>{{ order.inquiry.quantity|floatformat:2 }}</strong></article>
+    <article class="metric-card"><span>{{ 'Status'|tr:active_language }}</span><strong>{{ order.get_status_display }}</strong></article>
+    <article class="metric-card"><span>Sent by</span><strong>{{ order.get_delivery_method_display }}</strong></article>
+</section>
+
+<section class="two-column">
+    <article class="panel">
+        <div class="panel-header"><h2>{{ 'Supplier'|tr:active_language }}</h2></div>
+        <dl class="detail-list">
+            <div><dt>Name</dt><dd>{{ order.supplier.name }}</dd></div>
+            <div><dt>{{ 'Contact'|tr:active_language }}</dt><dd>{{ order.supplier.contact_person|default:'-' }}</dd></div>
+            <div><dt>{{ 'Email'|tr:active_language }}</dt><dd>{{ order.supplier.email|default:'-' }}</dd></div>
+            <div><dt>{{ 'Phone'|tr:active_language }}</dt><dd>{{ order.supplier.phone|default:'-' }}</dd></div>
+        </dl>
+        <div class="form-actions">
+            {% if email_url %}<a class="small-button" href="{{ email_url }}">Send email</a>{% endif %}
+            {% if whatsapp_url %}<a class="small-button" target="_blank" rel="noopener" href="{{ whatsapp_url }}">Send WhatsApp</a>{% endif %}
+        </div>
+    </article>
+    <article class="panel">
+        <div class="panel-header"><h2>{{ 'Order details'|tr:active_language }}</h2></div>
+        <dl class="detail-list">
+            <div><dt>{{ 'Requisition'|tr:active_language }}</dt><dd>{{ order.inquiry.requisition.requisition_number }}</dd></div>
+            <div><dt>{{ 'Item'|tr:active_language }}</dt><dd>{{ order.inquiry.description }}</dd></div>
+            <div><dt>{{ 'Order date'|tr:active_language }}</dt><dd>{{ order.order_date }}</dd></div>
+            <div><dt>{{ 'Prepared by'|tr:active_language }}</dt><dd>{{ order.created_by }}</dd></div>
+            <div><dt>{{ 'Prepared at'|tr:active_language }}</dt><dd>{{ order.sent_at|default:'-' }}</dd></div>
+        </dl>
+    </article>
+</section>
+
+<section class="panel printable-po">
+    <div class="panel-header"><h2>{{ 'Supplier message'|tr:active_language }}</h2></div>
+    <pre class="message-preview">{{ message }}</pre>
+</section>
+</div>
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends 'operations/base.html' %}
+{% block title %}Requisition Process | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Procurement</p>
+        <h1>Requisition process</h1>
+        <p>Search a requisition and trace its split supplier POs, uploaded invoices, and receipts.</p>
+    </div>
+    <a class="secondary-button" href="{% url 'procurement_dashboard' %}">Back to procurement</a>
+</section>
+
+<section class="panel process-search-panel">
+    <form method="get" class="search-form">
+        <label class="field-block">
+            <span>Search requisition, supplier, PO, invoice, or receipt</span>
+            <input class="field-control" type="search" name="q" value="{{ query }}" placeholder="REQ, PO, supplier, invoice, receipt">
+        </label>
+        <button class="primary-button" type="submit">Search</button>
+    </form>
+</section>
+
+<section class="process-list">
+    {% for requisition in requisitions %}
+        <article class="panel process-card">
+            <div class="panel-header">
+                <div>
+                    <h2>{{ requisition.requisition_number }}</h2>
+                    <p class="muted-copy">{{ requisition.requester }} · {{ requisition.total_pieces }} pieces · {{ requisition.get_status_display }}</p>
+                </div>
+                <span class="status-pill">{{ requisition.get_status_display }}</span>
+            </div>
+
+            <div class="process-summary-grid">
+                <div><span>Items</span><strong>{{ requisition.items.count }}</strong></div>
+                <div><span>Purchase inquiries</span><strong>{{ requisition.inquiries.count }}</strong></div>
+                <div><span>Requested</span><strong>{{ requisition.item_summary|truncatechars:80 }}</strong></div>
+            </div>
+
+            {% for item in requisition.items.all %}
+                <section class="process-item-block">
+                    <div class="process-item-heading">
+                        <strong>{{ item.description }}</strong>
+                        <span>{{ item.pieces }} pieces</span>
+                    </div>
+                    {% for inquiry in item.purchase_inquiries.all %}
+                        <div class="process-step-card">
+                            <div class="process-step-heading">
+                                <strong>{{ inquiry.inquiry_number }}</strong>
+                                <span>{{ inquiry.supplier.name }} · {{ inquiry.quantity|floatformat:2 }} pcs · {{ inquiry.get_status_display }}</span>
+                            </div>
+                            <div class="process-columns">
+                                <div>
+                                    <h3>Uploaded supplier invoices</h3>
+                                    {% for supplier_invoice in inquiry.supplier_invoices.all %}
+                                        <div class="process-line"><span>{{ supplier_invoice.invoice_number }}</span><strong>{{ supplier_invoice.amount|floatformat:2 }}</strong></div>
+                                    {% empty %}
+                                        <p class="empty-copy">No supplier invoices uploaded.</p>
+                                    {% endfor %}
+                                </div>
+                                <div>
+                                    <h3>Purchase orders and receipts</h3>
+                                    {% for order in inquiry.purchase_orders.all %}
+                                        <div class="process-line stacked-process-line">
+                                            <span><a href="{% url 'purchase_order_detail' order.pk %}">{{ order.order_number }}</a> · {{ order.supplier.name }}</span>
+                                            <strong>{{ order.amount|floatformat:2 }}</strong>
+                                        </div>
+                                        {% for receipt in order.receipts.all %}
+                                            <div class="process-subline">Receipt {{ receipt.receipt_number }} · {{ receipt.receipt_date }}</div>
+                                        {% empty %}
+                                            <div class="process-subline muted-copy">No receipt uploaded.</div>
+                                        {% endfor %}
+                                    {% empty %}
+                                        <p class="empty-copy">No purchase orders created.</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <p class="empty-copy">No supplier split or purchase order yet for this item.</p>
+                    {% endfor %}
+                </section>
+            {% empty %}
+                <section class="process-item-block">
+                    <p class="empty-copy">No item rows recorded for this requisition.</p>
+                </section>
+            {% endfor %}
+        </article>
+    {% empty %}
+        <section class="panel"><p class="empty-copy">No requisitions matched your search.</p></section>
+    {% endfor %}
+</section>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends 'operations/base.html' %}
+{% load static %}
+{% block title %}Dashboard | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Operations Control</p>
+        <h1>ERP dashboard</h1>
+    </div>
+    <a class="primary-button" href="{% url 'requisition_create' %}">New requisition</a>
+</section>
+
+<section class="metric-grid">
+    <article class="metric-card visual-metric-card">
+        <img class="dashboard-tile-image" src="{% static 'img/tiles/review.png' %}" alt="">
+        <div><span>Total requisitions</span><strong>{{ requisition_count }}</strong></div>
+    </article>
+    <article class="metric-card visual-metric-card">
+        <img class="dashboard-tile-image" src="{% static 'img/tiles/orders.png' %}" alt="">
+        <div><span>Awaiting procurement</span><strong>{{ submitted_count }}</strong></div>
+    </article>
+    <article class="metric-card visual-metric-card">
+        <img class="dashboard-tile-image" src="{% static 'img/tiles/invoices.png' %}" alt="">
+        <div><span>Purchase inquiries</span><strong>{{ inquiry_count }}</strong></div>
+    </article>
+    <article class="metric-card visual-metric-card">
+        <img class="dashboard-tile-image" src="{% static 'img/tiles/transport.png' %}" alt="">
+        <div><span>Transport records</span><strong>{{ transport_count }}</strong></div>
+    </article>
+</section>
+
+<section class="two-column">
+    <article class="panel">
+        <div class="panel-header">
+            <h2>Latest requisitions</h2>
+            <a href="{% url 'requisition_list' %}">View all</a>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Number</th><th>Requester</th><th>Pieces</th><th>Urgency</th><th>Status</th></tr></thead>
+                <tbody>
+                    {% for requisition in latest_requisitions %}
+                        <tr>
+                            <td>{{ requisition.requisition_number }}</td>
+                            <td>{{ requisition.requester }}</td>
+                            <td>{{ requisition.total_pieces }}</td>
+                            <td>{% if requisition.urgent %}<span class="urgent-pill">Urgent</span>{% else %}<span class="status-pill muted-pill">Normal</span>{% endif %}</td>
+                            <td><span class="status-pill">{{ requisition.get_status_display }}</span></td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="5" class="empty-cell">No requisitions yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+    <article class="panel">
+        <div class="panel-header">
+            <h2>Transport cost snapshot</h2>
+            <a href="{% url 'transport_reports' %}">Reports</a>
+        </div>
+        <div class="cost-focus">
+            <span>Latest shipment cost total</span>
+            <strong>{{ transport_total|floatformat:2 }}</strong>
+        </div>
+        <div class="table-wrap compact">
+            <table>
+                <thead><tr><th>Shipment</th><th>Destination</th><th>Cost</th></tr></thead>
+                <tbody>
+                    {% for record in latest_transport_records %}
+                        <tr>
+                            <td>{{ record.transport_number }}</td>
+                            <td>{{ record.destination }}</td>
+                            <td>{{ record.total_cost|floatformat:2 }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="3" class="empty-cell">No transport records yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+</section>
+{% endblock %}

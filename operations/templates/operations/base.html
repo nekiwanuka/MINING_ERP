@@ -1,0 +1,105 @@
+{% load static operations_i18n %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{{ app_setting.application_name }}{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body class="theme-{{ app_setting.theme }}" lang="{{ active_language }}">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <header class="app-header" role="banner">
+        <a class="brand" href="{% url 'dashboard' %}">
+            {% if app_setting.logo %}
+                <img class="brand-logo" src="{{ app_setting.logo.url }}" alt="{{ app_setting.application_name }} logo">
+            {% else %}
+                <span class="brand-mark">{{ app_setting.application_name|slice:":2"|upper }}</span>
+            {% endif %}
+            <span class="brand-copy">
+                <strong>{{ app_setting.application_name }}</strong>
+                {% if app_setting.address %}<small>{{ app_setting.address|truncatechars:44 }}</small>{% endif %}
+            </span>
+        </a>
+        <nav class="top-nav" aria-label="Primary navigation">
+            {% if can_read_requisitions %}<a href="{% url 'requisition_list' %}">{{ 'Requisitions'|tr:active_language }}</a>{% endif %}
+            {% if can_read_procurement %}
+                <details class="nav-group">
+                    <summary aria-label="Open procurement menu">{{ 'Procurement'|tr:active_language }}</summary>
+                    <span class="nav-submenu" aria-label="Procurement menu links">
+                        <a href="{% url 'procurement_dashboard' %}">{{ 'Dashboard'|tr:active_language }}</a>
+                        {% if can_read_requisitions %}<a href="{% url 'requisition_list' %}">Requisition history</a>{% endif %}
+                        <a href="{% url 'requisition_process_list' %}">Business process</a>
+                        <a href="{% url 'procurement_workflow_manual' %}">Workflow manual</a>
+                        <a href="{% url 'supplier_create' %}">New supplier</a>
+                    </span>
+                </details>
+            {% endif %}
+            {% if can_read_transport %}
+                <details class="nav-group">
+                    <summary aria-label="Open transport menu">{{ 'Transport'|tr:active_language }}</summary>
+                    <span class="nav-submenu" aria-label="Transport menu links">
+                        <a href="{% url 'transport_list' %}">Records</a>
+                        <a href="{% url 'transport_invoice_list' %}">Invoices</a>
+                        {% if can_read_transport_reports %}<a href="{% url 'transport_reports' %}">Reports</a>{% endif %}
+                        <a href="{% url 'transport_billing_manual' %}">{{ 'Billing manual'|tr:active_language }}</a>
+                    </span>
+                </details>
+            {% endif %}
+            {% if can_read_transport_reports and not can_read_transport %}<a href="{% url 'transport_reports' %}">Reports</a>{% endif %}
+            {% if can_read_fuel %}
+                <details class="nav-group">
+                    <summary aria-label="Open fuel menu">{{ 'Fuel'|tr:active_language }}</summary>
+                    <span class="nav-submenu" aria-label="Fuel menu links">
+                        <a href="{% url 'fuel_dashboard' %}">Dashboard</a>
+                        <a href="{% url 'fuel_batch_balance' %}">Batch balances</a>
+                        <a href="{% url 'fuel_issue_create' %}">Record refill</a>
+                        <a href="{% url 'fuel_batch_create' %}">Receive fuel</a>
+                        <a href="{% url 'fuel_asset_create' %}">New fleet / machine</a>
+                    </span>
+                </details>
+            {% endif %}
+            {% if can_read_visas %}
+                <details class="nav-group">
+                    <summary aria-label="Open visa menu">{{ 'Visas'|tr:active_language }}</summary>
+                    <span class="nav-submenu" aria-label="Visa menu links">
+                        <a href="{% url 'visa_dashboard' %}">Dashboard</a>
+                        <a href="{% url 'visa_alerts' %}">Expiry alerts</a>
+                        <a href="{% url 'expatriate_visa_create' %}">New visa record</a>
+                        <a href="{% url 'expatriate_create' %}">New expatriate</a>
+                        <a href="{% url 'visa_embassy_create' %}">New embassy</a>
+                    </span>
+                </details>
+            {% endif %}
+            {% if can_manage_users %}<a href="{% url 'user_access_list' %}">{{ 'User Access'|tr:active_language }}</a>{% endif %}
+            {% if can_manage_setup %}<a href="{% url 'application_setup' %}">{{ 'Setup'|tr:active_language }}</a>{% endif %}
+            {% if can_show_api %}<a href="/api/">API</a>{% endif %}
+        </nav>
+        {% if app_setting.enable_language_switcher %}
+            <form action="{% url 'language_change' %}" method="get" class="language-form" aria-label="{{ 'Change language'|tr:active_language }}">
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <select name="language" aria-label="{{ 'Language'|tr:active_language }}" onchange="this.form.submit()">
+                    {% for option in app_language_options %}
+                        <option value="{{ option.code }}" {% if option.code == active_language %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        {% endif %}
+        <form action="{% url 'logout' %}" method="post" class="logout-form">
+            {% csrf_token %}
+            <span class="current-user">{{ request.user.username }}</span>
+            <button type="submit">{{ 'Sign out'|tr:active_language }}</button>
+        </form>
+    </header>
+    <main id="main-content" class="page-shell" tabindex="-1">
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

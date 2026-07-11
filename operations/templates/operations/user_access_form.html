@@ -1,0 +1,46 @@
+{% extends 'operations/base.html' %}
+{% block title %}{{ title }} | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading requisition-heading">
+    <div>
+        <p class="eyebrow">Administration</p>
+        <h1>{{ title }}</h1>
+    </div>
+</section>
+
+<section class="panel centered-form-panel access-panel">
+    <form method="post" class="stacked-form">
+        {% csrf_token %}
+        <div class="form-section"><h2>User details</h2></div>
+        {% include 'operations/partials/form_fields.html' with form=user_form %}
+
+        <div class="form-section access-section-heading">
+            <h2>Module permissions</h2>
+            <p>Select exactly what this user can do in each department or feature.</p>
+        </div>
+        {{ access_formset.management_form }}
+        <div class="access-matrix">
+            <div class="access-matrix-head">
+                <span>Module</span><span>Create</span><span>Read</span><span>Update</span><span>Delete</span>
+            </div>
+            {% for row in access_rows %}
+                <div class="access-matrix-row">
+                    <div class="access-module-name">
+                        {{ row.form.module }}
+                        <strong>{{ row.label }}</strong>
+                    </div>
+                    <label><span>Create</span>{{ row.form.can_create }}</label>
+                    <label><span>Read</span>{{ row.form.can_read }}</label>
+                    <label><span>Update</span>{{ row.form.can_update }}</label>
+                    <label><span>Delete</span>{{ row.form.can_delete }}</label>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="form-actions">
+            <a class="secondary-button" href="{% url 'user_access_list' %}">Cancel</a>
+            <button class="primary-button" type="submit">Save access</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

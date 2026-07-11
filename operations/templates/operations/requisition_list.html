@@ -1,0 +1,118 @@
+{% extends 'operations/base.html' %}
+{% block title %}Requisitions | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading requisition-page-heading">
+    <div class="requisition-heading-copy">
+        <p class="eyebrow">Requisitions</p>
+        <h1>Requested items</h1>
+        <p>Find recent requests quickly, check their status, and open editable requisitions from one cleaner page.</p>
+    </div>
+    <div class="button-row">
+        {% if can_read_procurement %}<a class="secondary-button" href="{% url 'requisition_process_list' %}">Business process search</a>{% endif %}
+        {% if can_create_requisitions %}<a class="primary-button" href="{% url 'requisition_create' %}">New requisition</a>{% endif %}
+    </div>
+</section>
+
+<section class="requisition-summary-grid" aria-label="Requisition status summary">
+    <article class="requisition-summary-card">
+        <div><span>Total requests</span><strong>{{ total_count }}</strong></div>
+    </article>
+    <article class="requisition-summary-card">
+        <div><span>Submitted</span><strong>{{ submitted_count }}</strong></div>
+    </article>
+    <article class="requisition-summary-card">
+        <div><span>In progress</span><strong>{{ accepted_count }}</strong></div>
+    </article>
+    <article class="requisition-summary-card">
+        <div><span>Purchased</span><strong>{{ purchased_count }}</strong></div>
+    </article>
+</section>
+
+<section class="requisition-search-card" aria-label="Search requisitions">
+    <form method="get" class="requisition-search-form">
+        <label class="requisition-search-field" for="requisition-search">
+            <span>Search requisitions</span>
+            <input id="requisition-search" class="field-control" type="search" name="q" value="{{ query|default:'' }}" placeholder="Search number, item, requester, document, or keyword">
+        </label>
+        <label class="requisition-status-field" for="requisition-status">
+            <span>Status</span>
+            <select id="requisition-status" class="field-control" name="status">
+                <option value="all" {% if status == 'all' %}selected{% endif %}>All statuses</option>
+                {% for code, label in status_options %}
+                    <option value="{{ code }}" {% if status == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <div class="requisition-search-actions">
+            <button class="primary-button" type="submit">Search</button>
+            {% if query or status != 'all' %}<a class="secondary-button" href="{% url 'requisition_list' %}">Clear</a>{% endif %}
+        </div>
+    </form>
+    <p>Showing up to 20 recent requisitions. Use search for older requests by number, requester, item name, or keyword.</p>
+</section>
+
+<section class="requisition-card-list" aria-label="Requisition results">
+    {% for requisition in requisitions %}
+        <article class="requisition-result-card">
+            <div class="requisition-result-copy">
+                <div class="requisition-result-header">
+                    <div>
+                        <p class="eyebrow">{{ requisition.get_language_display }}</p>
+                        <h2>{{ requisition.requisition_number }}</h2>
+                    </div>
+                    <span class="status-pill">{{ requisition.display_status }}</span>
+                </div>
+                <p>{{ requisition.item_summary|truncatechars:180 }}</p>
+                <dl class="requisition-meta-list">
+                    <div><dt>Pieces</dt><dd>{{ requisition.total_pieces }}</dd></div>
+                    <div><dt>Requester</dt><dd>{{ requisition.requester }}</dd></div>
+                    <div><dt>Created</dt><dd>{{ requisition.created_at|date:"Y-m-d" }}</dd></div>
+                    <div><dt>Urgency</dt><dd>{% if requisition.urgent %}Urgent{% else %}Not urgent{% endif %}</dd></div>
+                </dl>
+            </div>
+            <div class="requisition-result-actions">
+                {% if requisition.can_edit_pending %}
+                    <a class="small-button" href="{% url 'requisition_edit' requisition.pk %}">Edit</a>
+                {% else %}
+                    <span class="status-pill muted-pill">Locked</span>
+                {% endif %}
+            </div>
+        </article>
+    {% empty %}
+        <div class="empty-state requisition-empty-state">
+            <strong>No requisitions found</strong>
+            <span>Try a different search term or status filter.</span>
+        </div>
+    {% endfor %}
+</section>
+
+<section class="panel requisition-table-panel">
+    <div class="panel-header">
+        <h2>Compact table view</h2>
+        <span>Same results</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>Number</th><th>Urgency</th><th>Items</th><th>Language</th><th>Pieces</th><th>Status</th><th>Requester</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+                {% for requisition in requisitions %}
+                    <tr>
+                        <td>{{ requisition.requisition_number }}</td>
+                        <td>{% if requisition.urgent %}<span class="urgent-pill">Urgent</span>{% else %}<span class="status-pill muted-pill">Not urgent</span>{% endif %}</td>
+                        <td>{{ requisition.item_summary|truncatechars:120 }}</td>
+                        <td>{{ requisition.get_language_display }}</td>
+                        <td>{{ requisition.total_pieces }}</td>
+                        <td><span class="status-pill">{{ requisition.display_status }}</span></td>
+                        <td>{{ requisition.requester }}</td>
+                        <td>{% if requisition.can_edit_pending %}<a class="small-button" href="{% url 'requisition_edit' requisition.pk %}">Edit</a>{% else %}<span class="muted-copy">Locked</span>{% endif %}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="8" class="empty-cell">No requisitions found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

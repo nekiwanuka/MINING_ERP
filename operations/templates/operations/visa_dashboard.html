@@ -1,0 +1,133 @@
+{% extends 'operations/base.html' %}
+{% block title %}Visa Department | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading fuel-heading">
+    <div>
+        <p class="eyebrow">Visa Department</p>
+        <h1>Expatriate visa control</h1>
+        <p>Track expatriate details, visa validity, embassies, renewal requirements, fees, and expiry reminders.</p>
+    </div>
+    <div class="button-row">
+        <a class="secondary-button" href="{% url 'expatriate_create' %}">New expatriate</a>
+        <a class="secondary-button" href="{% url 'visa_embassy_create' %}">New embassy</a>
+        <a class="primary-button" href="{% url 'expatriate_visa_create' %}">New visa record</a>
+    </div>
+</section>
+
+<section class="fuel-summary-grid visa-summary-grid" aria-label="Visa expiry summary">
+    <article class="fuel-summary-card visa-alert-expired"><span>Expired</span><strong>{{ expired_count }}</strong></article>
+    <article class="fuel-summary-card visa-alert-critical"><span>Due in 3 days</span><strong>{{ due_3_count }}</strong></article>
+    <article class="fuel-summary-card"><span>Due in 7 days</span><strong>{{ due_7_count }}</strong></article>
+    <article class="fuel-summary-card"><span>Due in 14 days</span><strong>{{ due_14_count }}</strong></article>
+    <article class="fuel-summary-card"><span>Due in 30 days</span><strong>{{ due_30_count }}</strong></article>
+</section>
+
+<section class="panel list-filter-panel" aria-label="Search visa records">
+    <form method="get" class="list-filter-form">
+        <label class="list-filter-field"><span>Search</span><input type="search" name="q" value="{{ query }}" placeholder="Name, passport, record, embassy..."></label>
+        <label class="list-filter-field"><span>Status</span>
+            <select name="status">
+                <option value="all" {% if status == 'all' %}selected{% endif %}>All statuses</option>
+                {% for code, label in status_options %}<option value="{{ code }}" {% if status == code %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </label>
+        <div class="list-filter-actions">
+            <button class="primary-button" type="submit">Search</button>
+            <a class="secondary-button" href="{% url 'visa_dashboard' %}">Clear</a>
+        </div>
+    </form>
+    <p class="list-results-note">Showing up to 5 results{% if matching_count is not None %} from {{ matching_count }} matching visa records{% endif %}.</p>
+</section>
+
+<section class="panel fuel-history-panel">
+    <div class="panel-header">
+        <h2>Visa validity register</h2>
+        <a href="{% url 'visa_alerts' %}">Expiry alerts</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Record</th>
+                    <th>Expatriate</th>
+                    <th>Nationality</th>
+                    <th>Passport</th>
+                    <th>Visa type</th>
+                    <th>Embassy</th>
+                    <th>Expiry</th>
+                    <th>Alert</th>
+                    <th>Status</th>
+                    <th>Reminder email</th>
+                    <th>Fee</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for visa in visas %}
+                    <tr>
+                        <td>{{ visa.record_number }}</td>
+                        <td>{{ visa.expatriate.full_name }}</td>
+                        <td>{{ visa.expatriate.nationality }}</td>
+                        <td>{{ visa.expatriate.passport_number }}</td>
+                        <td>{{ visa.get_visa_type_display }}</td>
+                        <td>{{ visa.embassy.name }}</td>
+                        <td>{{ visa.expiry_date }}</td>
+                        <td><strong class="visa-alert-chip">{{ visa.expiry_alert }}</strong></td>
+                        <td>{{ visa.get_renewal_status_display }}</td>
+                        <td>{{ visa.reminder_recipient|default:"-" }}</td>
+                        <td>{{ visa.fee_currency }} {{ visa.renewal_fee|floatformat:2 }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="11" class="empty-cell">No visa records yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="fuel-grid">
+    <article class="panel fuel-panel">
+        <div class="panel-header">
+            <h2>Recent expatriates</h2>
+            <a href="{% url 'expatriate_create' %}">Add expatriate</a>
+        </div>
+        <div class="fuel-list">
+            {% for expat in expats %}
+                <div class="fuel-list-item">
+                    <div>
+                        <strong>{{ expat.full_name }}</strong>
+                        <span>{{ expat.nationality }}{% if expat.job_title %} &middot; {{ expat.job_title }}{% endif %}{% if expat.department %} &middot; {{ expat.department }}{% endif %}</span>
+                    </div>
+                    <div class="fuel-litres">
+                        <span>Passport</span>
+                        <strong>{{ expat.passport_number }}</strong>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="empty-state"><strong>No expatriates yet</strong><span>Add expatriate details before recording visa validity.</span></div>
+            {% endfor %}
+        </div>
+    </article>
+    <article class="panel fuel-panel">
+        <div class="panel-header">
+            <h2>Embassies / authorities</h2>
+            <a href="{% url 'visa_embassy_create' %}">Add embassy</a>
+        </div>
+        <div class="fuel-list">
+            {% for embassy in embassies %}
+                <div class="fuel-list-item">
+                    <div>
+                        <strong>{{ embassy.name }}</strong>
+                        <span>{{ embassy.country }}{% if embassy.processing_days %} &middot; {{ embassy.processing_days }} processing days{% endif %}</span>
+                    </div>
+                    <div class="fuel-litres">
+                        <span>Standard fee</span>
+                        <strong>{{ embassy.currency }} {{ embassy.standard_fee|floatformat:2 }}</strong>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="empty-state"><strong>No embassies yet</strong><span>Add responsible embassies and renewal requirements.</span></div>
+            {% endfor %}
+        </div>
+    </article>
+</section>
+{% endblock %}

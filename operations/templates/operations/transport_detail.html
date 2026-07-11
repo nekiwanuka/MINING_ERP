@@ -1,0 +1,175 @@
+{% extends 'operations/base.html' %}
+{% block title %}{{ record.transport_number }} | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Transport Record</p>
+        <h1>{{ record.transport_number }}</h1>
+    </div>
+    <div class="button-row">
+        <a class="secondary-button" href="{% url 'transport_billing_manual' %}">Billing manual</a>
+        <a class="secondary-button" href="{% url 'transport_list' %}">Back to transport</a>
+    </div>
+</section>
+
+<section class="metric-grid">
+    <article class="metric-card"><span>Total cost</span><strong>{{ record.total_cost|floatformat:2 }}</strong></article>
+    <article class="metric-card"><span>Customer cargo charges</span><strong>{{ record.customer_charge_total|floatformat:2 }}</strong></article>
+    <article class="metric-card"><span>Transit point charges</span><strong>{{ record.transit_point_total|floatformat:2 }}</strong></article>
+    <article class="metric-card"><span>Shared charges</span><strong>{{ record.cost_total|floatformat:2 }}</strong></article>
+    <article class="metric-card"><span>CBM</span><strong>{{ record.cbm|floatformat:3 }}</strong></article>
+    <article class="metric-card"><span>Cost per ton</span><strong>{{ record.average_cost_per_ton|default:'-' }}</strong></article>
+</section>
+
+<section class="panel">
+    <div class="panel-header">
+        <h2>Customer invoices</h2>
+        <form method="post" action="{% url 'transport_invoices_generate' record.pk %}">
+            {% csrf_token %}
+            <button class="small-button" type="submit">Generate invoices</button>
+        </form>
+    </div>
+    <div class="table-wrap compact">
+        <table>
+            <thead><tr><th>Invoice</th><th>Customer</th><th>Status</th><th>Total</th><th>Date</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for invoice in record.customer_invoices.all %}
+                    <tr>
+                        <td><a href="{% url 'transport_invoice_detail' invoice.pk %}">{{ invoice.invoice_number }}</a></td>
+                        <td>{{ invoice.customer_name }}</td>
+                        <td>{{ invoice.get_status_display }}</td>
+                        <td>{{ invoice.total_amount|floatformat:2 }}</td>
+                        <td>{{ invoice.invoice_date }}</td>
+                        <td>
+                            <div class="table-actions">
+                                <a href="{% url 'transport_invoice_detail' invoice.pk %}">View</a>
+                                <a href="{% url 'transport_invoice_print' invoice.pk %}" target="_blank" rel="noopener">Print</a>
+                                <a href="{% url 'transport_invoice_download' invoice.pk %}">Download</a>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6" class="empty-cell">No customer invoices generated yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="two-column">
+    <article class="panel">
+        <div class="panel-header"><h2>Vehicle and driver</h2></div>
+        <dl class="detail-list">
+            <div><dt>Date</dt><dd>{{ record.date }}</dd></div>
+            <div><dt>Vehicle</dt><dd>{{ record.vehicle }}</dd></div>
+            <div><dt>Driver</dt><dd>{{ record.driver }}</dd></div>
+            <div><dt>Container</dt><dd>{{ record.container_number|default:'-' }}</dd></div>
+        </dl>
+    </article>
+    <article class="panel">
+        <div class="panel-header"><h2>Route and transit</h2></div>
+        <dl class="detail-list">
+            <div><dt>Transit</dt><dd>{{ record.transit_number|default:'-' }}</dd></div>
+            <div><dt>Transit points</dt><dd>{{ record.transit_points_summary|default:'-' }}</dd></div>
+            <div><dt>Customers</dt><dd>{{ record.customer_names_summary|default:'-' }}</dd></div>
+            <div><dt>Purchase orders</dt><dd>{{ record.purchase_orders_summary|default:'-' }}</dd></div>
+            <div><dt>Suppliers</dt><dd>{{ record.supplier_names_summary|default:'-' }}</dd></div>
+            <div><dt>Origin</dt><dd>{{ record.origin }}</dd></div>
+            <div><dt>Destination</dt><dd>{{ record.destination }}</dd></div>
+            <div><dt>Distance</dt><dd>{{ record.distance_km }} km</dd></div>
+        </dl>
+    </article>
+</section>
+
+<section class="panel">
+    <div class="panel-header"><h2>Cargo details and customer charges</h2></div>
+    <div class="table-wrap compact">
+        <table>
+            <thead><tr><th>Customer</th><th>Purchase Order</th><th>Cargo / Items</th><th>Packages</th><th>Weight</th><th>CBM</th><th>Charges</th></tr></thead>
+            <tbody>
+                {% for customer_order in record.customer_orders.all %}
+                    <tr>
+                        <td>{{ customer_order.customer_name|default:'Unnamed customer' }}</td>
+                        <td>{{ customer_order.purchase_order|default:'-' }}</td>
+                        <td>{{ customer_order.cargo_description|default:'-' }}</td>
+                        <td>{{ customer_order.pieces }} {{ customer_order.package_type|default:'pcs' }}</td>
+                        <td>{{ customer_order.weight_tons|floatformat:2 }}</td>
+                        <td>{{ customer_order.cargo_cbm|floatformat:3 }}</td>
+                        <td>{{ customer_order.charge_total|floatformat:2 }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7" class="empty-cell">No customer cargo rows linked.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-header"><h2>Transit and government fees</h2></div>
+    <div class="table-wrap compact">
+        <table>
+            <thead><tr><th>Point Type</th><th>Fee Category</th><th>Fee / Tax Name</th><th>Point / Place</th><th>Reference</th><th>Amount</th><th>Notes</th></tr></thead>
+            <tbody>
+                {% for transit_point in record.transit_points.all %}
+                    <tr>
+                        <td>{{ transit_point.get_point_type_display }}</td>
+                        <td>{{ transit_point.get_fee_category_display }}</td>
+                        <td>{{ transit_point.fee_name|default:'-' }}</td>
+                        <td>{{ transit_point.place_name }}</td>
+                        <td>{{ transit_point.reference_number|default:'-' }}</td>
+                        <td>{{ transit_point.total_amount|floatformat:2 }}</td>
+                        <td>{{ transit_point.notes|default:'-' }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7" class="empty-cell">No transit points recorded.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="two-column">
+    <article class="panel">
+        <div class="panel-header"><h2>Shared fleet charges</h2></div>
+        <dl class="detail-list">
+            <div><dt>Freight</dt><dd>{{ record.freight|floatformat:2 }}</dd></div>
+            <div><dt>Fuel</dt><dd>{{ record.fuel|floatformat:2 }}</dd></div>
+            <div><dt>Driver allowance</dt><dd>{{ record.driver_allowance|floatformat:2 }}</dd></div>
+            <div><dt>Cost total</dt><dd>{{ record.cost_total|floatformat:2 }}</dd></div>
+        </dl>
+    </article>
+    <article class="panel">
+        <div class="panel-header"><h2>Transit and government fee totals</h2></div>
+        <dl class="detail-list">
+            <div><dt>Recorded fee total</dt><dd>{{ record.transit_point_total|floatformat:2 }}</dd></div>
+            <div><dt>Other government charges</dt><dd>{{ record.custom_government_charges_total|floatformat:2 }}</dd></div>
+        </dl>
+    </article>
+</section>
+
+<section class="two-column">
+    <article class="panel">
+        <div class="panel-header"><h2>Custom government charges</h2></div>
+        {% for charge in record.custom_government_charges.all %}
+            <div class="work-item"><div><strong>{{ charge.name }}</strong></div><span>{{ charge.amount|floatformat:2 }}</span></div>
+        {% empty %}<p class="empty-copy">No custom government charges.</p>{% endfor %}
+        <form method="post" action="{% url 'transport_charge_add' record.pk %}" class="inline-form">
+            {% csrf_token %}
+            {% include 'operations/partials/form_fields.html' with form=charge_form %}
+            <button class="small-button" type="submit">Add charge</button>
+        </form>
+    </article>
+    <article class="panel">
+        <div class="panel-header"><h2>Attachments</h2></div>
+        {% for attachment in record.attachments.all %}
+            <div class="work-item"><div><strong>{{ attachment.get_document_type_display }}</strong></div><a href="{{ attachment.file.url }}">Open</a></div>
+        {% empty %}<p class="empty-copy">No attachments uploaded.</p>{% endfor %}
+        <form method="post" action="{% url 'transport_attachment_add' record.pk %}" enctype="multipart/form-data" class="inline-form">
+            {% csrf_token %}
+            {% include 'operations/partials/form_fields.html' with form=attachment_form %}
+            <button class="small-button" type="submit">Upload attachment</button>
+        </form>
+    </article>
+</section>
+{% endblock %}

@@ -1,0 +1,360 @@
+{% extends 'operations/base.html' %}
+{% load static %}
+{% block title %}Procurement | Mining ERP{% endblock %}
+{% block content %}
+{% with review_count=submitted_requisitions|length split_count=items_ready_for_inquiry|length invoice_count=inquiries_waiting_invoice|length order_count=inquiries_ready_for_order|length receipt_count=orders_waiting_receipts|length recent_count=recent_purchase_orders|length %}
+<section class="page-heading procurement-heading">
+    <div class="procurement-heading-copy">
+        <p class="eyebrow">Procurement</p>
+        <h1>Purchase workflow</h1>
+        <p>Work from left to right: review, split and order, collect invoices, follow up receipts, then confirm recent purchases.</p>
+    </div>
+    <div class="button-row">
+        <a class="secondary-button" href="{% url 'requisition_process_list' %}">Requisition process</a>
+        <a class="secondary-button" href="{% url 'procurement_workflow_manual' %}">Workflow manual</a>
+        <a class="primary-button" href="{% url 'supplier_create' %}">New supplier</a>
+    </div>
+</section>
+
+<section class="procurement-summary-grid" aria-label="Procurement workload summary">
+    <div class="procurement-summary-card">
+        <img class="procurement-card-image" src="{% static 'img/tiles/review.png' %}" alt="">
+        <div>
+            <span>Review requisitions</span>
+            <strong>{{ review_count }}</strong>
+        </div>
+    </div>
+    <div class="procurement-summary-card">
+        <img class="procurement-card-image" src="{% static 'img/tiles/orders.png' %}" alt="">
+        <div>
+            <span>Split / create POs</span>
+            <strong>{{ split_count }} + {{ order_count }}</strong>
+        </div>
+    </div>
+    <div class="procurement-summary-card">
+        <img class="procurement-card-image" src="{% static 'img/tiles/invoices.png' %}" alt="">
+        <div>
+            <span>Supplier invoices</span>
+            <strong>{{ invoice_count }}</strong>
+        </div>
+    </div>
+    <div class="procurement-summary-card">
+        <img class="procurement-card-image" src="{% static 'img/tiles/receipts.png' %}" alt="">
+        <div>
+            <span>PO receipts</span>
+            <strong>{{ receipt_count }}</strong>
+        </div>
+    </div>
+    <div class="procurement-summary-card">
+        <img class="procurement-card-image" src="{% static 'img/tiles/complete.png' %}" alt="">
+        <div>
+            <span>Purchases made</span>
+            <strong>{{ recent_count }}</strong>
+        </div>
+    </div>
+</section>
+
+<section class="procurement-search-card" aria-label="Universal procurement search">
+    <form method="get" class="procurement-search-form">
+        <label class="procurement-search-field" for="procurement-search">
+            <span><span class="inline-pos-icon" aria-hidden="true"><img src="{% static 'img/tiles/search.png' %}" alt=""></span>Universal procurement search</span>
+            <input id="procurement-search" class="field-control" type="search" name="q" value="{{ query|default:'' }}" placeholder="Search keyword, document number, supplier, requester, item, or name">
+        </label>
+        <label class="procurement-date-field" for="procurement-date">
+            <span>Date</span>
+            <input id="procurement-date" class="field-control" type="date" name="date" value="{{ date_value|default:'' }}">
+        </label>
+        <input type="hidden" name="phase" value="{{ phase }}">
+        <div class="procurement-search-actions">
+            <button class="primary-button" type="submit">Search</button>
+            {% if query or date_value or phase != 'all' %}
+                <a class="secondary-button" href="{% url 'procurement_dashboard' %}">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+    <p class="procurement-search-hint">Shows the 5 most recent results per section. Search by date, keyword, document number, supplier, requester, item, receipt, invoice, or name.</p>
+    {% if query or date_value %}
+        <div class="procurement-search-result">
+            Showing results{% if query %} matching: "{{ query }}"{% endif %}{% if date_value %} on {{ date_value }}{% endif %}
+        </div>
+    {% endif %}
+</section>
+
+<nav class="procurement-filter-card" aria-label="Procurement feature filters">
+    <a class="procurement-filter {% if phase == 'all' %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if date_value %}date={{ date_value|urlencode }}&{% endif %}phase=all"><span aria-hidden="true"><img src="{% static 'img/tiles/all.png' %}" alt=""></span>All</a>
+    <a class="procurement-filter {% if phase == 'review' %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if date_value %}date={{ date_value|urlencode }}&{% endif %}phase=review"><span aria-hidden="true"><img src="{% static 'img/tiles/review.png' %}" alt=""></span>Review</a>
+    <a class="procurement-filter {% if phase == 'orders' %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if date_value %}date={{ date_value|urlencode }}&{% endif %}phase=orders"><span aria-hidden="true"><img src="{% static 'img/tiles/orders.png' %}" alt=""></span>Split / POs</a>
+    <a class="procurement-filter {% if phase == 'invoices' %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if date_value %}date={{ date_value|urlencode }}&{% endif %}phase=invoices"><span aria-hidden="true"><img src="{% static 'img/tiles/invoices.png' %}" alt=""></span>Invoices</a>
+    <a class="procurement-filter {% if phase == 'receipts' %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if date_value %}date={{ date_value|urlencode }}&{% endif %}phase=receipts"><span aria-hidden="true"><img src="{% static 'img/tiles/receipts.png' %}" alt=""></span>Receipts</a>
+    <a class="procurement-filter {% if phase == 'complete' %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if date_value %}date={{ date_value|urlencode }}&{% endif %}phase=complete"><span aria-hidden="true"><img src="{% static 'img/tiles/complete.png' %}" alt=""></span>Purchases</a>
+</nav>
+
+<div class="procurement-accordion-toolbar">
+    <button class="secondary-button" type="button" id="expand-all-btn">Open All Sections</button>
+    <button class="secondary-button" type="button" id="collapse-all-btn">Close All Sections</button>
+</div>
+
+<section class="procurement-flow-accordions" aria-label="Procurement workflow phases">
+    {% if phase == 'all' or phase == 'review' %}
+    <details class="procurement-phase-accordion" open id="phase-accordion-1">
+        <summary>
+            <div class="procurement-phase-summary-content">
+                <span class="phase-step">1</span>
+                <img class="phase-image" src="{% static 'img/tiles/review.png' %}" alt="">
+                <div>
+                    <p class="eyebrow">Review requisitions</p>
+                    <h2>Check submitted requests</h2>
+                </div>
+            </div>
+            <span class="phase-count">{{ review_count }}</span>
+            <span class="accordion-arrow" role="button" tabindex="0" aria-label="Open or close Review requisitions" aria-expanded="true">&#9662;</span>
+        </summary>
+        <div class="procurement-phase-accordion-body">
+            <p class="phase-help" style="margin-bottom: 12px;">Approve or correct submitted requests before they move to supplier purchasing.</p>
+            {% for requisition in submitted_requisitions %}
+                <div class="work-item procurement-work-item">
+                    <div class="work-item-copy">
+                        <strong class="work-item-title">{{ requisition.requisition_number }} {% if requisition.urgent %}<span class="urgent-pill">Urgent</span>{% endif %}</strong>
+                        <span class="work-item-detail">{{ requisition.item_summary|truncatechars:110 }}</span>
+                    </div>
+                    <a class="small-button procurement-action" href="{% url 'procurement_requisition_review' requisition.pk %}">Review / edit</a>
+                </div>
+            {% empty %}
+                <div class="empty-state">
+                    <strong>No requisitions waiting for review</strong>
+                    <span>New submitted requisitions will appear here first.</span>
+                </div>
+            {% endfor %}
+        </div>
+    </details>
+    {% endif %}
+
+    {% if phase == 'all' or phase == 'orders' %}
+    <details class="procurement-phase-accordion" open id="phase-accordion-2">
+        <summary>
+            <div class="procurement-phase-summary-content">
+                <span class="phase-step">2</span>
+                <img class="phase-image" src="{% static 'img/tiles/orders.png' %}" alt="">
+                <div>
+                    <p class="eyebrow">Split / create POs</p>
+                    <h2>Prepare supplier orders</h2>
+                </div>
+            </div>
+            <span class="phase-count">{{ split_count }} / {{ order_count }}</span>
+            <span class="accordion-arrow" role="button" tabindex="0" aria-label="Open or close Split and purchase order section" aria-expanded="true">&#9662;</span>
+        </summary>
+        <div class="procurement-phase-accordion-body">
+            <p class="phase-help" style="margin-bottom: 12px;">Split requisition quantities across suppliers, then create POs once the invoice is loaded.</p>
+            <div class="procurement-subsection">
+                <div class="procurement-subheader">
+                    <h3>Items to split</h3>
+                    <span class="status-pill muted-pill">{{ split_count }}</span>
+                </div>
+            {% for item in items_ready_for_inquiry %}
+                <div class="work-item procurement-work-item stacked-work-item">
+                    <div class="work-item-copy">
+                        <strong class="work-item-title">{{ item.requisition.requisition_number }} {% if item.requisition.urgent %}<span class="urgent-pill">Urgent</span>{% endif %}</strong>
+                        <span class="work-item-detail">{{ item.description|truncatechars:96 }}</span>
+                        <span class="work-item-meta">{{ item.remaining_quantity }} of {{ item.pieces }} pieces remaining</span>
+                        <span class="supplier-chip-list">
+                            {% for inquiry in item.purchase_inquiries.all %}
+                                <span class="access-chip">{{ inquiry.quantity }} to {{ inquiry.supplier.name }}</span>
+                            {% empty %}
+                                <span class="muted-copy">Not sent to a supplier yet</span>
+                            {% endfor %}
+                        </span>
+                    </div>
+                    <a class="small-button procurement-action" href="{% url 'item_purchase_order_create' item.pk %}">Split / Create PO</a>
+                </div>
+            {% empty %}
+                <div class="empty-state compact-empty-state">
+                    <strong>No items need splitting</strong>
+                    <span>Accepted requisition items will appear here.</span>
+                </div>
+            {% endfor %}
+            </div>
+
+            <div class="procurement-subsection">
+                <div class="procurement-subheader">
+                    <h3>POs ready to create</h3>
+                    <span class="status-pill muted-pill">{{ order_count }}</span>
+                </div>
+            {% for inquiry in inquiries_ready_for_order %}
+                <div class="work-item procurement-work-item">
+                    <div class="work-item-copy">
+                        <strong class="work-item-title">{{ inquiry.inquiry_number }}</strong>
+                        <span class="work-item-detail">{{ inquiry.supplier.name }} &middot; {{ inquiry.description|truncatechars:70 }}</span>
+                    </div>
+                    <a class="small-button procurement-action" href="{% url 'purchase_order_create' inquiry.pk %}">Create PO</a>
+                </div>
+            {% empty %}
+                <div class="empty-state compact-empty-state">
+                    <strong>No invoice-backed POs yet</strong>
+                    <span>Loaded supplier invoices unlock PO creation.</span>
+                </div>
+            {% endfor %}
+            </div>
+        </div>
+    </details>
+    {% endif %}
+
+    {% if phase == 'all' or phase == 'invoices' %}
+    <details class="procurement-phase-accordion" open id="phase-accordion-3">
+        <summary>
+            <div class="procurement-phase-summary-content">
+                <span class="phase-step">3</span>
+                <img class="phase-image" src="{% static 'img/tiles/invoices.png' %}" alt="">
+                <div>
+                    <p class="eyebrow">Supplier invoices</p>
+                    <h2>Load invoices from suppliers</h2>
+                </div>
+            </div>
+            <span class="phase-count">{{ invoice_count }}</span>
+            <span class="accordion-arrow" role="button" tabindex="0" aria-label="Open or close Supplier invoices" aria-expanded="true">&#9662;</span>
+        </summary>
+        <div class="procurement-phase-accordion-body">
+            <p class="phase-help" style="margin-bottom: 12px;">Attach supplier invoices so the purchase order can be created from the approved inquiry.</p>
+            {% for inquiry in inquiries_waiting_invoice %}
+                <div class="work-item procurement-work-item">
+                    <div class="work-item-copy">
+                        <strong class="work-item-title">{{ inquiry.inquiry_number }}</strong>
+                        <span class="work-item-detail">{{ inquiry.supplier.name }} &middot; {{ inquiry.description|truncatechars:70 }}</span>
+                    </div>
+                    <a class="small-button procurement-action" href="{% url 'supplier_invoice_upload' inquiry.pk %}">Upload invoice</a>
+                </div>
+            {% empty %}
+                <div class="empty-state">
+                    <strong>No supplier invoices waiting</strong>
+                    <span>Sent supplier inquiries will appear here until their invoice is loaded.</span>
+                </div>
+            {% endfor %}
+        </div>
+    </details>
+    {% endif %}
+
+    {% if phase == 'all' or phase == 'receipts' %}
+    <details class="procurement-phase-accordion" open id="phase-accordion-4">
+        <summary>
+            <div class="procurement-phase-summary-content">
+                <span class="phase-step">4</span>
+                <img class="phase-image" src="{% static 'img/tiles/receipts.png' %}" alt="">
+                <div>
+                    <p class="eyebrow">PO follow-up / receipts</p>
+                    <h2>Upload purchase receipts</h2>
+                </div>
+            </div>
+            <span class="phase-count">{{ receipt_count }}</span>
+            <span class="accordion-arrow" role="button" tabindex="0" aria-label="Open or close Purchase receipts" aria-expanded="true">&#9662;</span>
+        </summary>
+        <div class="procurement-phase-accordion-body">
+            <p class="phase-help" style="margin-bottom: 12px;">Follow issued purchase orders until the proof of purchase is uploaded.</p>
+            {% for order in orders_waiting_receipts %}
+                <div class="work-item procurement-work-item">
+                    <div class="work-item-copy">
+                        <strong class="work-item-title">{{ order.order_number }}</strong>
+                        <span class="work-item-detail">{{ order.supplier.name }} &middot; {{ order.amount|floatformat:2 }}</span>
+                    </div>
+                    <a class="small-button procurement-action" href="{% url 'purchase_receipt_upload' order.pk %}">Upload receipt</a>
+                </div>
+            {% empty %}
+                <div class="empty-state">
+                    <strong>No receipts waiting</strong>
+                    <span>Issued purchase orders that need receipts will appear here.</span>
+                </div>
+            {% endfor %}
+        </div>
+    </details>
+    {% endif %}
+
+    {% if phase == 'all' or phase == 'complete' %}
+    <details class="procurement-phase-accordion" open id="phase-accordion-5">
+        <summary>
+            <div class="procurement-phase-summary-content">
+                <span class="phase-step">5</span>
+                <img class="phase-image" src="{% static 'img/tiles/complete.png' %}" alt="">
+                <div>
+                    <p class="eyebrow">Purchases made</p>
+                    <h2>Recent purchase orders</h2>
+                </div>
+            </div>
+            <span class="phase-count">{{ recent_count }}</span>
+            <span class="accordion-arrow" role="button" tabindex="0" aria-label="Open or close Recent purchase orders" aria-expanded="true">&#9662;</span>
+        </summary>
+        <div class="procurement-phase-accordion-body">
+            <p class="phase-help" style="margin-bottom: 12px;">Use these recent orders to confirm status and open the purchase order document.</p>
+            {% for order in recent_purchase_orders %}
+                <div class="work-item procurement-work-item procurement-complete-item">
+                    <div class="work-item-copy">
+                        <strong class="work-item-title"><a href="{% url 'purchase_order_detail' order.pk %}">{{ order.order_number }}</a></strong>
+                        <span class="work-item-detail">{{ order.supplier.name }} &middot; {{ order.inquiry.description|truncatechars:82 }}</span>
+                    </div>
+                    <span class="status-pill">{{ order.get_status_display }}</span>
+                </div>
+            {% empty %}
+                <div class="empty-state">
+                    <strong>No purchases made yet</strong>
+                    <span>Created purchase orders will be listed here for quick follow-up.</span>
+                </div>
+            {% endfor %}
+        </div>
+    </details>
+    {% endif %}
+</section>
+
+<script>
+    const accordions = document.querySelectorAll('.procurement-phase-accordion');
+    const expandBtn = document.getElementById('expand-all-btn');
+    const collapseBtn = document.getElementById('collapse-all-btn');
+
+    function setAccordionOpen(accordion, open) {
+        accordion.open = open;
+        const arrow = accordion.querySelector('.accordion-arrow');
+        if (arrow) {
+            arrow.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+    }
+
+    accordions.forEach(acc => {
+        const summary = acc.querySelector('summary');
+        const arrow = acc.querySelector('.accordion-arrow');
+        if (!summary || !arrow) return;
+
+        arrow.setAttribute('aria-expanded', acc.open ? 'true' : 'false');
+        summary.addEventListener('click', event => {
+            if (!event.target.closest('.accordion-arrow')) {
+                event.preventDefault();
+            }
+        });
+        arrow.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setAccordionOpen(acc, !acc.open);
+            }
+        });
+        arrow.addEventListener('click', () => {
+            setTimeout(() => setAccordionOpen(acc, acc.open), 0);
+        });
+    });
+
+    if (expandBtn && collapseBtn) {
+        expandBtn.addEventListener('click', () => {
+            accordions.forEach(acc => setAccordionOpen(acc, true));
+        });
+        collapseBtn.addEventListener('click', () => {
+            accordions.forEach(acc => setAccordionOpen(acc, false));
+        });
+    }
+
+    {% if query or date_value %}
+    accordions.forEach(acc => {
+        const emptyState = acc.querySelector('.empty-state');
+        if (emptyState) {
+            setAccordionOpen(acc, false);
+        } else {
+            setAccordionOpen(acc, true);
+        }
+    });
+    {% endif %}
+</script>
+{% endwith %}
+{% endblock %}

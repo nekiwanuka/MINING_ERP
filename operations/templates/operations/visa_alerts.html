@@ -1,0 +1,90 @@
+{% extends 'operations/base.html' %}
+{% block title %}Visa Expiry Alerts | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading fuel-heading">
+    <div>
+        <p class="eyebrow">Visa Department</p>
+        <h1>Expiry alerts</h1>
+        <p>Renewal reminders are grouped at 30 days, 14 days, 7 days, 3 days, and expired.</p>
+    </div>
+    <div class="button-row">
+        <a class="secondary-button" href="{% url 'visa_dashboard' %}">Visa dashboard</a>
+        <a class="primary-button" href="{% url 'expatriate_visa_create' %}">New visa record</a>
+    </div>
+</section>
+
+<section class="panel list-filter-panel" aria-label="Search visa alerts">
+    <form method="get" class="list-filter-form">
+        <label class="list-filter-field"><span>Search</span><input type="search" name="q" value="{{ query }}" placeholder="Name, passport, record, embassy..."></label>
+        <label class="list-filter-field"><span>Alert</span>
+            <select name="alert">
+                <option value="all" {% if alert == 'all' %}selected{% endif %}>All alerts</option>
+                {% for option in alert_options %}<option value="{{ option }}" {% if alert == option %}selected{% endif %}>{{ option }}</option>{% endfor %}
+            </select>
+        </label>
+        <div class="list-filter-actions">
+            <button class="primary-button" type="submit">Search</button>
+            <a class="secondary-button" href="{% url 'visa_alerts' %}">Clear</a>
+        </div>
+    </form>
+    <p class="list-results-note">Showing up to 5 results{% if matching_count is not None %} from {{ matching_count }} matching alerts{% endif %}.</p>
+</section>
+
+{% for label, visas in alert_groups.items %}
+    <section class="panel visa-alert-section">
+        <div class="panel-header">
+            <div>
+                <p class="eyebrow">Reminder group</p>
+                <h2>{{ label }}</h2>
+            </div>
+            <span class="visa-alert-count">{{ visas|length }} records</span>
+        </div>
+        <div class="visa-alert-card-grid">
+            {% for visa in visas %}
+                <article class="visa-alert-card">
+                    <div class="visa-alert-card-top">
+                        <div>
+                            <strong>{{ visa.expatriate.full_name }}</strong>
+                            <span>{{ visa.get_visa_type_display }} visa</span>
+                        </div>
+                        <span class="visa-alert-badge">{{ visa.expiry_alert }}</span>
+                    </div>
+
+                    <dl class="visa-alert-details">
+                        <div>
+                            <dt>Embassy</dt>
+                            <dd>{{ visa.embassy.name }}</dd>
+                        </div>
+                        <div>
+                            <dt>Expiry date</dt>
+                            <dd>{{ visa.expiry_date }}</dd>
+                        </div>
+                        <div>
+                            <dt>Days left</dt>
+                            <dd>{{ visa.days_until_expiry }}</dd>
+                        </div>
+                        <div>
+                            <dt>Renewal fee</dt>
+                            <dd>{{ visa.fee_currency }} {{ visa.renewal_fee|floatformat:2 }}</dd>
+                        </div>
+                    </dl>
+
+                    <div class="visa-alert-contact">
+                        <span>Reminder email</span>
+                        <strong>{{ visa.reminder_recipient|default:"Not set" }}</strong>
+                    </div>
+
+                    {% if visa.renewal_requirements %}
+                        <div class="visa-alert-requirements">
+                            <span>Renewal requirements</span>
+                            <p>{{ visa.renewal_requirements|truncatechars:180 }}</p>
+                        </div>
+                    {% endif %}
+                </article>
+            {% empty %}
+                <div class="empty-state"><strong>No records</strong><span>No visas in this reminder group.</span></div>
+            {% endfor %}
+        </div>
+    </section>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends 'operations/base.html' %}
+{% block title %}Transport Reports | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Reports</p>
+        <h1>Transport cost management</h1>
+    </div>
+    <a class="primary-button" href="{% url 'transport_create' %}">New transport record</a>
+</section>
+
+<section class="metric-grid">
+    <article class="metric-card"><span>Average cost per ton</span><strong>{{ average_cost_per_ton|default:'-' }}</strong></article>
+    <article class="metric-card"><span>Average cost per CBM</span><strong>{{ average_cost_per_cbm|default:'-' }}</strong></article>
+</section>
+
+<section class="report-grid">
+    {% include 'operations/partials/report_table.html' with title='Transport Cost Per Shipment' rows=cost_per_shipment %}
+    {% include 'operations/partials/report_table.html' with title='Transport Cost Per Supplier' rows=cost_per_supplier %}
+    {% include 'operations/partials/report_table.html' with title='Transport Cost Per Customer' rows=cost_per_customer %}
+    {% include 'operations/partials/report_table.html' with title='Cost by Destination' rows=cost_by_destination %}
+    {% include 'operations/partials/report_table.html' with title='Cost by Requisition' rows=cost_by_requisition %}
+    {% include 'operations/partials/report_table.html' with title='Cost by Transit Number' rows=cost_by_transit %}
+    {% include 'operations/partials/report_table.html' with title='Cost by Transit Point' rows=cost_by_transit_point %}
+</section>
+{% endblock %}
