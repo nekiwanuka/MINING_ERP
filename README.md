@@ -28,14 +28,19 @@ This project includes `build.sh` and `render.yaml` for Render.
 2. Open Render, choose **New + > Web Service**, and connect `nekiwanuka/MINING_ERP`.
 3. Use these settings if you create it manually:
 	- Build command: `bash build.sh`
-	- Start command: `gunicorn mining_erp.wsgi:application`
+	- Start command: `bash start.sh`
 	- Environment: Python
 4. Add environment variables:
 	- `DEBUG=false`
 	- `SECRET_KEY=` generate a secure random value in Render
 	- `ALLOWED_HOSTS=.onrender.com,localhost,127.0.0.1`
 	- `CSRF_TRUSTED_ORIGINS=https://YOUR-RENDER-SERVICE.onrender.com`
-5. After the first deploy, open Render Shell and create an admin user:
+	- `ADMIN_USERNAME=admin`
+	- `ADMIN_EMAIL=your-email@example.com`
+	- `ADMIN_PASSWORD=` generate a secure password in Render
+5. On deploy, `start.sh` runs migrations and creates/updates the admin user from those `ADMIN_*` variables. Use those credentials on the login page.
+
+If you have Render Shell access, you can also create an admin manually:
 
 ```bash
 python manage.py createsuperuser

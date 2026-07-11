@@ -1,1 +1,1 @@
-web: gunicorn mining_erp.wsgi:application
+web: bash start.sh
