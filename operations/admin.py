@@ -2,6 +2,8 @@ from django.contrib import admin
 
 from .models import (
     ApplicationSetting,
+    BusinessClient,
+    CommercialDocument,
     Expatriate,
     ExpatriateVisa,
     FuelAsset,
@@ -150,6 +152,35 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
 class PurchaseReceiptAdmin(admin.ModelAdmin):
     list_display = ("receipt_number", "purchase_order", "receipt_date")
     search_fields = ("receipt_number", "purchase_order__order_number")
+
+
+@admin.register(BusinessClient)
+class BusinessClientAdmin(admin.ModelAdmin):
+    list_display = ("name", "country", "email", "phone")
+    search_fields = ("name", "country", "email", "phone")
+
+
+@admin.register(CommercialDocument)
+class CommercialDocumentAdmin(admin.ModelAdmin):
+    list_display = (
+        "document_number",
+        "document_type",
+        "display_client",
+        "status",
+        "document_date",
+        "amount",
+    )
+    list_filter = ("document_type", "status", "document_date")
+    search_fields = (
+        "document_number",
+        "title",
+        "client__name",
+        "client_name",
+        "business_reference",
+        "transport__transit_number",
+        "purchase_order__order_number",
+        "requisition__requisition_number",
+    )
 
 
 @admin.register(FuelAsset)

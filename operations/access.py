@@ -30,8 +30,10 @@ PROCUREMENT_MODULES = {
 TRANSPORT_MODULES = {
     UserModuleAccess.Module.TRANSPORT,
     UserModuleAccess.Module.TRANSPORT_REPORTS,
+    UserModuleAccess.Module.COMMERCIAL_DOCUMENTS,
 }
 
+COMMERCIAL_DOCUMENT_MODULES = {UserModuleAccess.Module.COMMERCIAL_DOCUMENTS}
 FUEL_MODULES = {UserModuleAccess.Module.FUEL}
 VISA_MODULES = {UserModuleAccess.Module.VISAS}
 
@@ -63,6 +65,8 @@ def has_module_access(user, module, action):
         return action in {ACTION_CREATE, ACTION_READ}
     if PROCUREMENT_GROUP in group_names:
         if module in PROCUREMENT_MODULES:
+            return True
+        if module in COMMERCIAL_DOCUMENT_MODULES:
             return True
         if module == UserModuleAccess.Module.REQUISITIONS:
             return action in {ACTION_READ, ACTION_UPDATE}

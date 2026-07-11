@@ -35,6 +35,9 @@ def module_access(request):
         "can_read_transport_reports": has_module_access(
             user, UserModuleAccess.Module.TRANSPORT_REPORTS, ACTION_READ
         ),
+        "can_read_commercial_documents": has_module_access(
+            user, UserModuleAccess.Module.COMMERCIAL_DOCUMENTS, ACTION_READ
+        ),
         "can_read_fuel": has_module_access(
             user, UserModuleAccess.Module.FUEL, ACTION_READ
         ),

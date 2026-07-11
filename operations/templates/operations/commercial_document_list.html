@@ -1,0 +1,58 @@
+{% extends 'operations/base.html' %}
+{% block title %}Business Documents | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Business Documents</p>
+        <h1>Document register</h1>
+        <p>Track client documents and link them to transits, purchase orders, requisitions, suppliers, or any other business reference.</p>
+    </div>
+    <div class="button-row">
+        <a class="secondary-button" href="{% url 'business_client_create' %}">New client</a>
+        <a class="primary-button" href="{% url 'commercial_document_create' %}">New document</a>
+    </div>
+</section>
+
+<section class="panel">
+    <form method="get" class="list-filter-form list-filter-form-wide">
+        <label>Search
+            <input class="field-control" type="search" name="q" value="{{ query }}" placeholder="Client, document, transit, PO, requisition, reference">
+        </label>
+        <label>Type
+            <select class="field-control" name="type">
+                <option value="all" {% if document_type == 'all' %}selected{% endif %}>All document types</option>
+                {% for value, label in document_types %}
+                    <option value="{{ value }}" {% if document_type == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <div class="list-filter-actions">
+            <button class="small-button" type="submit">Filter</button>
+            <a class="secondary-button" href="{% url 'commercial_document_list' %}">Reset</a>
+        </div>
+    </form>
+    <p class="empty-copy">Showing up to 5 of {{ matching_count }} matching document(s).</p>
+    <div class="table-wrap compact">
+        <table>
+            <thead><tr><th>Document</th><th>Type</th><th>Client</th><th>Reference</th><th>Status</th><th>Amount</th><th>Date</th></tr></thead>
+            <tbody>
+                {% for document in documents %}
+                    <tr>
+                        <td><a href="{% url 'commercial_document_detail' document.pk %}">{{ document.document_number }}</a><br><small>{{ document.title }}</small></td>
+                        <td>{{ document.get_document_type_display }}</td>
+                        <td>{{ document.display_client }}</td>
+                        <td>
+                            {% if document.transport %}Transit {{ document.transport.transit_number }}{% elif document.purchase_order %}PO {{ document.purchase_order.order_number }}{% elif document.requisition %}REQ {{ document.requisition.requisition_number }}{% else %}{{ document.business_reference|default:'-' }}{% endif %}
+                        </td>
+                        <td>{{ document.get_status_display }}</td>
+                        <td>{{ document.currency }} {{ document.amount|floatformat:2 }}</td>
+                        <td>{{ document.document_date }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7" class="empty-cell">No business documents yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

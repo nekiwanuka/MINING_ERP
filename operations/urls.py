@@ -128,6 +128,11 @@ urlpatterns = [
         name="transport_invoices_generate",
     ),
     path(
+        "transport/<int:pk>/delivery-note/new/",
+        views.transport_delivery_note_create,
+        name="transport_delivery_note_create",
+    ),
+    path(
         "transport/invoices/",
         views.transport_invoice_list,
         name="transport_invoice_list",
@@ -158,6 +163,22 @@ urlpatterns = [
         name="transport_charge_add",
     ),
     path("transport/reports/", views.transport_reports, name="transport_reports"),
+    path("documents/", views.commercial_document_list, name="commercial_document_list"),
+    path(
+        "documents/new/",
+        views.commercial_document_create,
+        name="commercial_document_create",
+    ),
+    path(
+        "documents/<int:pk>/",
+        views.commercial_document_detail,
+        name="commercial_document_detail",
+    ),
+    path(
+        "documents/clients/new/",
+        views.business_client_create,
+        name="business_client_create",
+    ),
     path("fuel/", views.fuel_dashboard, name="fuel_dashboard"),
     path("fuel/batches/", views.fuel_batch_balance, name="fuel_batch_balance"),
     path("fuel/assets/new/", views.fuel_asset_create, name="fuel_asset_create"),

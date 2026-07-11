@@ -8,6 +8,7 @@
     </div>
     <div class="button-row">
         <a class="secondary-button" href="{% url 'transport_billing_manual' %}">Billing manual</a>
+        <a class="secondary-button" href="{% url 'transport_delivery_note_create' record.pk %}">Delivery note</a>
         <a class="secondary-button" href="{% url 'transport_list' %}">Back to transport</a>
     </div>
 </section>

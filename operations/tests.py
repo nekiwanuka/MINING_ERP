@@ -13,6 +13,8 @@ from rest_framework.test import APIClient
 
 from .models import (
     ApplicationSetting,
+    BusinessClient,
+    CommercialDocument,
     Expatriate,
     ExpatriateVisa,
     FuelAsset,
@@ -336,6 +338,7 @@ class UserAccessManagementTests(TestCase):
 
         self.assertContains(form_page, "Fuel Department")
         self.assertContains(form_page, "Visa Department")
+        self.assertContains(form_page, "Business Documents")
 
         response = self.client.post(
             "/access/users/new/",
@@ -360,6 +363,11 @@ class UserAccessManagementTests(TestCase):
                         "update",
                         "delete",
                     },
+                    UserModuleAccess.Module.COMMERCIAL_DOCUMENTS: {
+                        "create",
+                        "read",
+                        "update",
+                    },
                 }
             ),
         )
@@ -372,6 +380,9 @@ class UserAccessManagementTests(TestCase):
         transport_access = UserModuleAccess.objects.get(
             user=user, module=UserModuleAccess.Module.TRANSPORT
         )
+        document_access = UserModuleAccess.objects.get(
+            user=user, module=UserModuleAccess.Module.COMMERCIAL_DOCUMENTS
+        )
         fuel_access = UserModuleAccess.objects.get(
             user=user, module=UserModuleAccess.Module.FUEL
         )
@@ -382,6 +393,10 @@ class UserAccessManagementTests(TestCase):
         self.assertTrue(requisition_access.can_read)
         self.assertFalse(requisition_access.can_update)
         self.assertTrue(transport_access.can_delete)
+        self.assertTrue(document_access.can_create)
+        self.assertTrue(document_access.can_read)
+        self.assertTrue(document_access.can_update)
+        self.assertFalse(document_access.can_delete)
         self.assertTrue(fuel_access.can_create)
         self.assertTrue(fuel_access.can_read)
         self.assertTrue(fuel_access.can_update)
@@ -950,6 +965,138 @@ class TransportCalculationTests(TestCase):
         self.assertEqual(second_order.status, PurchaseOrder.Status.LOADED_FOR_TRANSPORT)
         self.assertEqual(first_requisition.status, Requisition.Status.IN_TRANSPORT)
         self.assertEqual(second_requisition.status, Requisition.Status.IN_TRANSPORT)
+
+    def test_transport_delivery_note_creates_business_document(self):
+        order, requisition = self.create_purchase_order(
+            "delivery-client", "Mine Logistics", "Replacement conveyor"
+        )
+        record = TransportRecord.objects.create(
+            date=timezone.localdate(),
+            vehicle="TRK-88",
+            driver="Daniel O.",
+            requisition=requisition,
+            purchase_order=order,
+            supplier=order.supplier,
+            origin="Supplier Yard",
+            destination="Mine Store",
+            distance_km=Decimal("120.00"),
+            freight=Decimal("250.00"),
+            created_by=self.user,
+        )
+        record.customer_orders.create(
+            customer_name="Kasese Minerals",
+            purchase_order=order,
+            cargo_description="Replacement conveyor",
+            loading_point="Supplier Yard",
+            offloading_point="Mine Store",
+            loading_sequence=1,
+            offloading_sequence=1,
+            pieces=1,
+        )
+        for module in [
+            UserModuleAccess.Module.TRANSPORT,
+            UserModuleAccess.Module.COMMERCIAL_DOCUMENTS,
+        ]:
+            UserModuleAccess.objects.create(
+                user=self.user,
+                module=module,
+                can_create=True,
+                can_read=True,
+            )
+        self.client.login(username="transport", password="MiningERP2026!")
+
+        page = self.client.get(f"/transport/{record.pk}/")
+        create_page = self.client.get(f"/transport/{record.pk}/delivery-note/new/")
+        response = self.client.post(
+            f"/transport/{record.pk}/delivery-note/new/",
+            {
+                "document_type": CommercialDocument.DocumentType.DELIVERY_NOTE,
+                "status": CommercialDocument.Status.ISSUED,
+                "title": "Delivery note for conveyor",
+                "client": "",
+                "new_client_name": "Kasese Minerals",
+                "new_client_contact": "Store Manager",
+                "new_client_email": "store@example.com",
+                "new_client_phone": "+256700000001",
+                "requisition": str(requisition.pk),
+                "purchase_order": str(order.pk),
+                "transport": str(record.pk),
+                "transport_invoice": "",
+                "supplier": str(order.supplier.pk),
+                "business_reference": record.transit_number,
+                "document_date": str(timezone.localdate()),
+                "due_date": "",
+                "currency": "USD",
+                "amount": "0.00",
+                "description": "Replacement conveyor delivered",
+                "notes": "Signed on arrival",
+            },
+        )
+
+        self.assertContains(page, "Delivery note")
+        self.assertContains(create_page, record.transit_number)
+        self.assertEqual(response.status_code, 302)
+        document = CommercialDocument.objects.get()
+        self.assertEqual(
+            document.document_type, CommercialDocument.DocumentType.DELIVERY_NOTE
+        )
+        self.assertEqual(document.transport, record)
+        self.assertEqual(document.purchase_order, order)
+        self.assertEqual(document.requisition, requisition)
+        self.assertEqual(document.display_client, "Kasese Minerals")
+        self.assertTrue(BusinessClient.objects.filter(name="Kasese Minerals").exists())
+
+
+class BusinessDocumentTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="documents", password="MiningERP2026!"
+        )
+        UserModuleAccess.objects.create(
+            user=self.user,
+            module=UserModuleAccess.Module.COMMERCIAL_DOCUMENTS,
+            can_create=True,
+            can_read=True,
+        )
+        self.client.login(username="documents", password="MiningERP2026!")
+
+    def test_manual_client_document_can_be_created_and_searched(self):
+        response = self.client.post(
+            "/documents/new/",
+            {
+                "document_type": CommercialDocument.DocumentType.PROFORMA_INVOICE,
+                "status": CommercialDocument.Status.ISSUED,
+                "title": "Proforma invoice for drilling services",
+                "client": "",
+                "new_client_name": "Kilembe Smelter",
+                "new_client_contact": "Accounts",
+                "new_client_email": "accounts@example.com",
+                "new_client_phone": "+256700000002",
+                "requisition": "",
+                "purchase_order": "",
+                "transport": "",
+                "transport_invoice": "",
+                "supplier": "",
+                "business_reference": "JOB-445",
+                "document_date": str(timezone.localdate()),
+                "due_date": "",
+                "currency": "USD",
+                "amount": "1500.00",
+                "description": "Advance billing",
+                "notes": "Pay before dispatch",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        document = CommercialDocument.objects.get()
+        self.assertTrue(document.document_number.startswith("DOC-"))
+        self.assertEqual(document.display_client, "Kilembe Smelter")
+        self.assertEqual(document.business_reference, "JOB-445")
+        list_page = self.client.get("/documents/?q=JOB-445")
+        detail_page = self.client.get(f"/documents/{document.pk}/")
+        self.assertContains(list_page, document.document_number)
+        self.assertContains(detail_page, "Proforma Invoice")
+        self.assertContains(detail_page, "Kilembe Smelter")
 
 
 class FuelManagementTests(TestCase):

@@ -47,6 +47,8 @@ from .access import (
 )
 from .forms import (
     ApplicationSettingForm,
+    BusinessClientForm,
+    CommercialDocumentForm,
     DirectPurchaseOrderForm,
     ExpatriateForm,
     ExpatriateVisaForm,
@@ -72,6 +74,8 @@ from .forms import (
 from .i18n import normalize_language, translate
 from .models import (
     ApplicationSetting,
+    BusinessClient,
+    CommercialDocument,
     Expatriate,
     ExpatriateVisa,
     FuelAsset,
@@ -851,6 +855,7 @@ def dashboard(request):
         ).count(),
         "inquiry_count": PurchaseInquiry.objects.count(),
         "transport_count": TransportRecord.objects.count(),
+        "commercial_document_count": CommercialDocument.objects.count(),
         "status_breakdown": Requisition.objects.values("status")
         .annotate(total=Count("id"))
         .order_by("status"),
@@ -858,6 +863,9 @@ def dashboard(request):
             "requester"
         ).prefetch_related("items")[:LIST_RESULTS_LIMIT],
         "latest_transport_records": transport_records,
+        "latest_commercial_documents": CommercialDocument.objects.select_related(
+            "client", "transport", "purchase_order", "requisition"
+        )[:LIST_RESULTS_LIMIT],
         "transport_total": sum(
             (record.total_cost for record in transport_records), Decimal("0")
         ),
@@ -2114,6 +2122,42 @@ def transport_billing_manual(request):
 
 
 @access_required(UserModuleAccess.Module.TRANSPORT, ACTION_CREATE)
+def transport_delivery_note_create(request, pk):
+    if not has_module_access(
+        request.user, UserModuleAccess.Module.COMMERCIAL_DOCUMENTS, ACTION_CREATE
+    ):
+        raise PermissionDenied
+    record = get_object_or_404(
+        TransportRecord.objects.select_related(
+            "requisition", "purchase_order", "supplier"
+        ),
+        pk=pk,
+    )
+    first_customer = record.customer_orders.order_by("loading_sequence", "id").first()
+    initial = {
+        "document_type": CommercialDocument.DocumentType.DELIVERY_NOTE,
+        "status": CommercialDocument.Status.ISSUED,
+        "title": f"Delivery note for {record.transit_number}",
+        "transport": record,
+        "requisition": record.requisition,
+        "purchase_order": record.purchase_order,
+        "supplier": record.supplier,
+        "business_reference": record.transit_number,
+        "document_date": date.today(),
+        "new_client_name": first_customer.customer_name if first_customer else "",
+        "description": record.customer_names_summary,
+        "notes": f"Route: {record.origin} to {record.destination}. Vehicle: {record.vehicle}. Driver: {record.driver}.",
+    }
+    return commercial_document_form(
+        request,
+        initial=initial,
+        title="New Transport Delivery Note",
+        cancel_url="transport_detail",
+        cancel_kwargs={"pk": record.pk},
+    )
+
+
+@access_required(UserModuleAccess.Module.TRANSPORT, ACTION_CREATE)
 @require_POST
 def transport_attachment_add(request, pk):
     record = get_object_or_404(TransportRecord, pk=pk)
@@ -2199,6 +2243,140 @@ def transport_reports(request):
         "average_cost_per_cbm": total_cost / total_cbm if total_cbm else None,
     }
     return render(request, "operations/reports.html", context)
+
+
+@access_required(UserModuleAccess.Module.COMMERCIAL_DOCUMENTS, ACTION_READ)
+def commercial_document_list(request):
+    query = request.GET.get("q", "").strip()
+    document_type = request.GET.get("type", "all").strip() or "all"
+    documents = CommercialDocument.objects.select_related(
+        "client",
+        "transport",
+        "purchase_order",
+        "requisition",
+        "supplier",
+        "created_by",
+    )
+    if query:
+        documents = documents.filter(
+            Q(document_number__icontains=query)
+            | Q(title__icontains=query)
+            | Q(client__name__icontains=query)
+            | Q(client_name__icontains=query)
+            | Q(transport__transit_number__icontains=query)
+            | Q(transport__transport_number__icontains=query)
+            | Q(purchase_order__order_number__icontains=query)
+            | Q(requisition__requisition_number__icontains=query)
+            | Q(business_reference__icontains=query)
+        ).distinct()
+    allowed_types = {code for code, _label in CommercialDocument.DocumentType.choices}
+    if document_type in allowed_types:
+        documents = documents.filter(document_type=document_type)
+    matching_count = documents.count()
+    documents = documents[:LIST_RESULTS_LIMIT]
+    return render(
+        request,
+        "operations/commercial_document_list.html",
+        {
+            "documents": documents,
+            "query": query,
+            "document_type": document_type,
+            "document_types": CommercialDocument.DocumentType.choices,
+            "matching_count": matching_count,
+        },
+    )
+
+
+@access_required(UserModuleAccess.Module.COMMERCIAL_DOCUMENTS, ACTION_CREATE)
+def commercial_document_create(request):
+    return commercial_document_form(
+        request,
+        initial={"document_date": date.today()},
+        title="New Commercial Document",
+        cancel_url="commercial_document_list",
+    )
+
+
+def commercial_document_form(
+    request,
+    initial=None,
+    title="Commercial Document",
+    cancel_url="commercial_document_list",
+    cancel_kwargs=None,
+):
+    form = CommercialDocumentForm(
+        request.POST or None, request.FILES or None, initial=initial
+    )
+    if request.method == "POST" and form.is_valid():
+        document = form.save(commit=False)
+        document.client = form.resolve_client()
+        if document.client:
+            document.client_name = document.client.name
+            document.client_contact = document.client.contact_person
+            document.client_email = document.client.email
+            document.client_phone = document.client.phone
+        else:
+            document.client_name = form.cleaned_data.get("new_client_name", "").strip()
+            document.client_contact = form.cleaned_data.get(
+                "new_client_contact", ""
+            ).strip()
+            document.client_email = form.cleaned_data.get(
+                "new_client_email", ""
+            ).strip()
+            document.client_phone = form.cleaned_data.get(
+                "new_client_phone", ""
+            ).strip()
+        document.created_by = request.user
+        document.save()
+        messages.success(request, f"Document {document.document_number} saved.")
+        return redirect("commercial_document_detail", pk=document.pk)
+    return render(
+        request,
+        "operations/commercial_document_form.html",
+        {
+            "form": form,
+            "title": title,
+            "cancel_url": cancel_url,
+            "cancel_kwargs": cancel_kwargs or {},
+        },
+    )
+
+
+@access_required(UserModuleAccess.Module.COMMERCIAL_DOCUMENTS, ACTION_READ)
+def commercial_document_detail(request, pk):
+    document = get_object_or_404(
+        CommercialDocument.objects.select_related(
+            "client",
+            "transport",
+            "purchase_order",
+            "requisition",
+            "supplier",
+            "created_by",
+        ),
+        pk=pk,
+    )
+    return render(
+        request, "operations/commercial_document_detail.html", {"document": document}
+    )
+
+
+@access_required(UserModuleAccess.Module.COMMERCIAL_DOCUMENTS, ACTION_CREATE)
+def business_client_create(request):
+    form = BusinessClientForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        client = form.save()
+        messages.success(request, f"Client {client.name} saved.")
+        return redirect("commercial_document_list")
+    return render(
+        request,
+        "operations/form_page.html",
+        {
+            "form": form,
+            "title": "New Client",
+            "action_label": "Save client",
+            "cancel_url": "commercial_document_list",
+        },
+    )
 
 
 @superuser_required

@@ -6,6 +6,8 @@ from django.forms import formset_factory, inlineformset_factory
 
 from .models import (
     ApplicationSetting,
+    BusinessClient,
+    CommercialDocument,
     Expatriate,
     ExpatriateVisa,
     FuelAsset,
@@ -321,6 +323,93 @@ class PurchaseReceiptForm(StyledModelForm):
         model = PurchaseReceipt
         fields = ["receipt_number", "receipt_date", "attachment"]
         widgets = {"receipt_date": DATE_WIDGET}
+
+
+class BusinessClientForm(StyledModelForm):
+    class Meta:
+        model = BusinessClient
+        fields = ["name", "contact_person", "email", "phone", "country", "address"]
+        widgets = {"address": forms.Textarea(attrs={"rows": 3})}
+
+
+class CommercialDocumentForm(StyledModelForm):
+    new_client_name = forms.CharField(
+        required=False,
+        label="Or enter client / customer name",
+        help_text="Use this when the client is not registered yet.",
+    )
+    new_client_contact = forms.CharField(required=False, label="New client contact")
+    new_client_email = forms.EmailField(required=False, label="New client email")
+    new_client_phone = forms.CharField(required=False, label="New client phone")
+
+    class Meta:
+        model = CommercialDocument
+        fields = [
+            "document_type",
+            "status",
+            "title",
+            "client",
+            "new_client_name",
+            "new_client_contact",
+            "new_client_email",
+            "new_client_phone",
+            "requisition",
+            "purchase_order",
+            "transport",
+            "transport_invoice",
+            "supplier",
+            "business_reference",
+            "document_date",
+            "due_date",
+            "currency",
+            "amount",
+            "description",
+            "notes",
+            "attachment",
+        ]
+        widgets = {
+            "document_date": DATE_WIDGET,
+            "due_date": DATE_WIDGET,
+            "amount": MONEY_WIDGET,
+            "description": forms.Textarea(attrs={"rows": 4}),
+            "notes": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["client"].required = False
+        self.fields["client"].queryset = BusinessClient.objects.all()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        client = cleaned_data.get("client")
+        new_client_name = cleaned_data.get("new_client_name", "").strip()
+        if not client and not new_client_name:
+            self.add_error("new_client_name", "Select a client or enter one manually.")
+        return cleaned_data
+
+    def resolve_client(self):
+        new_client_name = self.cleaned_data.get("new_client_name", "").strip()
+        if new_client_name:
+            client, _created = BusinessClient.objects.get_or_create(
+                name=new_client_name
+            )
+            update_fields = []
+            field_map = {
+                "contact_person": self.cleaned_data.get(
+                    "new_client_contact", ""
+                ).strip(),
+                "email": self.cleaned_data.get("new_client_email", "").strip(),
+                "phone": self.cleaned_data.get("new_client_phone", "").strip(),
+            }
+            for field_name, value in field_map.items():
+                if value and getattr(client, field_name) != value:
+                    setattr(client, field_name, value)
+                    update_fields.append(field_name)
+            if update_fields:
+                client.save(update_fields=[*update_fields, "updated_at"])
+            return client
+        return self.cleaned_data.get("client")
 
 
 class FuelAssetForm(StyledModelForm):

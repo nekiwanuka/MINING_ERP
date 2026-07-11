@@ -36,6 +36,10 @@ def transport_invoice_number():
     return prefixed_number("TINV")
 
 
+def commercial_document_number():
+    return prefixed_number("DOC")
+
+
 def fuel_batch_number():
     return prefixed_number("FB")
 
@@ -187,6 +191,7 @@ class UserModuleAccess(TimeStampedModel):
         PURCHASE_RECEIPTS = "purchase_receipts", "Purchase Receipts"
         TRANSPORT = "transport", "Transport"
         TRANSPORT_REPORTS = "transport_reports", "Transport Reports"
+        COMMERCIAL_DOCUMENTS = "commercial_documents", "Business Documents"
         FUEL = "fuel", "Fuel Department"
         VISAS = "visas", "Visa Department"
 
@@ -363,6 +368,132 @@ class PurchaseReceipt(TimeStampedModel):
 
     def __str__(self):
         return self.receipt_number
+
+
+class BusinessClient(TimeStampedModel):
+    name = models.CharField(max_length=160, unique=True)
+    contact_person = models.CharField(max_length=120, blank=True)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=60, blank=True)
+    country = models.CharField(max_length=80, blank=True)
+    address = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class CommercialDocument(TimeStampedModel):
+    class DocumentType(models.TextChoices):
+        QUOTATION = "quotation", "Quotation"
+        PROFORMA_INVOICE = "proforma_invoice", "Proforma Invoice"
+        INVOICE = "invoice", "Invoice"
+        RECEIPT = "receipt", "Receipt"
+        DELIVERY_NOTE = "delivery_note", "Delivery Note"
+        CREDIT_NOTE = "credit_note", "Credit Note"
+        DEBIT_NOTE = "debit_note", "Debit Note"
+        PAYMENT_VOUCHER = "payment_voucher", "Payment Voucher"
+        STATEMENT = "statement", "Account Statement"
+        WAYBILL = "waybill", "Waybill"
+        CONTRACT = "contract", "Contract / Agreement"
+        OTHER = "other", "Other Document"
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        ISSUED = "issued", "Issued"
+        PAID = "paid", "Paid"
+        CANCELLED = "cancelled", "Cancelled"
+
+    document_number = models.CharField(
+        max_length=32,
+        unique=True,
+        default=commercial_document_number,
+        editable=False,
+    )
+    document_type = models.CharField(
+        max_length=32, choices=DocumentType.choices, default=DocumentType.QUOTATION
+    )
+    status = models.CharField(
+        max_length=24, choices=Status.choices, default=Status.DRAFT
+    )
+    title = models.CharField(max_length=180)
+    client = models.ForeignKey(
+        BusinessClient,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="documents",
+    )
+    client_name = models.CharField(max_length=160, blank=True)
+    client_contact = models.CharField(max_length=120, blank=True)
+    client_email = models.EmailField(blank=True)
+    client_phone = models.CharField(max_length=60, blank=True)
+    requisition = models.ForeignKey(
+        Requisition,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="commercial_documents",
+    )
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="commercial_documents",
+    )
+    transport = models.ForeignKey(
+        "TransportRecord",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="commercial_documents",
+    )
+    transport_invoice = models.ForeignKey(
+        "TransportCustomerInvoice",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="commercial_documents",
+    )
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="commercial_documents",
+    )
+    business_reference = models.CharField(
+        max_length=160,
+        blank=True,
+        help_text="Manual reference for any other business or external file.",
+    )
+    document_date = models.DateField(default=timezone.localdate)
+    due_date = models.DateField(null=True, blank=True)
+    currency = models.CharField(max_length=12, default="USD")
+    amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    description = models.TextField(blank=True)
+    notes = models.TextField(blank=True)
+    attachment = models.FileField(upload_to="commercial-documents/", blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_commercial_documents",
+    )
+
+    class Meta:
+        ordering = ["-document_date", "-created_at"]
+
+    def __str__(self):
+        return self.document_number
+
+    @property
+    def display_client(self):
+        if self.client:
+            return self.client.name
+        return self.client_name or "Unassigned client"
 
 
 class FuelAsset(TimeStampedModel):

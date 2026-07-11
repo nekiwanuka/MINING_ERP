@@ -1,0 +1,56 @@
+{% extends 'operations/base.html' %}
+{% block title %}{{ document.document_number }} | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">{{ document.get_document_type_display }}</p>
+        <h1>{{ document.document_number }}</h1>
+        <p>{{ document.title }}</p>
+    </div>
+    <div class="button-row">
+        {% if document.attachment %}<a class="secondary-button" href="{{ document.attachment.url }}">Open attachment</a>{% endif %}
+        <a class="secondary-button" href="{% url 'commercial_document_list' %}">Back to documents</a>
+    </div>
+</section>
+
+<section class="two-column">
+    <article class="panel">
+        <div class="panel-header"><h2>Document details</h2></div>
+        <dl class="detail-list">
+            <div><dt>Type</dt><dd>{{ document.get_document_type_display }}</dd></div>
+            <div><dt>Status</dt><dd>{{ document.get_status_display }}</dd></div>
+            <div><dt>Date</dt><dd>{{ document.document_date }}</dd></div>
+            <div><dt>Due date</dt><dd>{{ document.due_date|default:'-' }}</dd></div>
+            <div><dt>Amount</dt><dd>{{ document.currency }} {{ document.amount|floatformat:2 }}</dd></div>
+            <div><dt>Created by</dt><dd>{{ document.created_by }}</dd></div>
+        </dl>
+    </article>
+    <article class="panel">
+        <div class="panel-header"><h2>Client</h2></div>
+        <dl class="detail-list">
+            <div><dt>Name</dt><dd>{{ document.display_client }}</dd></div>
+            <div><dt>Contact</dt><dd>{{ document.client_contact|default:'-' }}</dd></div>
+            <div><dt>Email</dt><dd>{{ document.client_email|default:'-' }}</dd></div>
+            <div><dt>Phone</dt><dd>{{ document.client_phone|default:'-' }}</dd></div>
+        </dl>
+    </article>
+</section>
+
+<section class="two-column">
+    <article class="panel">
+        <div class="panel-header"><h2>Business links</h2></div>
+        <dl class="detail-list">
+            <div><dt>Transit</dt><dd>{% if document.transport %}<a href="{% url 'transport_detail' document.transport.pk %}">{{ document.transport.transit_number }}</a>{% else %}-{% endif %}</dd></div>
+            <div><dt>Purchase order</dt><dd>{{ document.purchase_order|default:'-' }}</dd></div>
+            <div><dt>Requisition</dt><dd>{{ document.requisition|default:'-' }}</dd></div>
+            <div><dt>Supplier</dt><dd>{{ document.supplier|default:'-' }}</dd></div>
+            <div><dt>Other reference</dt><dd>{{ document.business_reference|default:'-' }}</dd></div>
+        </dl>
+    </article>
+    <article class="panel">
+        <div class="panel-header"><h2>Description and notes</h2></div>
+        <p>{{ document.description|linebreaksbr|default:'No description entered.' }}</p>
+        <p>{{ document.notes|linebreaksbr|default:'No notes entered.' }}</p>
+    </article>
+</section>
+{% endblock %}
