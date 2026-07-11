@@ -37,7 +37,7 @@ This project includes `build.sh` and `render.yaml` for Render.
 	- `CSRF_TRUSTED_ORIGINS=https://YOUR-RENDER-SERVICE.onrender.com`
 	- `ADMIN_USERNAME=admin`
 	- `ADMIN_EMAIL=your-email@example.com`
-	- `ADMIN_PASSWORD=` generate a secure password in Render
+	- `ADMIN_PASSWORD=` enter a secure password you will use to log in
 5. On deploy, `start.sh` runs migrations and creates/updates the admin user from those `ADMIN_*` variables. Use those credentials on the login page.
 
 If you have Render Shell access, you can also create an admin manually:

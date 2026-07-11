@@ -18,4 +18,4 @@ services:
       - key: ADMIN_EMAIL
         value: admin@example.com
       - key: ADMIN_PASSWORD
-        generateValue: true
+        sync: false
