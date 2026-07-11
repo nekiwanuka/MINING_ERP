@@ -83,30 +83,32 @@ button, input, select, textarea { font: inherit; }
     z-index: 10;
     display: flex;
     align-items: center;
-    gap: 18px;
-    padding: 16px 32px;
+    gap: 12px;
+    padding: 12px 24px;
     background: rgba(255, 255, 255, 0.96);
     border-bottom: 1px solid var(--line);
     backdrop-filter: blur(14px);
 }
 
-.brand { display: flex; align-items: center; gap: 12px; font-weight: 800; color: var(--ink); min-width: min(300px, 100%); }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 800; color: var(--ink); min-width: min(230px, 100%); }
 .brand:hover { text-decoration: none; }
 .brand-mark { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; background: var(--ink); color: #fff; }
 .brand-logo { width: 42px; height: 42px; object-fit: contain; border-radius: 7px; background: #fff; border: 1px solid var(--line); }
 .brand-copy { display: grid; gap: 1px; line-height: 1.1; }
 .brand-copy strong { font-size: 1.08rem; }
 .brand-copy small { color: var(--muted); font-size: 0.84rem; font-weight: 700; }
-.top-nav { display: flex; gap: 8px; align-items: center; flex: 1; flex-wrap: wrap; }
+.top-nav { display: flex; gap: 4px; align-items: center; flex: 1; flex-wrap: nowrap; justify-content: center; min-width: 0; }
 .top-nav a, .nav-group > summary {
     display: inline-flex;
     align-items: center;
-    min-height: 46px;
+    min-height: 40px;
     border: 1px solid transparent;
     border-radius: 8px;
     color: var(--ink);
+    font-size: 0.95rem;
     font-weight: 800;
-    padding: 10px 13px;
+    padding: 7px 8px;
+    white-space: nowrap;
 }
 .top-nav a:hover, .nav-group > summary:hover { border-color: var(--line); background: var(--field); color: var(--accent-dark); text-decoration: none; }
 .nav-group { position: relative; display: inline-flex; align-items: center; }
@@ -141,26 +143,27 @@ button, input, select, textarea { font: inherit; }
 .nav-submenu a:hover { background: var(--field); }
 
 .language-form select {
-    min-height: 46px;
+    min-height: 40px;
     border: 2px solid var(--line);
     border-radius: 8px;
     background: #fff;
     color: var(--ink);
-    padding: 9px 12px;
+    padding: 7px 9px;
+    font-size: 0.95rem;
     font-weight: 800;
 }
 
-.logout-form { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.logout-form { display: flex; align-items: center; gap: 8px; color: var(--muted); }
 .current-user { font-weight: 800; color: var(--ink); }
 .logout-form button, .secondary-button {
     display: inline-flex;
     justify-content: center;
     align-items: center;
-    min-height: 46px;
+    min-height: 40px;
     border: 2px solid var(--line);
     background: #fff;
     color: var(--ink);
-    padding: 11px 16px;
+    padding: 8px 12px;
     border-radius: 8px;
     cursor: pointer;
     font-weight: 800;
