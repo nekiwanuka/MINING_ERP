@@ -552,9 +552,12 @@ def transport_invoice_message(invoice):
     )
 
 
-def transport_invoice_pdf(invoice):
+def transport_invoice_pdf(invoice, language="en"):
     rl_config.invariant = 1
+    language = normalize_language(language)
     app_setting = ApplicationSetting.load()
+    font_name = pdf_font_name(language)
+    bold_font_name = font_name if language != "en" else "Helvetica-Bold"
     buffer = BytesIO()
     document = SimpleDocTemplate(
         buffer,
@@ -568,7 +571,7 @@ def transport_invoice_pdf(invoice):
     body_style = ParagraphStyle(
         "TransportInvoiceBody",
         parent=styles["BodyText"],
-        fontName="Helvetica",
+        fontName=font_name,
         fontSize=9,
         leading=12,
         textColor=colors.HexColor("#14201b"),
@@ -576,7 +579,7 @@ def transport_invoice_pdf(invoice):
     label_style = ParagraphStyle(
         "TransportInvoiceLabel",
         parent=body_style,
-        fontName="Helvetica-Bold",
+        fontName=bold_font_name,
         fontSize=7,
         leading=9,
         textColor=colors.HexColor("#68736c"),
@@ -585,7 +588,7 @@ def transport_invoice_pdf(invoice):
         "TransportInvoiceTitle",
         parent=styles["Title"],
         alignment=TA_RIGHT,
-        fontName="Helvetica-Bold",
+        fontName=bold_font_name,
         fontSize=22,
         leading=24,
         textColor=colors.HexColor("#14201b"),
@@ -615,7 +618,7 @@ def transport_invoice_pdf(invoice):
         colWidths=[22 * mm, 82 * mm],
     )
     title = Paragraph(
-        f"Transport Invoice<br/><font size='14'>{pdf_text(invoice.invoice_number)}</font><br/><font size='8'>{pdf_text(invoice.invoice_date)}</font>",
+        f"{pdf_text(translate('Transport Invoice', language))}<br/><font size='14'>{pdf_text(invoice.invoice_number)}</font><br/><font size='8'>{pdf_text(invoice.invoice_date)}</font>",
         title_style,
     )
     header = Table([[brand, title]], colWidths=[104 * mm, 70 * mm])
@@ -634,7 +637,12 @@ def transport_invoice_pdf(invoice):
             [
                 Table(
                     [
-                        [Paragraph("CUSTOMER", label_style)],
+                        [
+                            Paragraph(
+                                pdf_text(translate("Customer", language)).upper(),
+                                label_style,
+                            )
+                        ],
                         [
                             Paragraph(
                                 f"<b>{pdf_text(invoice.customer_name)}</b>", body_style
@@ -642,19 +650,19 @@ def transport_invoice_pdf(invoice):
                         ],
                         [
                             Paragraph(
-                                f"Cargo: {pdf_text(customer.cargo_description)}",
+                                f"{pdf_text(translate('Cargo', language))}: {pdf_text(customer.cargo_description)}",
                                 body_style,
                             )
                         ],
                         [
                             Paragraph(
-                                f"Loading: {pdf_text(customer.loading_point or invoice.transport.origin)}",
+                                f"{pdf_text(translate('Loading', language))}: {pdf_text(customer.loading_point or invoice.transport.origin)}",
                                 body_style,
                             )
                         ],
                         [
                             Paragraph(
-                                f"Offloading: {pdf_text(customer.offloading_point or invoice.transport.destination)}",
+                                f"{pdf_text(translate('Offloading', language))}: {pdf_text(customer.offloading_point or invoice.transport.destination)}",
                                 body_style,
                             )
                         ],
@@ -662,28 +670,33 @@ def transport_invoice_pdf(invoice):
                 ),
                 Table(
                     [
-                        [Paragraph("TRANSIT", label_style)],
                         [
                             Paragraph(
-                                f"Transit: <b>{pdf_text(invoice.transport.transit_number)}</b>",
+                                pdf_text(translate("Transit", language)).upper(),
+                                label_style,
+                            )
+                        ],
+                        [
+                            Paragraph(
+                                f"{pdf_text(translate('Transit', language))}: <b>{pdf_text(invoice.transport.transit_number)}</b>",
                                 body_style,
                             )
                         ],
                         [
                             Paragraph(
-                                f"Vehicle: <b>{pdf_text(invoice.transport.vehicle)}</b>",
+                                f"{pdf_text(translate('Vehicle', language))}: <b>{pdf_text(invoice.transport.vehicle)}</b>",
                                 body_style,
                             )
                         ],
                         [
                             Paragraph(
-                                f"Route: {pdf_text(invoice.transport.origin)} to {pdf_text(invoice.transport.destination)}",
+                                f"{pdf_text(translate('Route', language))}: {pdf_text(invoice.transport.origin)} {pdf_text(translate('to', language))} {pdf_text(invoice.transport.destination)}",
                                 body_style,
                             )
                         ],
                         [
                             Paragraph(
-                                f"Status: <b>{pdf_text(invoice.get_status_display())}</b>",
+                                f"{pdf_text(translate('Status', language))}: <b>{pdf_text(translate(invoice.get_status_display(), language))}</b>",
                                 body_style,
                             )
                         ],
@@ -704,24 +717,30 @@ def transport_invoice_pdf(invoice):
             ]
         )
     )
-    rows = [["Type", "Description", "Amount"]]
+    rows = [
+        [
+            translate("Type", language),
+            translate("Description", language),
+            translate("Amount", language),
+        ]
+    ]
     for line in invoice.lines.all():
         rows.append(
             [
-                line.get_line_type_display(),
+                translate(line.get_line_type_display(), language),
                 line.description,
                 f"{line.amount:.2f}",
             ]
         )
-    rows.append(["", "Total", f"{invoice.total_amount:.2f}"])
+    rows.append(["", translate("Total", language), f"{invoice.total_amount:.2f}"])
     lines = Table(rows, colWidths=[44 * mm, 92 * mm, 32 * mm])
     lines.setStyle(
         TableStyle(
             [
                 ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#14201b")),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+                ("FONTNAME", (0, 0), (-1, 0), bold_font_name),
+                ("FONTNAME", (0, -1), (-1, -1), bold_font_name),
                 ("ALIGN", (2, 1), (2, -1), "RIGHT"),
                 ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#dbe2dd")),
                 ("PADDING", (0, 0), (-1, -1), 8),
@@ -729,7 +748,12 @@ def transport_invoice_pdf(invoice):
         )
     )
     signatures = Table(
-        [["Prepared By", "Customer Acknowledgement"]],
+        [
+            [
+                translate("Prepared by", language),
+                translate("Customer Acknowledgement", language),
+            ]
+        ],
         colWidths=[78 * mm, 78 * mm],
     )
     signatures.setStyle(
@@ -737,7 +761,7 @@ def transport_invoice_pdf(invoice):
             [
                 ("LINEABOVE", (0, 0), (-1, 0), 0.8, colors.HexColor("#14201b")),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#68736c")),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTNAME", (0, 0), (-1, 0), bold_font_name),
                 ("TOPPADDING", (0, 0), (-1, 0), 8),
             ]
         )
@@ -756,9 +780,9 @@ def transport_invoice_pdf(invoice):
     return buffer.getvalue()
 
 
-def transport_invoice_pdf_response(invoice, as_attachment=False):
+def transport_invoice_pdf_response(invoice, as_attachment=False, language="en"):
     response = HttpResponse(
-        transport_invoice_pdf(invoice), content_type="application/pdf"
+        transport_invoice_pdf(invoice, language), content_type="application/pdf"
     )
     disposition = "attachment" if as_attachment else "inline"
     response["Content-Disposition"] = (
@@ -2105,7 +2129,9 @@ def transport_invoice_download(request, invoice_id):
         ).prefetch_related("lines"),
         pk=invoice_id,
     )
-    return transport_invoice_pdf_response(invoice, as_attachment=True)
+    return transport_invoice_pdf_response(
+        invoice, as_attachment=True, language=request_language(request)
+    )
 
 
 @access_required(UserModuleAccess.Module.TRANSPORT, ACTION_READ)
@@ -2116,7 +2142,9 @@ def transport_invoice_print(request, invoice_id):
         ).prefetch_related("lines"),
         pk=invoice_id,
     )
-    return transport_invoice_pdf_response(invoice, as_attachment=False)
+    return transport_invoice_pdf_response(
+        invoice, as_attachment=False, language=request_language(request)
+    )
 
 
 @access_required(UserModuleAccess.Module.TRANSPORT, ACTION_READ)

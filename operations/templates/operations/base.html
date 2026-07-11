@@ -110,11 +110,27 @@
             if (!script) { return; }
             var translations = JSON.parse(script.textContent || '{}');
             var skipTags = { SCRIPT: true, STYLE: true, TEXTAREA: true };
+            var phraseKeys = Object.keys(translations).sort(function (left, right) {
+                return right.length - left.length;
+            });
+
+            function escapeRegExp(value) {
+                return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
 
             function translateValue(value) {
                 var trimmed = String(value || '').replace(/\s+/g, ' ').trim();
                 if (!trimmed) { return null; }
                 return translations[trimmed] || null;
+            }
+
+            function translateMixedText(value) {
+                var translated = String(value || '');
+                phraseKeys.forEach(function (key) {
+                    if (key.length < 3 || translated.indexOf(key) === -1) { return; }
+                    translated = translated.replace(new RegExp(escapeRegExp(key), 'g'), translations[key]);
+                });
+                return translated === value ? null : translated;
             }
 
             function translateTextNodes(root) {
@@ -127,6 +143,11 @@
                     var translated = translateValue(node.nodeValue);
                     if (translated) {
                         node.nodeValue = node.nodeValue.replace(/\S(?:.|\n)*\S|\S/, translated);
+                        return;
+                    }
+                    translated = translateMixedText(node.nodeValue);
+                    if (translated) {
+                        node.nodeValue = translated;
                     }
                 });
             }

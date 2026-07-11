@@ -460,6 +460,9 @@ class UserAccessManagementTests(TestCase):
         self.assertEqual(ui_translations["ERP dashboard"], "ERP 仪表板")
         self.assertEqual(ui_translations["Operations Control"], "运营控制")
         self.assertEqual(ui_translations["Total requisitions"], "申请总数")
+        self.assertEqual(ui_translations["Document register"], "单据登记簿")
+        self.assertEqual(ui_translations["Account Statement"], "对账单")
+        self.assertEqual(ui_translations["Transport Invoice"], "运输发票")
 
 
 class ProcurementWorkflowTests(TestCase):
