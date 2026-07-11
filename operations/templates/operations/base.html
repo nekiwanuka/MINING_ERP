@@ -109,10 +109,11 @@
             var script = document.getElementById('ui-translations');
             if (!script) { return; }
             var translations = JSON.parse(script.textContent || '{}');
-            var skipTags = { SCRIPT: true, STYLE: true, TEXTAREA: true, SELECT: true, OPTION: true };
+            var skipTags = { SCRIPT: true, STYLE: true, TEXTAREA: true };
 
             function translateValue(value) {
-                var trimmed = String(value || '').trim();
+                var trimmed = String(value || '').replace(/\s+/g, ' ').trim();
+                if (!trimmed) { return null; }
                 return translations[trimmed] || null;
             }
 
@@ -122,8 +123,11 @@
                 while (walker.nextNode()) { nodes.push(walker.currentNode); }
                 nodes.forEach(function (node) {
                     if (!node.parentElement || skipTags[node.parentElement.tagName]) { return; }
+                    if (node.parentElement.closest('.language-form, .login-language-form')) { return; }
                     var translated = translateValue(node.nodeValue);
-                    if (translated) { node.nodeValue = node.nodeValue.replace(node.nodeValue.trim(), translated); }
+                    if (translated) {
+                        node.nodeValue = node.nodeValue.replace(/\S(?:.|\n)*\S|\S/, translated);
+                    }
                 });
             }
 

@@ -71,7 +71,7 @@
 
             document.querySelectorAll('[aria-label], [title]').forEach(function (element) {
                 ['aria-label', 'title'].forEach(function (attribute) {
-                    var value = element.getAttribute(attribute);
+                    var value = String(element.getAttribute(attribute) || '').replace(/\s+/g, ' ').trim();
                     if (translations[value]) {
                         element.setAttribute(attribute, translations[value]);
                     }

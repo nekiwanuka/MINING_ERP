@@ -450,6 +450,17 @@ class UserAccessManagementTests(TestCase):
         self.assertEqual(self.client.session["active_language"], "zh")
         self.assertEqual(response.cookies["active_language"].value, "zh")
 
+    def test_language_dictionary_is_available_across_dashboard_pages(self):
+        self.client.get("/language/?language=zh&next=/")
+
+        response = self.client.get("/")
+        ui_translations = response.context["ui_translations"]
+
+        self.assertContains(response, "ui-translations")
+        self.assertEqual(ui_translations["ERP dashboard"], "ERP 仪表板")
+        self.assertEqual(ui_translations["Operations Control"], "运营控制")
+        self.assertEqual(ui_translations["Total requisitions"], "申请总数")
+
 
 class ProcurementWorkflowTests(TestCase):
     def setUp(self):
