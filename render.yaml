@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: mining-erp
+    env: python
+    buildCommand: ./build.sh
+    startCommand: gunicorn mining_erp.wsgi:application
+    envVars:
+      - key: DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com,localhost,127.0.0.1"
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://mining-erp.onrender.com"

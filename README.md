@@ -20,6 +20,35 @@ Demo users use the password `MiningERP2026!`:
 
 Protected APIs are available under `/api/` and require authentication. Browser API login is available under `/api-auth/login/`.
 
+## Render Test Deployment
+
+This project includes `build.sh` and `render.yaml` for Render.
+
+1. Push the latest code to GitHub.
+2. Open Render, choose **New + > Web Service**, and connect `nekiwanuka/MINING_ERP`.
+3. Use these settings if you create it manually:
+	- Build command: `./build.sh`
+	- Start command: `gunicorn mining_erp.wsgi:application`
+	- Environment: Python
+4. Add environment variables:
+	- `DEBUG=false`
+	- `SECRET_KEY=` generate a secure random value in Render
+	- `ALLOWED_HOSTS=.onrender.com,localhost,127.0.0.1`
+	- `CSRF_TRUSTED_ORIGINS=https://YOUR-RENDER-SERVICE.onrender.com`
+5. After the first deploy, open Render Shell and create an admin user:
+
+```bash
+python manage.py createsuperuser
+```
+
+For quick demo data, you can also run:
+
+```bash
+python manage.py seed_demo
+```
+
+Note: the current test deployment uses SQLite. On Render free/test services, SQLite data can reset when the instance is rebuilt or restarted. Use Render PostgreSQL later for persistent production data.
+
 ## Procurement Review and Supplier PO Workflow
 
 Use **Procurement > Workflow manual** in the app for operator instructions.

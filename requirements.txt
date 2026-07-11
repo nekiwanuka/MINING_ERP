@@ -1,4 +1,6 @@
 Django==5.2.15
 djangorestframework==3.17.1
+gunicorn==23.0.0
 Pillow==12.1.0
 reportlab==4.4.5
+whitenoise==6.11.0
