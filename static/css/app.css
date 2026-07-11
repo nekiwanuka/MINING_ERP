@@ -101,7 +101,7 @@ button, input, select, textarea { font: inherit; }
 .brand-copy { display: grid; gap: 1px; line-height: 1.1; }
 .brand-copy strong { font-size: 1.02rem; overflow-wrap: anywhere; }
 .brand-copy small { color: var(--muted); font-size: 0.8rem; font-weight: 700; overflow-wrap: anywhere; }
-.top-nav { display: flex; gap: 4px; align-items: center; flex: 1; flex-wrap: nowrap; justify-content: center; min-width: 0; }
+.top-nav { display: flex; gap: 4px; align-items: center; flex: 1 1 auto; flex-wrap: nowrap; justify-content: flex-start; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
 .top-nav a, .nav-group > summary {
     display: inline-flex;
     align-items: center;
@@ -156,8 +156,9 @@ button, input, select, textarea { font: inherit; }
     font-size: 0.95rem;
     font-weight: 800;
 }
+.language-form { flex: 0 0 auto; }
 
-.logout-form { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.logout-form { display: flex; align-items: center; flex: 0 0 auto; gap: 8px; color: var(--muted); }
 .current-user { font-weight: 800; color: var(--ink); }
 .logout-form button, .secondary-button {
     display: inline-flex;
@@ -543,10 +544,11 @@ tbody tr:last-child td { border-bottom: 0; }
 .error-card .primary-button { justify-self: center; border-color: #f48120; border-radius: 4px; background: #f48120; color: #fff; }
 .error-card .primary-button:hover { border-color: #d86500; background: #d86500; }
 
-@media (max-width: 1400px) {
+@media (max-width: 900px) {
     .login-body { padding: 20px 14px; }
     .login-shell { min-height: auto; }
-    .app-header, .page-heading { align-items: flex-start; flex-direction: column; }
+    .app-header { padding: 10px 14px; }
+    .page-heading { align-items: flex-start; flex-direction: column; }
     .form-page-heading { align-items: center; }
     .requisition-heading { align-items: center; }
     .metric-grid, .two-column, .workflow-grid, .report-grid, .form-grid, .requisition-summary-grid { grid-template-columns: 1fr; }
@@ -555,15 +557,6 @@ tbody tr:last-child td { border-bottom: 0; }
     .search-form, .process-summary-grid, .process-columns, .list-filter-form, .list-filter-form-wide { grid-template-columns: 1fr; }
     .procurement-search-form { grid-template-columns: 1fr; }
     .page-shell { width: min(100% - 20px, 1240px); margin-top: 18px; }
-    .top-nav { width: 100%; align-items: stretch; flex-direction: column; }
-    .top-nav a, .nav-group, .nav-group > summary { width: 100%; }
-    .nav-group { display: grid; }
-    .nav-group > summary { justify-content: space-between; }
-    .nav-submenu { position: static; width: 100%; min-width: 0; margin-top: 6px; box-shadow: none; background: var(--field); }
-    .nav-submenu a { padding-left: 18px; background: #fff; }
-    .app-header { gap: 14px; padding: 12px 14px; }
-    .language-form, .language-form select { width: 100%; }
-    .logout-form { width: 100%; justify-content: space-between; }
     .work-item { align-items: stretch; flex-direction: column; }
     .item-section-header, .form-actions { align-items: stretch; flex-direction: column; }
     .button-row, .list-filter-actions { width: 100%; align-items: stretch; flex-direction: column; }
@@ -577,6 +570,18 @@ tbody tr:last-child td { border-bottom: 0; }
     .po-document-grid { grid-template-columns: 1fr; }
     .primary-button, .secondary-button, .small-button { width: 100%; }
     .requisition-panel { padding: 16px; }
+}
+
+@media (max-width: 760px) {
+    .app-header { align-items: flex-start; flex-direction: column; gap: 14px; padding: 12px 14px; }
+    .top-nav { width: 100%; align-items: stretch; flex-direction: column; overflow-x: visible; }
+    .top-nav a, .nav-group, .nav-group > summary { width: 100%; }
+    .nav-group { display: grid; }
+    .nav-group > summary { justify-content: space-between; }
+    .nav-submenu { position: static; width: 100%; min-width: 0; margin-top: 6px; box-shadow: none; background: var(--field); }
+    .nav-submenu a { padding-left: 18px; background: #fff; }
+    .language-form, .language-form select { width: 100%; }
+    .logout-form { width: 100%; justify-content: space-between; }
 }
 
 @media (max-width: 620px) {
