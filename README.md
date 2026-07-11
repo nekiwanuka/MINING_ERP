@@ -27,7 +27,7 @@ This project includes `build.sh` and `render.yaml` for Render.
 1. Push the latest code to GitHub.
 2. Open Render, choose **New + > Web Service**, and connect `nekiwanuka/MINING_ERP`.
 3. Use these settings if you create it manually:
-	- Build command: `./build.sh`
+	- Build command: `bash build.sh`
 	- Start command: `gunicorn mining_erp.wsgi:application`
 	- Environment: Python
 4. Add environment variables:

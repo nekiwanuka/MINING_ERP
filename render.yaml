@@ -2,7 +2,7 @@ services:
   - type: web
     name: mining-erp
     env: python
-    buildCommand: ./build.sh
+    buildCommand: bash build.sh
     startCommand: gunicorn mining_erp.wsgi:application
     envVars:
       - key: DEBUG

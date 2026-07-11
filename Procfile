@@ -1,0 +1,1 @@
+web: gunicorn mining_erp.wsgi:application
