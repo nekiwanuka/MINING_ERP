@@ -14,7 +14,7 @@
     <form method="get" class="search-form">
         <label class="field-block">
             <span>Search requisition, supplier, PO, invoice, or receipt</span>
-            <input class="field-control" type="search" name="q" value="{{ query }}" placeholder="REQ, PO, supplier, invoice, receipt">
+            <input class="field-control" type="search" name="q" value="{{ query }}" placeholder="REQ, company, site, PO, supplier, invoice, receipt">
         </label>
         <button class="primary-button" type="submit">Search</button>
     </form>
@@ -26,14 +26,22 @@
             <div class="panel-header">
                 <div>
                     <h2>{{ requisition.requisition_number }}</h2>
-                    <p class="muted-copy">{{ requisition.requester }} · {{ requisition.total_pieces }} pieces · {{ requisition.get_status_display }}</p>
+                    <p class="muted-copy">{{ requisition.requester_label }} · {{ requisition.total_pieces }} pieces · {{ requisition.get_status_display }}</p>
                 </div>
-                <span class="status-pill">{{ requisition.get_status_display }}</span>
+                <div class="button-row">
+                    <a class="small-button" href="{% url 'requisition_download' requisition.pk %}">Download requester copy</a>
+                    {% if requisition.uploaded_document %}
+                        <a class="small-button" href="{% url 'requisition_uploaded_document_download' requisition.pk %}">Uploaded file</a>
+                    {% endif %}
+                    <span class="status-pill">{{ requisition.get_status_display }}</span>
+                </div>
             </div>
 
             <div class="process-summary-grid">
                 <div><span>Items</span><strong>{{ requisition.items.count }}</strong></div>
                 <div><span>Purchase inquiries</span><strong>{{ requisition.inquiries.count }}</strong></div>
+                <div><span>Company / site</span><strong>{{ requisition.requester_label }}</strong></div>
+                <div><span>Source</span><strong>{% if requisition.uploaded_document %}Uploaded file{% else %}Generated form{% endif %}</strong></div>
                 <div><span>Requested</span><strong>{{ requisition.item_summary|truncatechars:80 }}</strong></div>
             </div>
 

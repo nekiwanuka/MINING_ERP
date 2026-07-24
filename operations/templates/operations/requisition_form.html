@@ -14,22 +14,22 @@
 <section class="requester-manual-card" aria-label="Requester quick guide">
     <h2>{{ 'Requester quick guide'|tr:active_language }}</h2>
     <div class="requester-manual-grid">
-        <div><strong>1. Fill the form</strong><span>{{ 'Add each item and the number of pieces needed.'|tr:active_language }}</span></div>
-        <div><strong>2. {{ 'Submit once'|tr:active_language }}</strong><span>The request stays editable until it is accepted.</span></div>
-        <div><strong>3. Edit pending requests</strong><span>Use the list below for requests not yet accepted.</span></div>
+        <div><strong>1. Create or upload</strong><span>Add item lines or upload a prepared requisition document.</span></div>
+        <div><strong>2. {{ 'Submit once'|tr:active_language }}</strong><span>The request goes straight to procurement as submitted.</span></div>
+        <div><strong>3. Download a copy</strong><span>Download the generated copy or the uploaded original.</span></div>
     </div>
 </section>
 {% endif %}
 
 <section class="panel narrow-panel centered-form-panel requisition-panel">
-    <form method="post" class="stacked-form requisition-entry-form">
+    <form method="post" class="stacked-form requisition-entry-form" {% if multipart %}enctype="multipart/form-data"{% endif %}>
         {% csrf_token %}
         {% include 'operations/partials/form_fields.html' with form=form %}
 
         <div class="form-section item-section-header">
             <div>
                 <h2>{{ 'Items'|tr:active_language }}</h2>
-                <p>{{ 'Add each requested item with its number of pieces.'|tr:active_language }}</p>
+                <p>Add each requested item with its number of pieces, or leave this blank when uploading a prepared requisition.</p>
             </div>
             <button class="secondary-button add-item-trigger" type="button" id="add-item-button">{{ 'Add item'|tr:active_language }}</button>
         </div>
@@ -84,8 +84,12 @@
                 <div>
                     <strong>{{ requisition.requisition_number }}</strong>
                     <span>{{ requisition.item_summary|truncatechars:110 }}</span>
-                    <small>{{ requisition.created_at|date:"Y-m-d" }} &middot; {{ requisition.total_pieces }} pieces</small>
+                    <small>{{ requisition.requester_label }} &middot; {{ requisition.created_at|date:"Y-m-d" }} &middot; {{ requisition.total_pieces }} pieces</small>
                 </div>
+                <a class="small-button" href="{% url 'requisition_download' requisition.pk %}">Download</a>
+                {% if requisition.uploaded_document %}
+                    <a class="small-button" href="{% url 'requisition_uploaded_document_download' requisition.pk %}">Uploaded file</a>
+                {% endif %}
                 {% if requisition.can_edit_pending %}
                     <a class="small-button" href="{% url 'requisition_edit' requisition.pk %}">Edit</a>
                 {% endif %}

@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from io import BytesIO
 import os
 from urllib.parse import quote
@@ -11,7 +11,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q, Sum
-from django.http import HttpResponse
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.dateparse import parse_date
 from django.utils import timezone
@@ -69,6 +69,7 @@ from .forms import (
     TransportCustomerOrderFormSet,
     TransportGovernmentChargeForm,
     TransportRecordForm,
+    TransportTransitCostForm,
     TransportTransitPointFormSet,
     VisaEmbassyForm,
 )
@@ -95,6 +96,7 @@ from .models import (
 )
 
 LIST_RESULTS_LIMIT = 5
+REPORT_QUANT = Decimal("0.01")
 
 
 def module_not_found(request, exception=None, unknown_path=""):
@@ -162,6 +164,15 @@ def sync_requisition_summary(requisition, item_data):
     )
 
 
+def sync_uploaded_requisition_summary(requisition):
+    requisition.item_description = "Uploaded requisition document"
+    requisition.quantity = Decimal("0")
+
+
+def requisition_has_content(requisition, item_data):
+    return bool(item_data) or bool(requisition.uploaded_document)
+
+
 def refresh_requisition_procurement_status(requisition):
     if requisition.status in [
         Requisition.Status.IN_TRANSPORT,
@@ -224,6 +235,7 @@ def procurement_split_items(query=None, search_date=None, limit=None):
     if query:
         queryset = queryset.filter(
             Q(requisition__requisition_number__icontains=query)
+            | Q(requisition__requesting_company__icontains=query)
             | Q(description__icontains=query)
             | Q(requisition__requester__username__icontains=query)
         )
@@ -537,6 +549,173 @@ def purchase_order_pdf_response(order, as_attachment=False, language="en"):
     disposition = "attachment" if as_attachment else "inline"
     response["Content-Disposition"] = (
         f'{disposition}; filename="{order.order_number}.pdf"'
+    )
+    return response
+
+
+def requester_company_default(user):
+    return user.get_full_name() or user.username
+
+
+def requisition_pdf(requisition, language="en"):
+    rl_config.invariant = 1
+    app_setting = ApplicationSetting.load()
+    language = normalize_language(language)
+    font_name = pdf_font_name(language)
+    buffer = BytesIO()
+    document = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=18 * mm,
+        rightMargin=18 * mm,
+        topMargin=16 * mm,
+        bottomMargin=16 * mm,
+    )
+    styles = getSampleStyleSheet()
+    body_style = ParagraphStyle(
+        "RequisitionBody",
+        parent=styles["BodyText"],
+        fontName=font_name,
+        fontSize=9,
+        leading=12,
+        textColor=colors.HexColor("#14201b"),
+    )
+    label_style = ParagraphStyle(
+        "RequisitionLabel",
+        parent=body_style,
+        fontSize=7,
+        leading=9,
+        textColor=colors.HexColor("#68736c"),
+    )
+    title_style = ParagraphStyle(
+        "RequisitionTitle",
+        parent=styles["Title"],
+        alignment=TA_RIGHT,
+        fontName=font_name,
+        fontSize=22,
+        leading=24,
+        textColor=colors.HexColor("#14201b"),
+    )
+    story = []
+
+    if app_setting.logo:
+        try:
+            brand_mark = Image(app_setting.logo.path, width=18 * mm, height=18 * mm)
+        except Exception:
+            brand_mark = Paragraph(
+                pdf_text(app_setting.application_name[:2]).upper(), title_style
+            )
+    else:
+        brand_mark = Paragraph(
+            pdf_text(app_setting.application_name[:2]).upper(), title_style
+        )
+
+    brand = Table(
+        [
+            [
+                brand_mark,
+                Paragraph(
+                    f"<b>{pdf_text(app_setting.application_name)}</b><br/>{pdf_text(app_setting.address or '')}",
+                    body_style,
+                ),
+            ]
+        ],
+        colWidths=[22 * mm, 82 * mm],
+    )
+    title = Paragraph(
+        f"{pdf_text(translate('Requisition', language))}<br/><font size='14'>{pdf_text(requisition.requisition_number)}</font><br/><font size='8'>{pdf_text(requisition.created_at.date())}</font>",
+        title_style,
+    )
+    header = Table([[brand, title]], colWidths=[104 * mm, 70 * mm])
+    header.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LINEBELOW", (0, 0), (-1, -1), 1.2, colors.HexColor("#14201b")),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+            ]
+        )
+    )
+    story.extend([header, Spacer(1, 10)])
+
+    reference_card = Table(
+        [
+            [Paragraph("REQUESTER COPY", label_style)],
+            [
+                Paragraph(
+                    f"Company / site: <b>{pdf_text(requisition.requester_label)}</b>",
+                    body_style,
+                )
+            ],
+            [
+                Paragraph(
+                    f"Submitted by: <b>{pdf_text(requisition.requester)}</b>",
+                    body_style,
+                )
+            ],
+            [
+                Paragraph(
+                    f"Status: <b>{pdf_text(requisition.get_status_display())}</b>",
+                    body_style,
+                )
+            ],
+            [
+                Paragraph(
+                    f"Urgency: <b>{pdf_text('Urgent' if requisition.urgent else 'Not urgent')}</b>",
+                    body_style,
+                )
+            ],
+        ]
+    )
+    reference_card.setStyle(
+        TableStyle(
+            [
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#dbe2dd")),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f9faf7")),
+                ("PADDING", (0, 0), (-1, -1), 10),
+            ]
+        )
+    )
+    story.extend([reference_card, Spacer(1, 12)])
+
+    rows = [["Item", "Pieces"]]
+    items = list(requisition.items.all())
+    if items:
+        rows.extend([[pdf_text(item.description), item.pieces] for item in items])
+    else:
+        rows.append([pdf_text(requisition.item_description), requisition.quantity])
+    rows.append(["Total", requisition.total_pieces])
+    item_table = Table(rows, colWidths=[134 * mm, 34 * mm])
+    item_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#14201b")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, -1), font_name),
+                ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#dbe2dd")),
+                ("PADDING", (0, 0), (-1, -1), 9),
+            ]
+        )
+    )
+    story.extend([item_table, Spacer(1, 18)])
+    story.append(
+        Paragraph(
+            "This copy can be kept by the requesting mining center and shared manually with procurement.",
+            body_style,
+        )
+    )
+    document.build(story)
+    return buffer.getvalue()
+
+
+def requisition_pdf_response(requisition, as_attachment=False, language="en"):
+    response = HttpResponse(
+        requisition_pdf(requisition, language), content_type="application/pdf"
+    )
+    disposition = "attachment" if as_attachment else "inline"
+    response["Content-Disposition"] = (
+        f'{disposition}; filename="{requisition.requisition_number}.pdf"'
     )
     return response
 
@@ -920,6 +1099,7 @@ def requisition_list(request):
     if query:
         queryset = queryset.filter(
             Q(requisition_number__icontains=query)
+            | Q(requesting_company__icontains=query)
             | Q(item_description__icontains=query)
             | Q(items__description__icontains=query)
             | Q(requester__username__icontains=query)
@@ -959,28 +1139,43 @@ def requisition_list(request):
 @login_required
 @access_required(UserModuleAccess.Module.REQUISITIONS, ACTION_CREATE)
 def requisition_create(request):
-    form = RequisitionForm(request.POST or None)
+    form = RequisitionForm(
+        request.POST or None,
+        request.FILES or None,
+        initial={"requesting_company": requester_company_default(request.user)},
+    )
     item_formset = RequisitionItemFormSet(request.POST or None, prefix="items")
     if request.method == "POST" and form.is_valid() and item_formset.is_valid():
         item_data = requisition_item_data(item_formset)
         requisition = form.save(commit=False)
         requisition.requester = request.user
-        sync_requisition_summary(requisition, item_data)
-        requisition.save()
-        for item in item_data:
-            requisition.items.create(
-                description=item["description"], pieces=item["pieces"]
+        if not requisition.requesting_company:
+            requisition.requesting_company = requester_company_default(request.user)
+        if not requisition_has_content(requisition, item_data):
+            form.add_error(
+                "uploaded_document",
+                "Upload a prepared requisition or add at least one item line.",
             )
-        messages.success(
-            request, f"Requisition {requisition.requisition_number} submitted."
-        )
-        if has_only_requisition_access(request.user):
-            return redirect("requisition_create")
-        if has_module_access(
-            request.user, UserModuleAccess.Module.REQUISITIONS, ACTION_READ
-        ):
-            return redirect("requisition_list")
-        return redirect("dashboard")
+        else:
+            if item_data:
+                sync_requisition_summary(requisition, item_data)
+            else:
+                sync_uploaded_requisition_summary(requisition)
+            requisition.save()
+            for item in item_data:
+                requisition.items.create(
+                    description=item["description"], pieces=item["pieces"]
+                )
+            messages.success(
+                request, f"Requisition {requisition.requisition_number} submitted."
+            )
+            if has_only_requisition_access(request.user):
+                return redirect("requisition_create")
+            if has_module_access(
+                request.user, UserModuleAccess.Module.REQUISITIONS, ACTION_READ
+            ):
+                return redirect("requisition_list")
+            return redirect("dashboard")
     pending_requisitions = []
     if has_module_access(
         request.user, UserModuleAccess.Module.REQUISITIONS, ACTION_READ
@@ -1007,6 +1202,7 @@ def requisition_create(request):
             "item_formset": item_formset,
             "action_label": "Submit requisition",
             "cancel_url": "requisition_list",
+            "multipart": True,
             "pending_requisitions": pending_requisitions,
             "is_requester_landing": has_only_requisition_access(request.user),
         },
@@ -1022,24 +1218,35 @@ def requisition_edit(request, pk):
     if not can_edit_requisition(request.user, requisition):
         raise PermissionDenied("This requisition can no longer be edited.")
 
-    form = RequisitionForm(request.POST or None, instance=requisition)
+    form = RequisitionForm(
+        request.POST or None, request.FILES or None, instance=requisition
+    )
     item_formset = RequisitionItemFormSet(
         request.POST or None, instance=requisition, prefix="items"
     )
     if request.method == "POST" and form.is_valid() and item_formset.is_valid():
         item_data = requisition_item_data(item_formset)
         requisition = form.save(commit=False)
-        sync_requisition_summary(requisition, item_data)
-        requisition.save()
-        requisition.items.all().delete()
-        for item in item_data:
-            requisition.items.create(
-                description=item["description"], pieces=item["pieces"]
+        if not requisition_has_content(requisition, item_data):
+            form.add_error(
+                "uploaded_document",
+                "Upload a prepared requisition or add at least one item line.",
             )
-        messages.success(
-            request, f"Requisition {requisition.requisition_number} updated."
-        )
-        return redirect("requisition_list")
+        else:
+            if item_data:
+                sync_requisition_summary(requisition, item_data)
+            else:
+                sync_uploaded_requisition_summary(requisition)
+            requisition.save()
+            requisition.items.all().delete()
+            for item in item_data:
+                requisition.items.create(
+                    description=item["description"], pieces=item["pieces"]
+                )
+            messages.success(
+                request, f"Requisition {requisition.requisition_number} updated."
+            )
+            return redirect("requisition_list")
 
     return render(
         request,
@@ -1051,7 +1258,52 @@ def requisition_edit(request, pk):
             "item_formset": item_formset,
             "action_label": "Save requisition",
             "cancel_url": "requisition_list",
+            "multipart": True,
         },
+    )
+
+
+@login_required
+def requisition_download(request, pk):
+    requisition = get_object_or_404(
+        Requisition.objects.select_related("requester").prefetch_related("items"), pk=pk
+    )
+    can_download = (
+        request.user.is_superuser
+        or requisition.requester_id == request.user.id
+        or has_module_access(
+            request.user, UserModuleAccess.Module.REQUISITIONS, ACTION_UPDATE
+        )
+        or user_in_groups(request.user, [PROCUREMENT_GROUP])
+    )
+    if not can_download:
+        raise PermissionDenied("You cannot download this requisition copy.")
+    return requisition_pdf_response(
+        requisition, as_attachment=True, language=request_language(request)
+    )
+
+
+@login_required
+def requisition_uploaded_document_download(request, pk):
+    requisition = get_object_or_404(
+        Requisition.objects.select_related("requester"), pk=pk
+    )
+    can_download = (
+        request.user.is_superuser
+        or requisition.requester_id == request.user.id
+        or has_module_access(
+            request.user, UserModuleAccess.Module.REQUISITIONS, ACTION_UPDATE
+        )
+        or user_in_groups(request.user, [PROCUREMENT_GROUP])
+    )
+    if not can_download:
+        raise PermissionDenied("You cannot download this requisition file.")
+    if not requisition.uploaded_document:
+        raise PermissionDenied("This requisition does not have an uploaded document.")
+    return FileResponse(
+        requisition.uploaded_document.open("rb"),
+        as_attachment=True,
+        filename=os.path.basename(requisition.uploaded_document.name),
     )
 
 
@@ -1529,6 +1781,7 @@ def requisition_process_list(request):
     if query:
         requisitions = requisitions.filter(
             Q(requisition_number__icontains=query)
+            | Q(requesting_company__icontains=query)
             | Q(item_description__icontains=query)
             | Q(items__description__icontains=query)
             | Q(requester__username__icontains=query)
@@ -2037,6 +2290,7 @@ def transport_detail(request, pk):
         ).prefetch_related(
             "customer_orders__purchase_order",
             "transit_points",
+            "transit_costs__customer_order",
             "customer_invoices__lines",
         ),
         pk=pk,
@@ -2048,6 +2302,7 @@ def transport_detail(request, pk):
             "record": record,
             "attachment_form": TransportAttachmentForm(),
             "charge_form": TransportGovernmentChargeForm(),
+            "transit_cost_form": TransportTransitCostForm(transport=record),
         },
     )
 
@@ -2222,6 +2477,23 @@ def transport_charge_add(request, pk):
     return redirect("transport_detail", pk=record.pk)
 
 
+@access_required(UserModuleAccess.Module.TRANSPORT, ACTION_CREATE)
+@require_POST
+def transport_transit_cost_add(request, pk):
+    record = get_object_or_404(TransportRecord, pk=pk)
+    form = TransportTransitCostForm(request.POST, transport=record)
+    if form.is_valid():
+        cost = form.save(commit=False)
+        cost.transport = record
+        cost.save()
+        messages.success(request, f"Transit cost {cost.display_name} added.")
+    else:
+        messages.error(
+            request, "Transit cost could not be added. Check the cost details."
+        )
+    return redirect("transport_detail", pk=record.pk)
+
+
 @access_required(UserModuleAccess.Module.TRANSPORT_REPORTS, ACTION_READ)
 def transport_reports(request):
     records = list(
@@ -2237,19 +2509,31 @@ def transport_reports(request):
     )
     total_cbm = sum((record.cbm for record in records), Decimal("0"))
 
-    def grouped_total(label_getter):
+    def report_money(value):
+        return Decimal(value or 0).quantize(REPORT_QUANT, rounding=ROUND_HALF_UP)
+
+    def grouped_total(label_getter, value_getter=lambda record: record.total_cost):
         grouped = defaultdict(Decimal)
         for record in records:
-            grouped[label_getter(record)] += record.total_cost
+            grouped[label_getter(record)] += value_getter(record)
         return [
-            {"label": label, "total": total} for label, total in sorted(grouped.items())
+            {"label": label, "total": report_money(total)}
+            for label, total in sorted(grouped.items())
         ]
 
     context = {
         "cost_per_shipment": [
-            {"label": record.transport_number, "total": record.total_cost}
+            {"label": record.transport_number, "total": report_money(record.total_cost)}
             for record in records
         ],
+        "revenue_per_transit": grouped_total(
+            lambda record: record.transit_number or record.transport_number,
+            lambda record: record.invoice_revenue_total,
+        ),
+        "profit_per_transit": grouped_total(
+            lambda record: record.transit_number or record.transport_number,
+            lambda record: record.transit_profit,
+        ),
         "cost_per_supplier": grouped_total(
             lambda record: record.supplier_names_summary or "Unassigned"
         ),
@@ -2270,8 +2554,12 @@ def transport_reports(request):
         "cost_by_transit_point": grouped_total(
             lambda record: record.transit_points_summary or "Unassigned"
         ),
-        "average_cost_per_ton": total_cost / total_tons if total_tons else None,
-        "average_cost_per_cbm": total_cost / total_cbm if total_cbm else None,
+        "average_cost_per_ton": (
+            report_money(total_cost / total_tons) if total_tons else None
+        ),
+        "average_cost_per_cbm": (
+            report_money(total_cost / total_cbm) if total_cbm else None
+        ),
     }
     return render(request, "operations/reports.html", context)
 

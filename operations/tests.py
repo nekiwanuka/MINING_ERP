@@ -6,7 +6,7 @@ from django.core import mail
 from django.core.management import call_command
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -30,9 +30,11 @@ from .models import (
     TransportCustomerInvoice,
     TransportGovernmentCharge,
     TransportRecord,
+    TransportTransitCost,
     UserModuleAccess,
     VisaEmbassy,
 )
+from .services import generate_transport_customer_invoices
 
 
 class ProtectedApiTests(TestCase):
@@ -121,6 +123,7 @@ class ProtectedApiTests(TestCase):
         response = self.client.post(
             "/requisitions/new/",
             {
+                "requesting_company": "Kipushi Mining Center",
                 "language": "fr",
                 "urgent": "on",
                 "items-TOTAL_FORMS": "3",
@@ -138,8 +141,66 @@ class ProtectedApiTests(TestCase):
         self.assertEqual(response.status_code, 302)
         requisition = Requisition.objects.prefetch_related("items").get()
         self.assertTrue(requisition.urgent)
+        self.assertEqual(requisition.requesting_company, "Kipushi Mining Center")
         self.assertEqual(requisition.items.count(), 2)
         self.assertEqual(requisition.total_pieces, 8)
+
+    def test_requester_can_download_requisition_copy(self):
+        requisition = self.create_requisition()
+        self.client.login(username="requester", password="MiningERP2026!")
+
+        response = self.client.get(f"/requisitions/{requisition.pk}/download/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertIn(requisition.requisition_number, response["Content-Disposition"])
+
+    def test_template_requisition_create_accepts_uploaded_document(self):
+        self.client.login(username="requester", password="MiningERP2026!")
+        upload = SimpleUploadedFile(
+            "manual-requisition.txt", b"Manual requisition document"
+        )
+
+        response = self.client.post(
+            "/requisitions/new/",
+            {
+                "requesting_company": "Kolwezi Mining Center",
+                "uploaded_document": upload,
+                "language": "en",
+                "items-TOTAL_FORMS": "3",
+                "items-INITIAL_FORMS": "0",
+                "items-MIN_NUM_FORMS": "0",
+                "items-MAX_NUM_FORMS": "1000",
+                "items-0-description": "",
+                "items-0-pieces": "",
+                "items-1-description": "",
+                "items-1-pieces": "",
+                "items-2-description": "",
+                "items-2-pieces": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        requisition = Requisition.objects.prefetch_related("items").get()
+        self.assertEqual(requisition.requesting_company, "Kolwezi Mining Center")
+        self.assertTrue(requisition.uploaded_document.name)
+        self.assertEqual(requisition.item_description, "Uploaded requisition document")
+        self.assertEqual(requisition.items.count(), 0)
+
+    def test_requester_can_download_uploaded_requisition_document(self):
+        requisition = self.create_requisition()
+        requisition.uploaded_document.save(
+            "manual-requisition.txt",
+            SimpleUploadedFile(
+                "manual-requisition.txt", b"Manual requisition document"
+            ),
+        )
+        self.client.login(username="requester", password="MiningERP2026!")
+
+        response = self.client.get(f"/requisitions/{requisition.pk}/uploaded-document/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("manual-requisition", response["Content-Disposition"])
 
     def test_requester_only_sees_requisition_navigation(self):
         self.client.login(username="requester", password="MiningERP2026!")
@@ -712,6 +773,9 @@ class ProcurementWorkflowTests(TestCase):
         )
 
 
+@override_settings(
+    STATICFILES_STORAGE="django.contrib.staticfiles.storage.StaticFilesStorage"
+)
 class TransportCalculationTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
@@ -818,7 +882,9 @@ class TransportCalculationTests(TestCase):
                 "customer_orders-0-loading_sequence": "1",
                 "customer_orders-0-offloading_sequence": "4",
                 "customer_orders-0-billable_distance_km": "250.00",
+                "customer_orders-0-rate_per_km": "0.50",
                 "customer_orders-0-pieces": "4",
+                "customer_orders-0-weight_kg": "6000.000",
                 "customer_orders-0-weight_tons": "6.00",
                 "customer_orders-0-length": "2.000",
                 "customer_orders-0-width": "1.500",
@@ -827,6 +893,7 @@ class TransportCalculationTests(TestCase):
                 "customer_orders-0-cargo_charge": "120.00",
                 "customer_orders-0-handling_charge": "5.00",
                 "customer_orders-0-loading_charge": "10.00",
+                "customer_orders-0-document_charge": "4.00",
                 "customer_orders-1-customer_name": "Kilembe Smelter",
                 "customer_orders-1-purchase_order": str(second_order.pk),
                 "customer_orders-1-cargo_description": "Drill rods",
@@ -836,11 +903,14 @@ class TransportCalculationTests(TestCase):
                 "customer_orders-1-loading_sequence": "1",
                 "customer_orders-1-offloading_sequence": "1",
                 "customer_orders-1-billable_distance_km": "100.00",
+                "customer_orders-1-rate_per_km": "0.80",
                 "customer_orders-1-pieces": "2",
+                "customer_orders-1-weight_kg": "3500.000",
                 "customer_orders-1-weight_tons": "3.50",
                 "customer_orders-1-cargo_charge": "80.00",
                 "customer_orders-1-offloading_charge": "8.00",
                 "customer_orders-1-storage_charge": "2.00",
+                "customer_orders-1-other_charge_label": "Waiting charge",
                 "customer_orders-2-customer_name": "",
                 "customer_orders-2-purchase_order": "",
                 "transit_points-TOTAL_FORMS": "4",
@@ -891,8 +961,10 @@ class TransportCalculationTests(TestCase):
             customer_orders[0].cargo_description, "Crusher liners and bolts"
         )
         self.assertEqual(customer_orders[0].cargo_cbm, Decimal("12.000000000"))
-        self.assertEqual(customer_orders[0].charge_total, Decimal("135.00"))
-        self.assertEqual(customer_orders[1].charge_total, Decimal("90.00"))
+        self.assertEqual(customer_orders[0].calculated_weight_tons, Decimal("6.000"))
+        self.assertEqual(customer_orders[0].transport_charge, Decimal("125.0000"))
+        self.assertEqual(customer_orders[0].charge_total, Decimal("139.0000"))
+        self.assertEqual(customer_orders[1].charge_total, Decimal("88.0000"))
         self.assertEqual(record.purchase_order, first_order)
         self.assertTrue(record.transit_number.startswith("TRS-"))
         self.assertEqual(
@@ -910,9 +982,9 @@ class TransportCalculationTests(TestCase):
         self.assertEqual(transit_points[0].total_amount, Decimal("42.00"))
         self.assertEqual(transit_points[1].total_amount, Decimal("33.00"))
         self.assertEqual(transit_points[2].total_amount, Decimal("15.00"))
-        self.assertEqual(record.customer_charge_total, Decimal("225.00"))
+        self.assertEqual(record.customer_charge_total, Decimal("227.0000"))
         self.assertEqual(record.transit_point_total, Decimal("90.00"))
-        self.assertEqual(record.total_cost, Decimal("500.00"))
+        self.assertEqual(record.total_cost, Decimal("502.0000"))
         invoice_response = self.client.post(
             f"/transport/{record.pk}/invoices/generate/"
         )
@@ -927,18 +999,13 @@ class TransportCalculationTests(TestCase):
         second_invoice = invoices[1]
         self.assertEqual(first_invoice.customer_name, "Kasese Minerals")
         self.assertEqual(second_invoice.customer_name, "Kilembe Smelter")
-        self.assertEqual(first_invoice.total_amount, Decimal("359.53"))
-        self.assertEqual(second_invoice.total_amount, Decimal("140.47"))
+        self.assertEqual(first_invoice.total_amount, Decimal("217.00"))
+        self.assertEqual(second_invoice.total_amount, Decimal("100.00"))
         first_descriptions = [line.description for line in first_invoice.lines.all()]
         second_descriptions = [line.description for line in second_invoice.lines.all()]
-        self.assertIn(
-            "Shared fleet charges from Border Depot to Mine Store",
-            first_descriptions,
-        )
-        self.assertIn(
-            "Shared fleet charges from Border Depot to Mpondwe Border",
-            second_descriptions,
-        )
+        self.assertNotIn("Shared fleet charges", " ".join(first_descriptions))
+        self.assertIn("Transport charge", first_descriptions)
+        self.assertIn("Government / document charge", first_descriptions)
         self.assertIn("Exit border duty at Kasumbalesa Border", first_descriptions)
         self.assertNotIn("Exit border duty at Kasumbalesa Border", second_descriptions)
         invoice_list_page = self.client.get("/transport/invoices/")
@@ -970,7 +1037,10 @@ class TransportCalculationTests(TestCase):
         )
         self.assertTrue(invoice_download.content.startswith(b"%PDF"))
         self.assertEqual(invoice_download.content, invoice_print.content)
-        self.assertContains(manual_page, "Shared vehicle customer billing")
+        self.assertContains(manual_page, "One transit, multiple client billing")
+        detail_page = self.client.get(f"/transport/{record.pk}/")
+        self.assertContains(detail_page, "Ongoing transit costs and deductions")
+        self.assertContains(detail_page, "Internal route deductions")
         second_transit = TransportRecord.objects.create(
             date=timezone.localdate(),
             vehicle="TRK-77",
@@ -991,6 +1061,131 @@ class TransportCalculationTests(TestCase):
         self.assertEqual(second_order.status, PurchaseOrder.Status.LOADED_FOR_TRANSPORT)
         self.assertEqual(first_requisition.status, Requisition.Status.IN_TRANSPORT)
         self.assertEqual(second_requisition.status, Requisition.Status.IN_TRANSPORT)
+
+    def test_transit_costs_track_internal_deductions_and_client_billable_costs(self):
+        record = TransportRecord.objects.create(
+            date=timezone.localdate(),
+            vehicle="TRK-90",
+            driver="Sarah K.",
+            origin="Depot",
+            destination="Mine",
+            distance_km=Decimal("300.00"),
+            transit_start_km=Decimal("0.00"),
+            common_route_end_km=Decimal("100.00"),
+            final_destination_km=Decimal("200.00"),
+            fuel=Decimal("120.00"),
+            driver_allowance=Decimal("80.00"),
+            created_by=self.user,
+        )
+        first = record.customer_orders.create(
+            customer_name="Alpha Mine",
+            cargo_description="Parts",
+            loading_point="Depot",
+            offloading_point="Mine A",
+            delivery_km=Decimal("200.00"),
+            rate_per_km=Decimal("1.00"),
+            loading_charge=Decimal("10.00"),
+        )
+        second = record.customer_orders.create(
+            customer_name="Beta Mine",
+            cargo_description="Tools",
+            loading_point="Depot",
+            offloading_point="Mine B",
+            delivery_km=Decimal("100.00"),
+            rate_per_km=Decimal("1.50"),
+        )
+        TransportTransitCost.objects.create(
+            transport=record,
+            cost_type=TransportTransitCost.CostType.FUEL,
+            amount=Decimal("90.00"),
+            allocation_method=TransportTransitCost.AllocationMethod.INTERNAL_ONLY,
+        )
+        TransportTransitCost.objects.create(
+            transport=record,
+            cost_type=TransportTransitCost.CostType.GOVERNMENT_DOCUMENT,
+            custom_name="Border document",
+            amount=Decimal("60.00"),
+            allocation_method=TransportTransitCost.AllocationMethod.DISTANCE_SHARED,
+        )
+        TransportTransitCost.objects.create(
+            transport=record,
+            cost_type=TransportTransitCost.CostType.TAX,
+            custom_name="Client tax",
+            amount=Decimal("25.00"),
+            allocation_method=TransportTransitCost.AllocationMethod.CLIENT_SPECIFIC,
+            customer_order=second,
+        )
+
+        invoices = generate_transport_customer_invoices(record, self.user)
+
+        first_invoice = next(
+            invoice for invoice in invoices if invoice.customer_order_id == first.id
+        )
+        second_invoice = next(
+            invoice for invoice in invoices if invoice.customer_order_id == second.id
+        )
+        self.assertEqual(first_invoice.total_amount, Decimal("400.00"))
+        self.assertEqual(second_invoice.total_amount, Decimal("245.00"))
+        first_descriptions = [line.description for line in first_invoice.lines.all()]
+        second_descriptions = [line.description for line in second_invoice.lines.all()]
+        self.assertIn("Allocated common route costs", first_descriptions)
+        self.assertIn("Allocated distribution route costs", first_descriptions)
+        self.assertIn("Allocated common route costs", second_descriptions)
+        self.assertNotIn("Allocated distribution route costs", second_descriptions)
+        self.assertEqual(record.transit_cost_total, Decimal("175.00"))
+        self.assertEqual(record.internal_deduction_total, Decimal("375.00"))
+        self.assertEqual(record.invoice_revenue_total, Decimal("645.00"))
+        self.assertEqual(record.remaining_balance, Decimal("270.00"))
+
+    def test_transit_point_costs_are_shared_by_customers_onboard_at_km(self):
+        record = TransportRecord.objects.create(
+            date=timezone.localdate(),
+            vehicle="TRK-91",
+            driver="Sarah K.",
+            origin="Kampala",
+            destination="Final Mine",
+            distance_km=Decimal("378.00"),
+            transit_start_km=Decimal("0.00"),
+            common_route_end_km=Decimal("300.00"),
+            final_destination_km=Decimal("378.00"),
+            fuel=Decimal("300.00"),
+            created_by=self.user,
+        )
+        first = record.customer_orders.create(
+            customer_name="Customer A",
+            delivery_km=Decimal("330.00"),
+            rate_per_km=Decimal("1.00"),
+        )
+        second = record.customer_orders.create(
+            customer_name="Customer B",
+            delivery_km=Decimal("350.00"),
+            rate_per_km=Decimal("1.00"),
+        )
+        third = record.customer_orders.create(
+            customer_name="Customer C",
+            delivery_km=Decimal("378.00"),
+            rate_per_km=Decimal("1.00"),
+        )
+        record.transit_points.create(
+            point_type="road_toll",
+            fee_category="toll",
+            fee_name="Road toll",
+            place_name="Distribution toll",
+            km_location=Decimal("340.00"),
+            amount=Decimal("60.00"),
+        )
+
+        invoices = generate_transport_customer_invoices(record, self.user)
+
+        totals = {
+            invoice.customer_order_id: invoice.total_amount for invoice in invoices
+        }
+        self.assertEqual(totals[first.id], Decimal("417.31"))
+        self.assertEqual(totals[second.id], Decimal("475.25"))
+        self.assertEqual(totals[third.id], Decimal("525.47"))
+        self.assertEqual(record.transit_expense_total, Decimal("360.00"))
+        self.assertEqual(record.invoice_revenue_total, Decimal("1418.03"))
+        self.assertEqual(record.transit_profit, Decimal("1058.03"))
 
     def test_transport_delivery_note_creates_business_document(self):
         order, requisition = self.create_purchase_order(

@@ -10,12 +10,14 @@
 </section>
 
 <section class="metric-grid">
-    <article class="metric-card"><span>Average cost per ton</span><strong>{{ average_cost_per_ton|default:'-' }}</strong></article>
-    <article class="metric-card"><span>Average cost per CBM</span><strong>{{ average_cost_per_cbm|default:'-' }}</strong></article>
+    <article class="metric-card"><span>Average cost per ton</span><strong>{{ average_cost_per_ton|floatformat:2|default:'-' }}</strong></article>
+    <article class="metric-card"><span>Average cost per CBM</span><strong>{{ average_cost_per_cbm|floatformat:2|default:'-' }}</strong></article>
 </section>
 
 <section class="report-grid">
     {% include 'operations/partials/report_table.html' with title='Transport Cost Per Shipment' rows=cost_per_shipment %}
+    {% include 'operations/partials/report_table.html' with title='Revenue per Transit' rows=revenue_per_transit %}
+    {% include 'operations/partials/report_table.html' with title='Profit per Transit' rows=profit_per_transit %}
     {% include 'operations/partials/report_table.html' with title='Transport Cost Per Supplier' rows=cost_per_supplier %}
     {% include 'operations/partials/report_table.html' with title='Transport Cost Per Customer' rows=cost_per_customer %}
     {% include 'operations/partials/report_table.html' with title='Cost by Destination' rows=cost_by_destination %}

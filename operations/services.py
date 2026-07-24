@@ -7,6 +7,7 @@ from .models import (
     Requisition,
     TransportCustomerInvoice,
     TransportCustomerInvoiceLine,
+    TransportTransitCost,
 )
 
 MONEY_QUANT = Decimal("0.01")
@@ -75,6 +76,16 @@ def customer_is_onboard(customer_order, sequence):
     return True
 
 
+def customer_is_onboard_at_km(customer_order, km_location):
+    if km_location is None:
+        return True
+    return (
+        customer_order.transport.route_start_km
+        <= km_location
+        <= customer_order.effective_delivery_km
+    )
+
+
 def allocation_weight(customer_order):
     return customer_order.chargeable_units * customer_order.billing_distance_km
 
@@ -108,14 +119,92 @@ def shared_fleet_total(record):
     return money(sum(fields, Decimal("0")))
 
 
+def planned_shared_transit_costs(record):
+    return [
+        ("Fuel", record.fuel),
+        ("Driver allowance", record.driver_allowance),
+        ("Turn boy allowance", record.turn_boy_allowance),
+        ("Vehicle operating allowance", record.vehicle_operating_allowance),
+        ("Planned road tolls", record.road_toll),
+        ("Planned ferry fees", record.planned_ferry_fees),
+        ("Planned border charges", record.border_charges),
+        ("Planned taxes", record.taxes),
+        ("Escort fees", record.escort_fees),
+        ("Handling charges", record.handling_charges),
+        ("Storage", record.storage),
+        ("Demurrage", record.demurrage),
+        ("Planned miscellaneous", record.miscellaneous),
+    ]
+
+
+def route_segments(record, customer_orders):
+    start_km = record.route_start_km
+    common_end_km = max(record.route_common_end_km, start_km)
+    final_km = max(
+        record.route_final_km,
+        common_end_km,
+        *(order.effective_delivery_km for order in customer_orders),
+    )
+    split_points = {start_km, common_end_km, final_km}
+    split_points.update(
+        order.effective_delivery_km
+        for order in customer_orders
+        if start_km < order.effective_delivery_km < final_km
+    )
+    points = sorted(split_points)
+    segments = []
+    for index in range(len(points) - 1):
+        segment_start = points[index]
+        segment_end = points[index + 1]
+        if segment_end <= segment_start:
+            continue
+        onboard_orders = [
+            order
+            for order in customer_orders
+            if order.effective_delivery_km > segment_start
+        ]
+        if onboard_orders:
+            segments.append(
+                {
+                    "distance": segment_end - segment_start,
+                    "zone": (
+                        "common" if segment_end <= common_end_km else "distribution"
+                    ),
+                    "orders": onboard_orders,
+                }
+            )
+    return segments
+
+
+def allocate_route_occupancy(amount, customer_order, customer_orders):
+    amount = money(amount)
+    allocation = {"common": Decimal("0.00"), "distribution": Decimal("0.00")}
+    if not amount or not customer_orders:
+        return allocation
+    segments = route_segments(customer_order.transport, customer_orders)
+    total_distance = sum((segment["distance"] for segment in segments), Decimal("0"))
+    if not total_distance:
+        return allocation
+    for segment in segments:
+        if customer_order not in segment["orders"]:
+            continue
+        segment_amount = amount * segment["distance"] / total_distance
+        allocation[segment["zone"]] += money(
+            segment_amount / Decimal(len(segment["orders"]))
+        )
+    return allocation
+
+
 def direct_charge_lines(customer_order):
     charge_fields = [
-        ("Cargo charge", customer_order.cargo_charge),
-        ("Handling charge", customer_order.handling_charge),
+        ("Transport charge", customer_order.transport_charge),
         ("Loading charge", customer_order.loading_charge),
         ("Offloading charge", customer_order.offloading_charge),
-        ("Storage charge", customer_order.storage_charge),
-        ("Other customer charge", customer_order.miscellaneous_charge),
+        ("Government / document charge", customer_order.document_charge),
+        (
+            customer_order.other_charge_label or "Other customer charge",
+            customer_order.miscellaneous_charge,
+        ),
     ]
     lines = []
     for label, amount in charge_fields:
@@ -125,17 +214,74 @@ def direct_charge_lines(customer_order):
     return lines
 
 
+def distance_weight(customer_order):
+    return customer_order.billing_distance_km
+
+
+def onboard_orders_at_km(customer_orders, km_location):
+    if not km_location:
+        return customer_orders
+    return [
+        order
+        for order in customer_orders
+        if customer_is_onboard_at_km(order, km_location)
+    ]
+
+
+def transit_cost_invoice_amount(cost, customer_order, customer_orders):
+    if cost.allocation_method == TransportTransitCost.AllocationMethod.INTERNAL_ONLY:
+        return Decimal("0.00")
+    if cost.allocation_method == TransportTransitCost.AllocationMethod.CLIENT_SPECIFIC:
+        if cost.customer_order_id == customer_order.id:
+            return money(cost.amount)
+        return Decimal("0.00")
+    if cost.allocation_method == TransportTransitCost.AllocationMethod.MANUAL:
+        if cost.customer_order_id == customer_order.id:
+            return money(cost.manual_client_amount)
+        return Decimal("0.00")
+    if cost.km_location:
+        eligible_orders = onboard_orders_at_km(customer_orders, cost.km_location)
+        if customer_order not in eligible_orders:
+            return Decimal("0.00")
+        return money(cost.amount / Decimal(len(eligible_orders)))
+    eligible_orders = [order for order in customer_orders if order.billing_distance_km]
+    if not eligible_orders:
+        eligible_orders = customer_orders
+    return allocate_amount(
+        cost.amount, customer_order, eligible_orders, distance_weight
+    )
+
+
+def transit_point_invoice_amount(transit_point, customer_order, customer_orders):
+    if transit_point.km_location:
+        eligible_orders = onboard_orders_at_km(
+            customer_orders, transit_point.km_location
+        )
+    else:
+        eligible_orders = [
+            order
+            for order in customer_orders
+            if customer_is_onboard(order, transit_point.sequence)
+        ]
+    if customer_order not in eligible_orders:
+        return Decimal("0.00")
+    if transit_point.km_location:
+        return money(transit_point.total_amount / Decimal(len(eligible_orders)))
+    return allocate_amount(
+        transit_point.total_amount,
+        customer_order,
+        eligible_orders,
+        distance_weight,
+    )
+
+
 def generate_transport_customer_invoices(record, generated_by=None):
     customer_orders = list(record.customer_orders.all())
     transit_points = list(record.transit_points.all())
+    transit_costs = list(record.transit_costs.all())
     invoices = []
     if not customer_orders:
         return invoices
-
-    shared_total = shared_fleet_total(record)
-    shared_eligible_orders = [
-        order for order in customer_orders if allocation_weight(order)
-    ] or customer_orders
 
     with transaction.atomic():
         record.customer_invoices.all().delete()
@@ -158,36 +304,36 @@ def generate_transport_customer_invoices(record, generated_by=None):
                 )
                 sort_order += 1
 
-            shared_amount = allocate_amount(
-                shared_total, customer_order, shared_eligible_orders, allocation_weight
-            )
-            if shared_amount:
-                description = (
-                    f"Shared fleet charges from {customer_order.loading_point or record.origin} "
-                    f"to {customer_order.offloading_point or record.destination}"
+            common_total = Decimal("0.00")
+            distribution_total = Decimal("0.00")
+            for _label, amount in planned_shared_transit_costs(record):
+                allocation = allocate_route_occupancy(
+                    amount, customer_order, customer_orders
                 )
+                common_total += allocation["common"]
+                distribution_total += allocation["distribution"]
+            if common_total:
                 TransportCustomerInvoiceLine.objects.create(
                     invoice=invoice,
                     line_type=TransportCustomerInvoiceLine.LineType.SHARED,
-                    description=description,
-                    amount=shared_amount,
+                    description="Allocated common route costs",
+                    amount=money(common_total),
+                    sort_order=sort_order,
+                )
+                sort_order += 1
+            if distribution_total:
+                TransportCustomerInvoiceLine.objects.create(
+                    invoice=invoice,
+                    line_type=TransportCustomerInvoiceLine.LineType.SHARED,
+                    description="Allocated distribution route costs",
+                    amount=money(distribution_total),
                     sort_order=sort_order,
                 )
                 sort_order += 1
 
             for transit_point in transit_points:
-                eligible_orders = [
-                    order
-                    for order in customer_orders
-                    if customer_is_onboard(order, transit_point.sequence)
-                ]
-                if customer_order not in eligible_orders:
-                    continue
-                transit_amount = allocate_amount(
-                    transit_point.total_amount,
-                    customer_order,
-                    eligible_orders,
-                    lambda order: order.chargeable_units,
+                transit_amount = transit_point_invoice_amount(
+                    transit_point, customer_order, customer_orders
                 )
                 if not transit_amount:
                     continue
@@ -199,6 +345,21 @@ def generate_transport_customer_invoices(record, generated_by=None):
                     invoice=invoice,
                     line_type=TransportCustomerInvoiceLine.LineType.TRANSIT,
                     description=description,
+                    amount=transit_amount,
+                    sort_order=sort_order,
+                )
+                sort_order += 1
+
+            for transit_cost in transit_costs:
+                transit_amount = transit_cost_invoice_amount(
+                    transit_cost, customer_order, customer_orders
+                )
+                if not transit_amount:
+                    continue
+                TransportCustomerInvoiceLine.objects.create(
+                    invoice=invoice,
+                    line_type=TransportCustomerInvoiceLine.LineType.TRANSIT,
+                    description=transit_cost.display_name,
                     amount=transit_amount,
                     sort_order=sort_order,
                 )

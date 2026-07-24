@@ -12,10 +12,20 @@
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="alert alert-error">{{ form.non_field_errors }}</div>{% endif %}
 
+    <section class="metric-grid" aria-label="Overall charge balance preview">
+        <article class="metric-card">
+            <span>{{ form.overall_charge.label }}</span>
+            {{ form.overall_charge }}
+            {% for error in form.overall_charge.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+        </article>
+        <article class="metric-card"><span>Entered costs</span><strong data-cost-preview>0.00</strong></article>
+        <article class="metric-card"><span>Balance</span><strong data-balance-preview>0.00</strong></article>
+    </section>
+
     <div class="form-section item-section-header">
         <div>
-            <h2>Cargo details and customer charges</h2>
-            <p>Record each customer sharing this vehicle, their cargo, and the charges for their items.</p>
+            <h2>Client cargo and billing</h2>
+            <p>Record each client on this one vehicle transit, their route segment, weight, per-km rate, and client-facing charges.</p>
         </div>
         <button class="secondary-button add-item-trigger" type="button" id="add-customer-order-button">Add customer cargo</button>
     </div>
@@ -30,7 +40,7 @@
                     <span class="item-number">{{ forloop.counter }}</span>
                     <span>Customer cargo {{ forloop.counter }}</span>
                 </summary>
-                <div class="item-form-row">
+                <div class="item-form-row customer-cargo-grid">
                     {% include 'operations/partials/form_fields.html' with form=order_form %}
                 </div>
             </details>
@@ -42,7 +52,7 @@
                 <span class="item-number">__number__</span>
                 <span>Customer cargo __number__</span>
             </summary>
-            <div class="item-form-row">
+            <div class="item-form-row customer-cargo-grid">
                 {% include 'operations/partials/form_fields.html' with form=order_formset.empty_form %}
             </div>
         </details>
@@ -53,6 +63,7 @@
         <label class="field-block"><span>{{ form.date.label }}</span>{{ form.date }}{% for error in form.date.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
         <label class="field-block"><span>{{ form.vehicle.label }}</span>{{ form.vehicle }}{% for error in form.vehicle.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
         <label class="field-block"><span>{{ form.driver.label }}</span>{{ form.driver }}{% for error in form.driver.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.turn_boy.label }}</span>{{ form.turn_boy }}{% for error in form.turn_boy.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
         <label class="field-block"><span>{{ form.container_number.label }}</span>{{ form.container_number }}{% for error in form.container_number.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
     </div>
 
@@ -61,6 +72,9 @@
         <label class="field-block"><span>{{ form.origin.label }}</span>{{ form.origin }}{% for error in form.origin.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
         <label class="field-block"><span>{{ form.destination.label }}</span>{{ form.destination }}{% for error in form.destination.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
         <label class="field-block"><span>{{ form.distance_km.label }}</span>{{ form.distance_km }}{% for error in form.distance_km.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.transit_start_km.label }}</span>{{ form.transit_start_km }}{% for error in form.transit_start_km.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.common_route_end_km.label }}</span>{{ form.common_route_end_km }}{% for error in form.common_route_end_km.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.final_destination_km.label }}</span>{{ form.final_destination_km }}{% for error in form.final_destination_km.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
         <label class="field-block"><span>{{ form.requisition.label }}</span>{{ form.requisition }}{% for error in form.requisition.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
         <label class="field-block"><span>{{ form.supplier.label }}</span>{{ form.supplier }}{% for error in form.supplier.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
         <label class="field-block"><span>{{ form.weight_tons.label }}</span>{{ form.weight_tons }}{% for error in form.weight_tons.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
@@ -70,11 +84,15 @@
         <label class="field-block"><span>{{ form.cbm_quantity.label }}</span>{{ form.cbm_quantity }}{% for error in form.cbm_quantity.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
     </div>
 
-    <div class="form-section"><h2>Shared fleet charges</h2></div>
+    <div class="form-section"><h2>Internal route deductions</h2></div>
+    <p class="muted-copy">Fuel, driver, escort, fleet, and other operating costs stay internal for profit tracking and do not print on client invoices.</p>
     <div class="form-grid">
         <label class="field-block"><span>{{ form.freight.label }}</span>{{ form.freight }}{% for error in form.freight.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
         <label class="field-block"><span>{{ form.fuel.label }}</span>{{ form.fuel }}{% for error in form.fuel.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
         <label class="field-block"><span>{{ form.driver_allowance.label }}</span>{{ form.driver_allowance }}{% for error in form.driver_allowance.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.turn_boy_allowance.label }}</span>{{ form.turn_boy_allowance }}{% for error in form.turn_boy_allowance.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.vehicle_operating_allowance.label }}</span>{{ form.vehicle_operating_allowance }}{% for error in form.vehicle_operating_allowance.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        <label class="field-block"><span>{{ form.planned_ferry_fees.label }}</span>{{ form.planned_ferry_fees }}{% for error in form.planned_ferry_fees.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
         <label class="field-block"><span>{{ form.insurance.label }}</span>{{ form.insurance }}{% for error in form.insurance.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
         <label class="field-block"><span>{{ form.escort_fees.label }}</span>{{ form.escort_fees }}{% for error in form.escort_fees.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
         <label class="field-block"><span>{{ form.handling_charges.label }}</span>{{ form.handling_charges }}{% for error in form.handling_charges.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
@@ -173,7 +191,7 @@
         totalSelector: '#id_customer_orders-TOTAL_FORMS',
         templateSelector: '#empty-customer-order-template',
         itemSelector: '.customer-order-accordion',
-        valueSelectors: ['[name$="-customer_name"]', '[name$="-purchase_order"]', '[name$="-cargo_description"]', '[name$="-package_type"]', '[name$="-cargo_charge"]', '[name$="-handling_charge"]', '[name$="-loading_charge"]', '[name$="-offloading_charge"]', '[name$="-storage_charge"]', '[name$="-miscellaneous_charge"]'],
+        valueSelectors: ['[name$="-customer_name"]', '[name$="-purchase_order"]', '[name$="-cargo_description"]', '[name$="-package_type"]', '[name$="-billable_distance_km"]', '[name$="-rate_per_km"]', '[name$="-weight_kg"]', '[name$="-cargo_charge"]', '[name$="-loading_charge"]', '[name$="-offloading_charge"]', '[name$="-document_charge"]', '[name$="-miscellaneous_charge"]'],
     });
 
     setupDynamicFormset({
@@ -184,5 +202,67 @@
         itemSelector: '.transit-point-accordion',
         valueSelectors: ['[name$="-fee_name"]', '[name$="-place_name"]', '[name$="-reference_number"]', '[name$="-amount"]', '[name$="-notes"]'],
     });
+
+    function setupTransportBalancePreview() {
+        const form = document.querySelector('.transport-form');
+        const overallCharge = document.querySelector('#id_overall_charge');
+        const costPreview = document.querySelector('[data-cost-preview]');
+        const balancePreview = document.querySelector('[data-balance-preview]');
+        if (!form || !overallCharge || !costPreview || !balancePreview) return;
+
+        const costNames = new Set([
+            'freight',
+            'fuel',
+            'driver_allowance',
+            'turn_boy_allowance',
+            'vehicle_operating_allowance',
+            'road_toll',
+            'planned_ferry_fees',
+            'border_charges',
+            'taxes',
+            'insurance',
+            'escort_fees',
+            'handling_charges',
+            'loading',
+            'offloading',
+            'storage',
+            'demurrage',
+            'miscellaneous',
+            'custom_tax',
+            'import_duty',
+            'vat',
+            'excise_duty',
+            'other_government_charges',
+        ]);
+
+        const parseMoney = (value) => {
+            const parsed = Number.parseFloat(String(value || '').replace(/,/g, ''));
+            return Number.isFinite(parsed) ? parsed : 0;
+        };
+
+        const formatMoney = (value) => value.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
+
+        const calculate = () => {
+            let costs = 0;
+            costNames.forEach((name) => {
+                costs += parseMoney(form.elements[name]?.value);
+            });
+            form.querySelectorAll('[name^="transit_points-"][name$="-amount"]').forEach((field) => {
+                costs += parseMoney(field.value);
+            });
+            const balance = parseMoney(overallCharge.value) - costs;
+            costPreview.textContent = formatMoney(costs);
+            balancePreview.textContent = formatMoney(balance);
+        };
+
+        form.addEventListener('input', calculate);
+        form.addEventListener('change', calculate);
+        calculate();
+    }
+
+    setupTransportBalancePreview();
 </script>
 {% endblock %}

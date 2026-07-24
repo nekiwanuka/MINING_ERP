@@ -14,10 +14,12 @@
 </section>
 
 <section class="metric-grid">
-    <article class="metric-card"><span>Total cost</span><strong>{{ record.total_cost|floatformat:2 }}</strong></article>
-    <article class="metric-card"><span>Customer cargo charges</span><strong>{{ record.customer_charge_total|floatformat:2 }}</strong></article>
-    <article class="metric-card"><span>Transit point charges</span><strong>{{ record.transit_point_total|floatformat:2 }}</strong></article>
-    <article class="metric-card"><span>Shared charges</span><strong>{{ record.cost_total|floatformat:2 }}</strong></article>
+    <article class="metric-card"><span>Overall charge</span><strong>{{ record.overall_charge|floatformat:2 }}</strong></article>
+    <article class="metric-card"><span>Charge balance</span><strong>{{ record.overall_charge_balance|default:'-' }}</strong></article>
+    <article class="metric-card"><span>Invoice revenue</span><strong>{{ record.invoice_revenue_total|floatformat:2 }}</strong></article>
+    <article class="metric-card"><span>Transit expenses</span><strong>{{ record.transit_expense_total|floatformat:2 }}</strong></article>
+    <article class="metric-card"><span>Transit profit / loss</span><strong>{{ record.transit_profit|floatformat:2 }}</strong></article>
+    <article class="metric-card"><span>Ongoing costs</span><strong>{{ record.transit_cost_total|floatformat:2 }}</strong></article>
     <article class="metric-card"><span>CBM</span><strong>{{ record.cbm|floatformat:3 }}</strong></article>
     <article class="metric-card"><span>Cost per ton</span><strong>{{ record.average_cost_per_ton|default:'-' }}</strong></article>
 </section>
@@ -64,6 +66,7 @@
             <div><dt>Date</dt><dd>{{ record.date }}</dd></div>
             <div><dt>Vehicle</dt><dd>{{ record.vehicle }}</dd></div>
             <div><dt>Driver</dt><dd>{{ record.driver }}</dd></div>
+            <div><dt>Turn boy</dt><dd>{{ record.turn_boy|default:'-' }}</dd></div>
             <div><dt>Container</dt><dd>{{ record.container_number|default:'-' }}</dd></div>
         </dl>
     </article>
@@ -78,28 +81,34 @@
             <div><dt>Origin</dt><dd>{{ record.origin }}</dd></div>
             <div><dt>Destination</dt><dd>{{ record.destination }}</dd></div>
             <div><dt>Distance</dt><dd>{{ record.distance_km }} km</dd></div>
+            <div><dt>Transit start KM</dt><dd>{{ record.route_start_km|floatformat:2 }}</dd></div>
+            <div><dt>Common route end KM</dt><dd>{{ record.route_common_end_km|floatformat:2 }}</dd></div>
+            <div><dt>Final destination KM</dt><dd>{{ record.route_final_km|floatformat:2 }}</dd></div>
         </dl>
     </article>
 </section>
 
 <section class="panel">
-    <div class="panel-header"><h2>Cargo details and customer charges</h2></div>
+    <div class="panel-header"><h2>Client cargo and charges</h2></div>
     <div class="table-wrap compact">
         <table>
-            <thead><tr><th>Customer</th><th>Purchase Order</th><th>Cargo / Items</th><th>Packages</th><th>Weight</th><th>CBM</th><th>Charges</th></tr></thead>
+            <thead><tr><th>Customer</th><th>Cargo / Items</th><th>Loading</th><th>Offloading</th><th>Destination</th><th>Delivery KM</th><th>Weight</th><th>Distance</th><th>Rate/km</th><th>Total</th></tr></thead>
             <tbody>
                 {% for customer_order in record.customer_orders.all %}
                     <tr>
                         <td>{{ customer_order.customer_name|default:'Unnamed customer' }}</td>
-                        <td>{{ customer_order.purchase_order|default:'-' }}</td>
                         <td>{{ customer_order.cargo_description|default:'-' }}</td>
-                        <td>{{ customer_order.pieces }} {{ customer_order.package_type|default:'pcs' }}</td>
-                        <td>{{ customer_order.weight_tons|floatformat:2 }}</td>
-                        <td>{{ customer_order.cargo_cbm|floatformat:3 }}</td>
+                        <td>{{ customer_order.loading_point|default:record.origin }}</td>
+                        <td>{{ customer_order.offloading_point|default:record.destination }}</td>
+                        <td>{{ customer_order.destination|default:customer_order.offloading_point|default:record.destination }}</td>
+                        <td>{{ customer_order.effective_delivery_km|floatformat:2 }}</td>
+                        <td>{{ customer_order.weight_kg|floatformat:3 }} kg / {{ customer_order.calculated_weight_tons|floatformat:3 }} t</td>
+                        <td>{{ customer_order.billing_distance_km|floatformat:2 }} km</td>
+                        <td>{{ customer_order.rate_per_km|floatformat:2 }}</td>
                         <td>{{ customer_order.charge_total|floatformat:2 }}</td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="7" class="empty-cell">No customer cargo rows linked.</td></tr>
+                    <tr><td colspan="10" class="empty-cell">No customer cargo rows linked.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -107,10 +116,41 @@
 </section>
 
 <section class="panel">
+    <div class="panel-header"><h2>Ongoing transit costs and deductions</h2></div>
+    <div class="table-wrap compact">
+        <table>
+            <thead><tr><th>Date</th><th>Time</th><th>KM</th><th>Point</th><th>Cost</th><th>Allocation</th><th>Client</th><th>Amount</th><th>Notes</th></tr></thead>
+            <tbody>
+                {% for cost in record.transit_costs.all %}
+                    <tr>
+                        <td>{{ cost.cost_date }}</td>
+                        <td>{{ cost.cost_time|default:'-' }}</td>
+                        <td>{{ cost.km_location|floatformat:2 }}</td>
+                        <td>{{ cost.transit_point|default:'-' }}</td>
+                        <td>{{ cost.display_name }}</td>
+                        <td>{{ cost.get_allocation_method_display }}</td>
+                        <td>{{ cost.customer_order|default:'-' }}</td>
+                        <td>{{ cost.amount|floatformat:2 }}</td>
+                        <td>{{ cost.notes|default:'-' }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="9" class="empty-cell">No ongoing costs entered yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <form method="post" action="{% url 'transport_transit_cost_add' record.pk %}" class="inline-form">
+        {% csrf_token %}
+        {% include 'operations/partials/form_fields.html' with form=transit_cost_form %}
+        <button class="small-button" type="submit">Add transit cost</button>
+    </form>
+</section>
+
+<section class="panel">
     <div class="panel-header"><h2>Transit and government fees</h2></div>
     <div class="table-wrap compact">
         <table>
-            <thead><tr><th>Point Type</th><th>Fee Category</th><th>Fee / Tax Name</th><th>Point / Place</th><th>Reference</th><th>Amount</th><th>Notes</th></tr></thead>
+            <thead><tr><th>Point Type</th><th>Fee Category</th><th>Fee / Tax Name</th><th>Point / Place</th><th>KM</th><th>Reference</th><th>Amount</th><th>Notes</th></tr></thead>
             <tbody>
                 {% for transit_point in record.transit_points.all %}
                     <tr>
@@ -118,12 +158,13 @@
                         <td>{{ transit_point.get_fee_category_display }}</td>
                         <td>{{ transit_point.fee_name|default:'-' }}</td>
                         <td>{{ transit_point.place_name }}</td>
+                        <td>{{ transit_point.km_location|floatformat:2 }}</td>
                         <td>{{ transit_point.reference_number|default:'-' }}</td>
                         <td>{{ transit_point.total_amount|floatformat:2 }}</td>
                         <td>{{ transit_point.notes|default:'-' }}</td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="7" class="empty-cell">No transit points recorded.</td></tr>
+                    <tr><td colspan="8" class="empty-cell">No transit points recorded.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -132,11 +173,16 @@
 
 <section class="two-column">
     <article class="panel">
-        <div class="panel-header"><h2>Shared fleet charges</h2></div>
+        <div class="panel-header"><h2>Internal route deductions</h2></div>
         <dl class="detail-list">
             <div><dt>Freight</dt><dd>{{ record.freight|floatformat:2 }}</dd></div>
             <div><dt>Fuel</dt><dd>{{ record.fuel|floatformat:2 }}</dd></div>
             <div><dt>Driver allowance</dt><dd>{{ record.driver_allowance|floatformat:2 }}</dd></div>
+            <div><dt>Turn boy allowance</dt><dd>{{ record.turn_boy_allowance|floatformat:2 }}</dd></div>
+            <div><dt>Vehicle operating allowance</dt><dd>{{ record.vehicle_operating_allowance|floatformat:2 }}</dd></div>
+            <div><dt>Planned ferry fees</dt><dd>{{ record.planned_ferry_fees|floatformat:2 }}</dd></div>
+            <div><dt>Escort</dt><dd>{{ record.escort_fees|floatformat:2 }}</dd></div>
+            <div><dt>Other ongoing costs</dt><dd>{{ record.transit_cost_total|floatformat:2 }}</dd></div>
             <div><dt>Cost total</dt><dd>{{ record.cost_total|floatformat:2 }}</dd></div>
         </dl>
     </article>

@@ -4,31 +4,158 @@
 <section class="page-heading form-page-heading">
     <div>
         <p class="eyebrow">Workflow Manual</p>
-        <h1>Shared vehicle customer billing</h1>
-        <p>Use this process when one transit carries cargo for more than one customer.</p>
+        <h1>One transit, multiple client billing</h1>
+        <p>Use this process when one vehicle transit carries cargo for more than one client and each client is billed by their own route segment.</p>
     </div>
 </section>
 
 <section class="panel narrow-panel centered-form-panel">
     <div class="form-section"><h2>1. Create one transit record</h2></div>
-    <p class="muted-copy">Create a transport record for the vehicle trip. The system generates one unique transit number. All cargo, route points, fees, and invoices stay attached to that transit.</p>
+    <p class="muted-copy">Create one transport record for the vehicle trip. The system generates one unique transit number. Record the origin, final destination, transit start KM, common route end KM, and final destination KM so the system can separate the common route from the distribution route.</p>
 
-    <div class="form-section"><h2>2. Add customer cargo rows</h2></div>
-    <p class="muted-copy">For every customer sharing the vehicle, record the customer name, purchase order, cargo description, package details, weight or CBM, loading point, offloading point, and direct customer charges.</p>
+    <div class="form-section"><h2>2. Add client cargo rows</h2></div>
+    <p class="muted-copy">For every client sharing the vehicle, record the client name, cargo description, loading point, offloading point, delivery point, delivery KM, rate per km, loading fee, offloading fee, document charge, and any approved custom client charge.</p>
 
-    <div class="form-section"><h2>3. Mark route sequence</h2></div>
-    <p class="muted-copy">Use loading sequence, offloading sequence, and fee route sequence to show when cargo is onboard. A fee at sequence 3 only applies to customers whose cargo has loaded by sequence 3 and has not offloaded before it.</p>
+    <div class="form-section"><h2>3. Calculate client-facing charges</h2></div>
+    <p class="muted-copy">The standard transport charge is rate per KM multiplied by the customer distance from transit start KM to delivery KM. Loading and offloading are charged only to the affected customer.</p>
 
-    <div class="form-section"><h2>4. Add transit and government fees</h2></div>
-    <p class="muted-copy">Enter each border, toll, customs, duty, permit, tax, or checkpoint fee as a separate fee row. Include the place, sequence, reference, category, fee name, and amount.</p>
+    <div class="form-section"><h2>4. Enter planned shared transit costs</h2></div>
+    <p class="muted-copy">Fuel, driver allowance, turn boy allowance, vehicle operating allowance, planned road tolls, planned ferry fees, and planned miscellaneous costs are allocated by route occupancy. The common route is shared by all customers; distribution segments are shared only by customers still onboard.</p>
 
-    <div class="form-section"><h2>5. Generate customer invoices</h2></div>
-    <p class="muted-copy">Open the transport detail page and click Generate invoices. The system creates one draft invoice for each customer cargo row.</p>
+    <div class="form-section"><h2>5. Record transit point and journey costs</h2></div>
+    <p class="muted-copy">As the transit moves, enter each border tax, customs fee, road toll, emergency expense, or other journey cost with its date, time, KM location, transit point, cost type, amount, and notes. KM-based costs are shared only by customers still onboard at that KM.</p>
 
-    <div class="form-section"><h2>6. How billing is calculated</h2></div>
-    <p class="muted-copy">Direct customer charges go fully to that customer. Shared fleet charges are allocated by chargeable units multiplied by billable distance. Transit and government fees are allocated only among customers onboard at the fee sequence.</p>
+    <div class="form-section"><h2>6. Generate customer invoices</h2></div>
+    <p class="muted-copy">Invoices include the transport charge, customer-specific loading and offloading fees, allocated common route costs, allocated distribution route costs, and allocated transit point costs.</p>
 
-    <div class="form-section"><h2>7. Review before sending</h2></div>
-    <p class="muted-copy">Open each generated invoice and confirm the line items. The invoice explains the direct charges, shared fleet allocation, and transit/government fees for that customer.</p>
+    <div class="form-section"><h2>7. Track revenue</h2></div>
+    <p class="muted-copy">Transit revenue is the sum of all customer invoices for the transit.</p>
+
+    <div class="form-section"><h2>8. Track profit or loss</h2></div>
+    <p class="muted-copy">The transport detail page compares invoice revenue against planned and recorded transit expenses. Profit is total customer revenue minus total transit expenses.</p>
+</section>
+
+<section class="panel narrow-panel centered-form-panel">
+    <div class="form-section"><h2>Full example: two clients on one truck</h2></div>
+    <p class="muted-copy">A truck leaves Kampala with cargo for Client A and Client B. Both clients share the truck until the Uganda border. After the border, Client A is delivered first, then Client B continues alone to the final destination.</p>
+
+    <div class="table-wrap compact">
+        <table>
+            <thead><tr><th>Transit setup</th><th>Value</th></tr></thead>
+            <tbody>
+                <tr><td>Origin</td><td>Kampala</td></tr>
+                <tr><td>Transit start KM</td><td>0</td></tr>
+                <tr><td>Common route end KM</td><td>300</td></tr>
+                <tr><td>Final destination KM</td><td>380</td></tr>
+                <tr><td>Common route</td><td>0 to 300 km</td></tr>
+                <tr><td>Distribution route</td><td>300 to 380 km</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="form-section"><h2>1. Customer cargo rows</h2></div>
+    <div class="table-wrap compact">
+        <table>
+            <thead><tr><th>Customer</th><th>Delivery KM</th><th>Rate per KM</th><th>Loading</th><th>Offloading</th></tr></thead>
+            <tbody>
+                <tr><td>Client A</td><td>330</td><td>5,000</td><td>50,000</td><td>30,000</td></tr>
+                <tr><td>Client B</td><td>380</td><td>5,000</td><td>50,000</td><td>40,000</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <p class="muted-copy">Transport charge is calculated per customer as rate per KM multiplied by the distance from transit start KM to delivery KM.</p>
+    <div class="table-wrap compact">
+        <table>
+            <thead><tr><th>Customer</th><th>Distance</th><th>Calculation</th><th>Transport charge</th></tr></thead>
+            <tbody>
+                <tr><td>Client A</td><td>330 km</td><td>5,000 x 330</td><td>1,650,000</td></tr>
+                <tr><td>Client B</td><td>380 km</td><td>5,000 x 380</td><td>1,900,000</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="form-section"><h2>2. Planned shared transit costs</h2></div>
+    <div class="table-wrap compact">
+        <table>
+            <thead><tr><th>Cost</th><th>Amount</th></tr></thead>
+            <tbody>
+                <tr><td>Fuel</td><td>500,000</td></tr>
+                <tr><td>Driver allowance</td><td>120,000</td></tr>
+                <tr><td>Turn boy allowance</td><td>80,000</td></tr>
+                <tr><td>Vehicle operating allowance</td><td>50,000</td></tr>
+                <tr><td>Planned road tolls</td><td>30,000</td></tr>
+                <tr><td><strong>Total planned shared cost</strong></td><td><strong>780,000</strong></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="form-section"><h2>3. Route occupancy allocation</h2></div>
+    <p class="muted-copy">The system splits the trip into route segments. Each segment is charged only to the customers still onboard during that segment.</p>
+    <div class="table-wrap compact">
+        <table>
+            <thead><tr><th>Segment</th><th>Distance</th><th>Customers onboard</th><th>Share rule</th></tr></thead>
+            <tbody>
+                <tr><td>Common route: 0 to 300</td><td>300 km</td><td>Client A, Client B</td><td>Shared by 2</td></tr>
+                <tr><td>Distribution: 300 to 330</td><td>30 km</td><td>Client A, Client B</td><td>Shared by 2</td></tr>
+                <tr><td>Distribution: 330 to 380</td><td>50 km</td><td>Client B</td><td>Client B only</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <p class="muted-copy">Because the full route is 380 km, the 780,000 planned cost is spread across the route by distance first.</p>
+    <div class="table-wrap compact">
+        <table>
+            <thead><tr><th>Segment</th><th>Segment cost</th><th>Client A share</th><th>Client B share</th></tr></thead>
+            <tbody>
+                <tr><td>0 to 300</td><td>780,000 x 300 / 380 = 615,789.47</td><td>307,894.74</td><td>307,894.74</td></tr>
+                <tr><td>300 to 330</td><td>780,000 x 30 / 380 = 61,578.95</td><td>30,789.47</td><td>30,789.47</td></tr>
+                <tr><td>330 to 380</td><td>780,000 x 50 / 380 = 102,631.58</td><td>0.00</td><td>102,631.58</td></tr>
+                <tr><td><strong>Total allocated planned cost</strong></td><td><strong>780,000.00</strong></td><td><strong>338,684.21</strong></td><td><strong>441,315.79</strong></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="form-section"><h2>4. Transit point costs during the trip</h2></div>
+    <div class="table-wrap compact">
+        <table>
+            <thead><tr><th>Transit point cost</th><th>KM</th><th>Amount</th><th>Customers onboard</th><th>Allocation</th></tr></thead>
+            <tbody>
+                <tr><td>Border tax</td><td>300</td><td>200,000</td><td>Client A, Client B</td><td>100,000 each</td></tr>
+                <tr><td>Road toll</td><td>340</td><td>60,000</td><td>Client B</td><td>Client B pays 60,000</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="form-section"><h2>5. Customer invoice totals</h2></div>
+    <div class="table-wrap compact">
+        <table>
+            <thead><tr><th>Invoice line</th><th>Client A</th><th>Client B</th></tr></thead>
+            <tbody>
+                <tr><td>Transport charge</td><td>1,650,000.00</td><td>1,900,000.00</td></tr>
+                <tr><td>Loading fee</td><td>50,000.00</td><td>50,000.00</td></tr>
+                <tr><td>Offloading fee</td><td>30,000.00</td><td>40,000.00</td></tr>
+                <tr><td>Allocated common route cost</td><td>307,894.74</td><td>307,894.74</td></tr>
+                <tr><td>Allocated distribution cost</td><td>30,789.47</td><td>133,421.05</td></tr>
+                <tr><td>Allocated border tax at KM 300</td><td>100,000.00</td><td>100,000.00</td></tr>
+                <tr><td>Allocated road toll at KM 340</td><td>0.00</td><td>60,000.00</td></tr>
+                <tr><td><strong>Invoice total</strong></td><td><strong>2,168,684.21</strong></td><td><strong>2,591,315.79</strong></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="form-section"><h2>6. Revenue, expenses, and profit</h2></div>
+    <div class="table-wrap compact">
+        <table>
+            <thead><tr><th>Transit result</th><th>Calculation</th><th>Total</th></tr></thead>
+            <tbody>
+                <tr><td>Revenue</td><td>Client A invoice + Client B invoice</td><td>4,760,000.00</td></tr>
+                <tr><td>Expenses</td><td>Planned shared costs + border tax + road toll</td><td>1,040,000.00</td></tr>
+                <tr><td>Profit</td><td>4,760,000 - 1,040,000</td><td>3,720,000.00</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <p class="muted-copy">The important rule is that Client A stops sharing costs after KM 330. Any cost after KM 330 is charged only to Client B because Client B is the only cargo still onboard.</p>
 </section>
 {% endblock %}

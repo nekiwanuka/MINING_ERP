@@ -23,6 +23,7 @@ from .models import (
     TransportCustomerOrder,
     TransportGovernmentCharge,
     TransportRecord,
+    TransportTransitCost,
     TransportTransitPoint,
     UserModuleAccess,
     VisaEmbassy,
@@ -46,6 +47,11 @@ class TransportCustomerOrderInline(admin.TabularInline):
 
 class TransportTransitPointInline(admin.TabularInline):
     model = TransportTransitPoint
+    extra = 1
+
+
+class TransportTransitCostInline(admin.TabularInline):
+    model = TransportTransitCost
     extra = 1
 
 
@@ -81,6 +87,8 @@ class ApplicationSettingAdmin(admin.ModelAdmin):
 class RequisitionAdmin(admin.ModelAdmin):
     list_display = (
         "requisition_number",
+        "requesting_company",
+        "uploaded_document",
         "requester",
         "language",
         "urgent",
@@ -91,6 +99,7 @@ class RequisitionAdmin(admin.ModelAdmin):
     list_filter = ("language", "urgent", "status", "created_at")
     search_fields = (
         "requisition_number",
+        "requesting_company",
         "item_description",
         "items__description",
         "requester__username",
@@ -331,6 +340,7 @@ class TransportRecordAdmin(admin.ModelAdmin):
     inlines = [
         TransportCustomerOrderInline,
         TransportTransitPointInline,
+        TransportTransitCostInline,
         TransportGovernmentChargeInline,
         TransportAttachmentInline,
     ]

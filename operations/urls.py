@@ -47,6 +47,16 @@ urlpatterns = [
     path(
         "requisitions/<int:pk>/edit/", views.requisition_edit, name="requisition_edit"
     ),
+    path(
+        "requisitions/<int:pk>/download/",
+        views.requisition_download,
+        name="requisition_download",
+    ),
+    path(
+        "requisitions/<int:pk>/uploaded-document/",
+        views.requisition_uploaded_document_download,
+        name="requisition_uploaded_document_download",
+    ),
     path("procurement/", views.procurement_dashboard, name="procurement_dashboard"),
     path(
         "procurement/requisition-process/",
@@ -156,6 +166,11 @@ urlpatterns = [
         "transport/<int:pk>/attachments/",
         views.transport_attachment_add,
         name="transport_attachment_add",
+    ),
+    path(
+        "transport/<int:pk>/transit-costs/",
+        views.transport_transit_cost_add,
+        name="transport_transit_cost_add",
     ),
     path(
         "transport/<int:pk>/government-charges/",

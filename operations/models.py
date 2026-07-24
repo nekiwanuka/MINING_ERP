@@ -137,6 +137,8 @@ class Requisition(TimeStampedModel):
     requester = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="requisitions"
     )
+    requesting_company = models.CharField(max_length=160, blank=True, default="")
+    uploaded_document = models.FileField(upload_to="requisitions/", blank=True)
     item_description = models.TextField()
     language = models.CharField(
         max_length=2, choices=Language.choices, default=Language.ENGLISH
@@ -160,6 +162,8 @@ class Requisition(TimeStampedModel):
         ]
         if item_lines:
             return "; ".join(item_lines)
+        if self.uploaded_document:
+            return "Uploaded requisition document"
         return self.item_description
 
     @property
@@ -168,6 +172,18 @@ class Requisition(TimeStampedModel):
         if pieces:
             return pieces
         return self.quantity
+
+    @property
+    def has_uploaded_document(self):
+        return bool(self.uploaded_document)
+
+    @property
+    def requester_label(self):
+        return (
+            self.requesting_company
+            or self.requester.get_full_name()
+            or self.requester.username
+        )
 
 
 class RequisitionItem(TimeStampedModel):
@@ -895,6 +911,7 @@ class TransportRecord(TimeStampedModel):
     date = models.DateField()
     vehicle = models.CharField(max_length=80)
     driver = models.CharField(max_length=120)
+    turn_boy = models.CharField(max_length=120, blank=True)
     container_number = models.CharField(max_length=80, blank=True)
     transit_number = models.CharField(
         max_length=80,
@@ -926,6 +943,18 @@ class TransportRecord(TimeStampedModel):
     origin = models.CharField(max_length=160)
     destination = models.CharField(max_length=160)
     distance_km = models.DecimalField(max_digits=12, decimal_places=2)
+    transit_start_km = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, blank=True
+    )
+    common_route_end_km = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, blank=True
+    )
+    final_destination_km = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, blank=True
+    )
+    overall_charge = models.DecimalField(
+        max_digits=14, decimal_places=2, default=0, blank=True
+    )
     weight_tons = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True
     )
@@ -936,7 +965,16 @@ class TransportRecord(TimeStampedModel):
     driver_allowance = models.DecimalField(
         max_digits=14, decimal_places=2, default=0, blank=True
     )
+    turn_boy_allowance = models.DecimalField(
+        max_digits=14, decimal_places=2, default=0, blank=True
+    )
+    vehicle_operating_allowance = models.DecimalField(
+        max_digits=14, decimal_places=2, default=0, blank=True
+    )
     road_toll = models.DecimalField(
+        max_digits=14, decimal_places=2, default=0, blank=True
+    )
+    planned_ferry_fees = models.DecimalField(
         max_digits=14, decimal_places=2, default=0, blank=True
     )
     border_charges = models.DecimalField(
@@ -1001,12 +1039,31 @@ class TransportRecord(TimeStampedModel):
         return self.length * self.width * self.height * Decimal(self.cbm_quantity)
 
     @property
+    def route_start_km(self):
+        return self.transit_start_km or Decimal("0")
+
+    @property
+    def route_common_end_km(self):
+        if self.common_route_end_km:
+            return self.common_route_end_km
+        return self.route_start_km
+
+    @property
+    def route_final_km(self):
+        if self.final_destination_km:
+            return self.final_destination_km
+        return self.route_start_km + (self.distance_km or Decimal("0"))
+
+    @property
     def cost_total(self):
         fields = [
             self.freight,
             self.fuel,
             self.driver_allowance,
+            self.turn_boy_allowance,
+            self.vehicle_operating_allowance,
             self.road_toll,
+            self.planned_ferry_fees,
             self.border_charges,
             self.taxes,
             self.insurance,
@@ -1037,6 +1094,47 @@ class TransportRecord(TimeStampedModel):
             (charge.amount for charge in self.custom_government_charges.all()),
             Decimal("0"),
         )
+
+    @property
+    def transit_cost_total(self):
+        return sum(
+            (cost.amount for cost in self.transit_costs.all()),
+            Decimal("0"),
+        )
+
+    @property
+    def transit_expense_total(self):
+        return (
+            self.cost_total
+            + self.tax_total
+            + self.transit_point_total
+            + self.transit_cost_total
+        )
+
+    @property
+    def invoice_revenue_total(self):
+        return sum(
+            (invoice.total_amount for invoice in self.customer_invoices.all()),
+            Decimal("0"),
+        )
+
+    @property
+    def internal_deduction_total(self):
+        return self.transit_expense_total
+
+    @property
+    def remaining_balance(self):
+        return self.transit_profit
+
+    @property
+    def transit_profit(self):
+        return self.invoice_revenue_total - self.transit_expense_total
+
+    @property
+    def overall_charge_balance(self):
+        if not self.overall_charge:
+            return None
+        return self.overall_charge - self.transit_expense_total
 
     @property
     def customer_charge_total(self):
@@ -1135,12 +1233,22 @@ class TransportCustomerOrder(TimeStampedModel):
     package_type = models.CharField(max_length=80, blank=True)
     loading_point = models.CharField(max_length=160, blank=True)
     offloading_point = models.CharField(max_length=160, blank=True)
+    destination = models.CharField(max_length=160, blank=True)
+    delivery_km = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, blank=True
+    )
     loading_sequence = models.PositiveIntegerField(null=True, blank=True)
     offloading_sequence = models.PositiveIntegerField(null=True, blank=True)
     billable_distance_km = models.DecimalField(
         max_digits=12, decimal_places=2, default=0, blank=True
     )
+    rate_per_km = models.DecimalField(
+        max_digits=14, decimal_places=2, default=0, blank=True
+    )
     pieces = models.PositiveIntegerField(default=0, blank=True)
+    weight_kg = models.DecimalField(
+        max_digits=14, decimal_places=3, default=0, blank=True
+    )
     weight_tons = models.DecimalField(
         max_digits=12, decimal_places=2, default=0, blank=True
     )
@@ -1160,9 +1268,13 @@ class TransportCustomerOrder(TimeStampedModel):
     offloading_charge = models.DecimalField(
         max_digits=14, decimal_places=2, default=0, blank=True
     )
+    document_charge = models.DecimalField(
+        max_digits=14, decimal_places=2, default=0, blank=True
+    )
     storage_charge = models.DecimalField(
         max_digits=14, decimal_places=2, default=0, blank=True
     )
+    other_charge_label = models.CharField(max_length=120, blank=True)
     miscellaneous_charge = models.DecimalField(
         max_digits=14, decimal_places=2, default=0, blank=True
     )
@@ -1180,21 +1292,32 @@ class TransportCustomerOrder(TimeStampedModel):
         return self.length * self.width * self.height * Decimal(self.cbm_quantity)
 
     @property
+    def calculated_weight_tons(self):
+        if self.weight_kg:
+            return self.weight_kg / Decimal("1000")
+        return self.weight_tons
+
+    @property
+    def transport_charge(self):
+        if self.rate_per_km and self.billing_distance_km:
+            return self.rate_per_km * self.billing_distance_km
+        return self.cargo_charge
+
+    @property
     def charge_total(self):
         fields = [
-            self.cargo_charge,
-            self.handling_charge,
+            self.transport_charge,
             self.loading_charge,
             self.offloading_charge,
-            self.storage_charge,
+            self.document_charge,
             self.miscellaneous_charge,
         ]
         return sum(fields, Decimal("0"))
 
     @property
     def chargeable_units(self):
-        if self.weight_tons:
-            return self.weight_tons
+        if self.calculated_weight_tons:
+            return self.calculated_weight_tons
         cargo_cbm = self.cargo_cbm
         if cargo_cbm:
             return cargo_cbm
@@ -1204,9 +1327,87 @@ class TransportCustomerOrder(TimeStampedModel):
 
     @property
     def billing_distance_km(self):
+        if self.delivery_km:
+            return max(
+                self.delivery_km - self.transport.route_start_km,
+                Decimal("0"),
+            )
         if self.billable_distance_km:
             return self.billable_distance_km
         return self.transport.distance_km or Decimal("0")
+
+    @property
+    def effective_delivery_km(self):
+        if self.delivery_km:
+            return self.delivery_km
+        return self.transport.route_start_km + self.billing_distance_km
+
+
+class TransportTransitCost(TimeStampedModel):
+    class CostType(models.TextChoices):
+        FUEL = "fuel", "Fuel"
+        DRIVER = "driver", "Driver fee"
+        TURN_BOY = "turn_boy", "Turn boy"
+        ESCORT = "escort", "Escort fees"
+        FLEET = "fleet", "Fleet / truck operating cost"
+        MAINTENANCE = "maintenance", "Maintenance"
+        BORDER = "border", "Border fee"
+        TAX = "tax", "Tax"
+        GOVERNMENT_DOCUMENT = "government_document", "Government document"
+        OTHER = "other", "Other / custom"
+
+    class AllocationMethod(models.TextChoices):
+        INTERNAL_ONLY = "internal_only", "Internal only"
+        CLIENT_SPECIFIC = "client_specific", "Client-specific"
+        DISTANCE_SHARED = "distance_shared", "Distance-based shared"
+        MANUAL = "manual", "Manual allocation"
+
+    transport = models.ForeignKey(
+        TransportRecord,
+        on_delete=models.CASCADE,
+        related_name="transit_costs",
+    )
+    cost_type = models.CharField(
+        max_length=32, choices=CostType.choices, default=CostType.OTHER
+    )
+    custom_name = models.CharField(max_length=120, blank=True)
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    cost_date = models.DateField(default=timezone.localdate)
+    cost_time = models.TimeField(null=True, blank=True)
+    km_location = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, blank=True
+    )
+    transit_point = models.CharField(max_length=160, blank=True)
+    allocation_method = models.CharField(
+        max_length=32,
+        choices=AllocationMethod.choices,
+        default=AllocationMethod.DISTANCE_SHARED,
+    )
+    customer_order = models.ForeignKey(
+        TransportCustomerOrder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="transit_costs",
+    )
+    manual_client_amount = models.DecimalField(
+        max_digits=14, decimal_places=2, default=0, blank=True
+    )
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["cost_date", "id"]
+
+    def __str__(self):
+        return f"{self.display_name} - {self.amount}"
+
+    @property
+    def display_name(self):
+        return self.custom_name or self.get_cost_type_display()
+
+    @property
+    def is_client_billable(self):
+        return self.allocation_method != self.AllocationMethod.INTERNAL_ONLY
 
 
 class TransportTransitPoint(TimeStampedModel):
@@ -1242,6 +1443,9 @@ class TransportTransitPoint(TimeStampedModel):
     fee_name = models.CharField(max_length=120, blank=True)
     place_name = models.CharField(max_length=160)
     reference_number = models.CharField(max_length=80, blank=True)
+    km_location = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, blank=True
+    )
     sequence = models.PositiveIntegerField(null=True, blank=True)
     amount = models.DecimalField(max_digits=14, decimal_places=2, default=0, blank=True)
     charge_amount = models.DecimalField(
@@ -1321,7 +1525,7 @@ class TransportCustomerInvoice(TimeStampedModel):
 class TransportCustomerInvoiceLine(TimeStampedModel):
     class LineType(models.TextChoices):
         DIRECT = "direct", "Direct Customer Charge"
-        SHARED = "shared", "Shared Fleet Charge"
+        SHARED = "shared", "Additional Customer Charge"
         TRANSIT = "transit", "Transit/Government Fee"
         ADJUSTMENT = "adjustment", "Adjustment"
 

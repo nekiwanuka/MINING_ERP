@@ -450,10 +450,14 @@ tbody tr:last-child td { border-bottom: 0; }
 .item-accordion[open] summary { border-bottom: 1px solid var(--line); background: #fff9ed; }
 .item-accordion[open] summary::after { content: '-'; }
 .item-form-row { display: grid; gap: 16px; padding: 18px; }
+.customer-cargo-grid { grid-template-columns: repeat(3, minmax(180px, 1fr)); }
+.customer-cargo-grid .field-block:has(textarea) { grid-column: span 3; }
 .item-number { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; background: var(--ink); color: #fff; font-weight: 900; }
 .add-item-trigger { white-space: nowrap; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .transport-form { display: grid; gap: 20px; width: min(1120px, 100%); margin-inline: auto; }
+.transport-form .form-grid, .transport-form .item-form-row { grid-template-columns: repeat(3, minmax(180px, 1fr)); }
+.transport-form .item-form-row .field-block:has(textarea) { grid-column: span 3; }
 .field-block { display: grid; gap: 8px; color: var(--ink); font-weight: 800; }
 .field-block small { color: var(--muted); font-size: 0.95rem; font-weight: 700; line-height: 1.4; }
 .field-control, .login-panel input, .field-block input, .field-block select, .field-block textarea {
@@ -552,7 +556,8 @@ tbody tr:last-child td { border-bottom: 0; }
     .page-heading { align-items: flex-start; flex-direction: column; }
     .form-page-heading { align-items: center; }
     .requisition-heading { align-items: center; }
-    .metric-grid, .two-column, .workflow-grid, .report-grid, .form-grid, .requisition-summary-grid { grid-template-columns: 1fr; }
+    .metric-grid, .two-column, .workflow-grid, .report-grid, .form-grid, .customer-cargo-grid, .transport-form .item-form-row, .requisition-summary-grid { grid-template-columns: 1fr; }
+    .transport-form .item-form-row .field-block:has(textarea) { grid-column: auto; }
     .procurement-summary-grid, .procurement-flow { grid-template-columns: 1fr; }
     .procurement-phase, .procurement-phase-review, .procurement-phase-complete { grid-column: auto; }
     .search-form, .process-summary-grid, .process-columns, .list-filter-form, .list-filter-form-wide { grid-template-columns: 1fr; }

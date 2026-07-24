@@ -12,6 +12,7 @@ from .models import (
     TransportCustomerOrder,
     TransportGovernmentCharge,
     TransportRecord,
+    TransportTransitCost,
     TransportTransitPoint,
 )
 
@@ -43,6 +44,8 @@ class RequisitionSerializer(serializers.ModelSerializer):
             "id",
             "requisition_number",
             "requester",
+            "requesting_company",
+            "uploaded_document",
             "language",
             "urgent",
             "status",
@@ -185,7 +188,14 @@ class TransportCustomerOrderSerializer(serializers.ModelSerializer):
             "purchase_order",
             "cargo_description",
             "package_type",
+            "loading_point",
+            "offloading_point",
+            "destination",
+            "delivery_km",
+            "billable_distance_km",
+            "rate_per_km",
             "pieces",
+            "weight_kg",
             "weight_tons",
             "length",
             "width",
@@ -195,7 +205,9 @@ class TransportCustomerOrderSerializer(serializers.ModelSerializer):
             "handling_charge",
             "loading_charge",
             "offloading_charge",
+            "document_charge",
             "storage_charge",
+            "other_charge_label",
             "miscellaneous_charge",
             "cargo_cbm",
             "charge_total",
@@ -225,6 +237,8 @@ class TransportTransitPointSerializer(serializers.ModelSerializer):
             "fee_name",
             "place_name",
             "reference_number",
+            "km_location",
+            "sequence",
             "amount",
             "total_amount",
             "notes",
@@ -232,6 +246,22 @@ class TransportTransitPointSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "total_amount", "created_at", "updated_at"]
+
+
+class TransportTransitCostSerializer(serializers.ModelSerializer):
+    display_name = serializers.CharField(read_only=True)
+    is_client_billable = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = TransportTransitCost
+        fields = "__all__"
+        read_only_fields = [
+            "id",
+            "display_name",
+            "is_client_billable",
+            "created_at",
+            "updated_at",
+        ]
 
 
 class TransportRecordSerializer(serializers.ModelSerializer):
@@ -258,6 +288,7 @@ class TransportRecordSerializer(serializers.ModelSerializer):
     attachments = TransportAttachmentSerializer(many=True, read_only=True)
     customer_orders = TransportCustomerOrderSerializer(many=True, required=False)
     transit_points = TransportTransitPointSerializer(many=True, required=False)
+    transit_costs = TransportTransitCostSerializer(many=True, read_only=True)
 
     class Meta:
         model = TransportRecord

@@ -32,7 +32,7 @@
     <form method="get" class="requisition-search-form">
         <label class="requisition-search-field" for="requisition-search">
             <span>Search requisitions</span>
-            <input id="requisition-search" class="field-control" type="search" name="q" value="{{ query|default:'' }}" placeholder="Search number, item, requester, document, or keyword">
+            <input id="requisition-search" class="field-control" type="search" name="q" value="{{ query|default:'' }}" placeholder="Search number, company, site, item, requester, document, or keyword">
         </label>
         <label class="requisition-status-field" for="requisition-status">
             <span>Status</span>
@@ -64,13 +64,19 @@
                 </div>
                 <p>{{ requisition.item_summary|truncatechars:180 }}</p>
                 <dl class="requisition-meta-list">
+                    <div><dt>Source</dt><dd>{% if requisition.uploaded_document %}Uploaded file{% else %}Generated form{% endif %}</dd></div>
                     <div><dt>Pieces</dt><dd>{{ requisition.total_pieces }}</dd></div>
-                    <div><dt>Requester</dt><dd>{{ requisition.requester }}</dd></div>
+                    <div><dt>Company / site</dt><dd>{{ requisition.requester_label }}</dd></div>
+                    <div><dt>Submitted by</dt><dd>{{ requisition.requester }}</dd></div>
                     <div><dt>Created</dt><dd>{{ requisition.created_at|date:"Y-m-d" }}</dd></div>
                     <div><dt>Urgency</dt><dd>{% if requisition.urgent %}Urgent{% else %}Not urgent{% endif %}</dd></div>
                 </dl>
             </div>
             <div class="requisition-result-actions">
+                <a class="small-button" href="{% url 'requisition_download' requisition.pk %}">Download copy</a>
+                {% if requisition.uploaded_document %}
+                    <a class="small-button" href="{% url 'requisition_uploaded_document_download' requisition.pk %}">Uploaded file</a>
+                {% endif %}
                 {% if requisition.can_edit_pending %}
                     <a class="small-button" href="{% url 'requisition_edit' requisition.pk %}">Edit</a>
                 {% else %}
@@ -94,22 +100,23 @@
     <div class="table-wrap">
         <table>
             <thead>
-                <tr><th>Number</th><th>Urgency</th><th>Items</th><th>Language</th><th>Pieces</th><th>Status</th><th>Requester</th><th>Action</th></tr>
+                <tr><th>Number</th><th>Urgency</th><th>Source</th><th>Items</th><th>Language</th><th>Pieces</th><th>Status</th><th>Company / site</th><th>Action</th></tr>
             </thead>
             <tbody>
                 {% for requisition in requisitions %}
                     <tr>
                         <td>{{ requisition.requisition_number }}</td>
                         <td>{% if requisition.urgent %}<span class="urgent-pill">Urgent</span>{% else %}<span class="status-pill muted-pill">Not urgent</span>{% endif %}</td>
+                        <td>{% if requisition.uploaded_document %}Uploaded{% else %}Generated{% endif %}</td>
                         <td>{{ requisition.item_summary|truncatechars:120 }}</td>
                         <td>{{ requisition.get_language_display }}</td>
                         <td>{{ requisition.total_pieces }}</td>
                         <td><span class="status-pill">{{ requisition.display_status }}</span></td>
-                        <td>{{ requisition.requester }}</td>
-                        <td>{% if requisition.can_edit_pending %}<a class="small-button" href="{% url 'requisition_edit' requisition.pk %}">Edit</a>{% else %}<span class="muted-copy">Locked</span>{% endif %}</td>
+                        <td>{{ requisition.requester_label }}</td>
+                        <td><a class="small-button" href="{% url 'requisition_download' requisition.pk %}">Download</a> {% if requisition.uploaded_document %}<a class="small-button" href="{% url 'requisition_uploaded_document_download' requisition.pk %}">File</a>{% endif %} {% if requisition.can_edit_pending %}<a class="small-button" href="{% url 'requisition_edit' requisition.pk %}">Edit</a>{% else %}<span class="muted-copy">Locked</span>{% endif %}</td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="8" class="empty-cell">No requisitions found.</td></tr>
+                    <tr><td colspan="9" class="empty-cell">No requisitions found.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
