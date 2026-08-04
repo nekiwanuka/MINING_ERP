@@ -118,6 +118,8 @@ input[type="number"], input[type="date"], input[type="time"], .metric-card stron
 .brand-copy small { color: var(--muted); font-size: 0.8rem; font-weight: 700; overflow-wrap: anywhere; }
 .mobile-menu-toggle, .mobile-menu-header { display: none; }
 .app-menu-drawer { display: contents; }
+.menu-utilities { display: contents; }
+.menu-utility-label { display: contents; }
 .mobile-menu-backdrop[hidden] { display: none; }
 .top-nav { display: flex; gap: 4px; align-items: center; flex: 1 1 620px; flex-wrap: wrap; justify-content: flex-start; min-width: 0; overflow: visible; }
 .top-nav a, .nav-group > summary {
@@ -988,11 +990,17 @@ tbody tr:last-child td { border-bottom: 0; }
     .nav-group > summary { justify-content: space-between; }
     .nav-submenu { position: static; width: 100%; min-width: 0; margin-top: 7px; padding: 8px; border-radius: 8px; box-shadow: none; background: #f2f6f3; }
     .nav-submenu a { justify-content: flex-start; min-height: 38px; padding: 8px 10px; background: #fff; text-align: left; }
+    .top-nav .nav-admin-link:first-of-type { margin-top: 8px; }
+    .menu-utilities { display: grid; gap: 10px; margin-top: 4px; padding-top: 12px; border-top: 2px solid var(--line); }
     .language-form, .language-form select, .currency-menu, .currency-menu > summary { width: 100%; }
-    .language-form, .currency-menu, .logout-form { padding-top: 10px; border-top: 1px solid var(--line); }
+    .language-form { padding: 0; border: 0; }
+    .menu-utility-label { display: grid; grid-template-columns: minmax(0, 1fr) minmax(132px, 48%); align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); color: var(--ink); font-weight: 900; }
+    .menu-utility-label > span { color: var(--muted); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.07em; }
+    .menu-utility-label select { min-height: 36px; border-width: 1px; background: #fff; }
+    .currency-menu, .logout-form { padding-top: 0; border-top: 0; }
     .currency-menu > summary { justify-content: space-between; border-color: var(--line); background: var(--field); }
     .currency-form { position: static; width: 100%; margin-top: 8px; box-shadow: none; }
-    .logout-form { width: 100%; justify-content: space-between; gap: 10px; }
+    .logout-form { width: 100%; justify-content: space-between; gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
     .current-user { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .page-heading h1 { font-size: clamp(1.55rem, 8vw, 2.2rem); }
     .panel-header { gap: 10px; }
