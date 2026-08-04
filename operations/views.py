@@ -13,6 +13,7 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q, Sum
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils.dateparse import parse_date
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
@@ -61,16 +62,18 @@ from .forms import (
     PurchaseInquiryForm,
     PurchaseOrderForm,
     PurchaseReceiptForm,
+    RequisitionDocumentUploadForm,
     RequisitionForm,
     RequisitionItemFormSet,
     SupplierForm,
     SupplierInvoiceForm,
     TransportAttachmentForm,
+    TransportCustomerOrderForm,
     TransportCustomerOrderFormSet,
     TransportGovernmentChargeForm,
+    TransportInitialChargeFormSet,
     TransportRecordForm,
     TransportTransitCostForm,
-    TransportTransitPointFormSet,
     VisaEmbassyForm,
 )
 from .i18n import normalize_language, translate
@@ -90,13 +93,48 @@ from .models import (
     RequisitionItem,
     Supplier,
     TransportCustomerInvoice,
+    TransportCustomerOrder,
     TransportRecord,
+    TransportTransitCost,
     UserModuleAccess,
     VisaEmbassy,
 )
 
 LIST_RESULTS_LIMIT = 5
 REPORT_QUANT = Decimal("0.01")
+DISPLAY_MONEY_QUANT = Decimal("1")
+
+
+def display_currency_state(request):
+    currency = request.session.get("display_currency", "USD")
+    if currency not in {"USD", "UGX"}:
+        currency = "USD"
+    try:
+        exchange_rate = Decimal(str(request.session.get("ugx_exchange_rate", "3800")))
+    except Exception:
+        exchange_rate = Decimal("3800")
+    if exchange_rate <= 0:
+        exchange_rate = Decimal("3800")
+    return currency, exchange_rate
+
+
+def display_money(request, value):
+    currency, exchange_rate = display_currency_state(request)
+    amount = Decimal(value or 0)
+    if currency == "UGX":
+        amount *= exchange_rate
+    return amount.quantize(DISPLAY_MONEY_QUANT, rounding=ROUND_HALF_UP)
+
+
+def transport_report_queryset():
+    return TransportRecord.objects.select_related(
+        "supplier", "requisition", "purchase_order"
+    ).prefetch_related(
+        "customer_orders__requisition",
+        "customer_orders__invoices__lines",
+        "transit_costs",
+        "customer_invoices__lines",
+    )
 
 
 def module_not_found(request, exception=None, unknown_path=""):
@@ -286,6 +324,12 @@ def pdf_font_name(language="en"):
     return font_name
 
 
+def document_pdf_filename(document_name, identifier):
+    name = "-".join(str(document_name).strip().split())
+    reference = "-".join(str(identifier).strip().split())
+    return f"{name}-{reference}.pdf"
+
+
 def purchase_order_message(order, language="en"):
     return (
         f"{translate('Purchase Order', language)} {order.order_number}\n"
@@ -293,7 +337,7 @@ def purchase_order_message(order, language="en"):
         f"{translate('Requisition', language)}: {order.inquiry.requisition.requisition_number}\n"
         f"{translate('Item', language)}: {order.inquiry.description}\n"
         f"{translate('Quantity', language)}: {order.inquiry.quantity}\n"
-        f"{translate('Amount', language)}: {order.amount}\n"
+        f"{translate('Amount', language)}: USD {order.amount}\n"
         f"{translate('Date', language)}: {order.order_date}"
     )
 
@@ -314,7 +358,7 @@ def purchase_order_document(order, language="en"):
         translate("Order details", language).upper(),
         f"{translate('Description', language)}: {order.inquiry.description}",
         f"{translate('Quantity', language)}: {order.inquiry.quantity}",
-        f"{translate('Amount', language)}: {order.amount}",
+        f"{translate('Amount', language)}: USD {order.amount}",
         "",
         translate("Supplier message", language).upper(),
         order.supplier_message or purchase_order_message(order, language),
@@ -491,9 +535,9 @@ def purchase_order_pdf(order, language="en"):
             [
                 pdf_text(order.inquiry.description),
                 f"{order.inquiry.quantity:.2f}",
-                f"{order.amount:.2f}",
+                f"USD {order.amount:.2f}",
             ],
-            ["", translate("Total", language), f"{order.amount:.2f}"],
+            ["", translate("Total", language), f"USD {order.amount:.2f}"],
         ],
         colWidths=[104 * mm, 32 * mm, 32 * mm],
     )
@@ -548,7 +592,7 @@ def purchase_order_pdf_response(order, as_attachment=False, language="en"):
     )
     disposition = "attachment" if as_attachment else "inline"
     response["Content-Disposition"] = (
-        f'{disposition}; filename="{order.order_number}.pdf"'
+        f'{disposition}; filename="{document_pdf_filename("Purchase-Order", order.order_number)}"'
     )
     return response
 
@@ -655,6 +699,12 @@ def requisition_pdf(requisition, language="en"):
             ],
             [
                 Paragraph(
+                    f"Suggested supplier: <b>{pdf_text(requisition.supplier_suggestion or '-')}</b>",
+                    body_style,
+                )
+            ],
+            [
+                Paragraph(
                     f"Status: <b>{pdf_text(requisition.get_status_display())}</b>",
                     body_style,
                 )
@@ -715,7 +765,7 @@ def requisition_pdf_response(requisition, as_attachment=False, language="en"):
     )
     disposition = "attachment" if as_attachment else "inline"
     response["Content-Disposition"] = (
-        f'{disposition}; filename="{requisition.requisition_number}.pdf"'
+        f'{disposition}; filename="{document_pdf_filename("Requisition", requisition.requisition_number)}"'
     )
     return response
 
@@ -727,8 +777,25 @@ def transport_invoice_message(invoice):
         f"Transit: {invoice.transport.transit_number}\n"
         f"Vehicle: {invoice.transport.vehicle}\n"
         f"Route: {invoice.transport.origin} to {invoice.transport.destination}\n"
-        f"Total: {invoice.total_amount:.2f}"
+        f"Total: USD {invoice.total_amount:.0f}"
     )
+
+
+def transport_invoice_item_rows(customer_order):
+    rows = []
+    if customer_order.requisition_id:
+        rows.append(("Requisition", str(customer_order.requisition)))
+    if customer_order.cargo_description:
+        rows.append(("Type of goods", customer_order.cargo_description))
+    if customer_order.package_type:
+        rows.append(("Package type", customer_order.package_type))
+    if customer_order.pieces:
+        rows.append(("Space used", f"{customer_order.pieces:.0f}"))
+    if customer_order.loading_point:
+        rows.append(("Loading point", customer_order.loading_point))
+    if customer_order.offloading_point:
+        rows.append(("Offloading point", customer_order.offloading_point))
+    return rows
 
 
 def transport_invoice_pdf(invoice, language="en"):
@@ -811,42 +878,24 @@ def transport_invoice_pdf(invoice, language="en"):
         )
     )
     customer = invoice.customer_order
+    item_rows = transport_invoice_item_rows(customer)
+    customer_rows = [
+        [Paragraph(pdf_text(translate("Customer", language)).upper(), label_style)],
+        [Paragraph(f"<b>{pdf_text(invoice.customer_name)}</b>", body_style)],
+    ]
+    if customer.destination:
+        customer_rows.append(
+            [
+                Paragraph(
+                    f"{pdf_text(translate('Destination', language))}: {pdf_text(customer.destination)}",
+                    body_style,
+                )
+            ]
+        )
     details = Table(
         [
             [
-                Table(
-                    [
-                        [
-                            Paragraph(
-                                pdf_text(translate("Customer", language)).upper(),
-                                label_style,
-                            )
-                        ],
-                        [
-                            Paragraph(
-                                f"<b>{pdf_text(invoice.customer_name)}</b>", body_style
-                            )
-                        ],
-                        [
-                            Paragraph(
-                                f"{pdf_text(translate('Cargo', language))}: {pdf_text(customer.cargo_description)}",
-                                body_style,
-                            )
-                        ],
-                        [
-                            Paragraph(
-                                f"{pdf_text(translate('Loading', language))}: {pdf_text(customer.loading_point or invoice.transport.origin)}",
-                                body_style,
-                            )
-                        ],
-                        [
-                            Paragraph(
-                                f"{pdf_text(translate('Offloading', language))}: {pdf_text(customer.offloading_point or invoice.transport.destination)}",
-                                body_style,
-                            )
-                        ],
-                    ]
-                ),
+                Table(customer_rows),
                 Table(
                     [
                         [
@@ -896,23 +945,32 @@ def transport_invoice_pdf(invoice, language="en"):
             ]
         )
     )
-    rows = [
-        [
-            translate("Type", language),
-            translate("Description", language),
-            translate("Amount", language),
+    story = [header, Spacer(1, 10), details]
+    if item_rows:
+        pdf_item_rows = [
+            [translate("Item detail", language), translate("Value", language)]
         ]
-    ]
-    for line in invoice.lines.all():
-        rows.append(
-            [
-                translate(line.get_line_type_display(), language),
-                line.description,
-                f"{line.amount:.2f}",
-            ]
+        for label, value in item_rows:
+            pdf_item_rows.append([translate(label, language), value])
+        item_table = Table(pdf_item_rows, colWidths=[54 * mm, 114 * mm])
+        item_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#eef5ef")),
+                    ("FONTNAME", (0, 0), (-1, 0), bold_font_name),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#14201b")),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#dbe2dd")),
+                    ("PADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
         )
-    rows.append(["", translate("Total", language), f"{invoice.total_amount:.2f}"])
-    lines = Table(rows, colWidths=[44 * mm, 92 * mm, 32 * mm])
+        story.extend([Spacer(1, 12), item_table])
+    rows = [[translate("Description", language), translate("Amount", language)]]
+    for line in invoice.lines.all():
+        rows.append([line.description, f"USD {line.amount:.0f}"])
+    rows.append([translate("Total", language), f"USD {invoice.total_amount:.0f}"])
+    lines = Table(rows, colWidths=[124 * mm, 44 * mm])
     lines.setStyle(
         TableStyle(
             [
@@ -920,7 +978,7 @@ def transport_invoice_pdf(invoice, language="en"):
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                 ("FONTNAME", (0, 0), (-1, 0), bold_font_name),
                 ("FONTNAME", (0, -1), (-1, -1), bold_font_name),
-                ("ALIGN", (2, 1), (2, -1), "RIGHT"),
+                ("ALIGN", (1, 1), (1, -1), "RIGHT"),
                 ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#dbe2dd")),
                 ("PADDING", (0, 0), (-1, -1), 8),
             ]
@@ -945,17 +1003,8 @@ def transport_invoice_pdf(invoice, language="en"):
             ]
         )
     )
-    document.build(
-        [
-            header,
-            Spacer(1, 10),
-            details,
-            Spacer(1, 12),
-            lines,
-            Spacer(1, 24),
-            signatures,
-        ]
-    )
+    story.extend([Spacer(1, 12), lines, Spacer(1, 24), signatures])
+    document.build(story)
     return buffer.getvalue()
 
 
@@ -965,7 +1014,7 @@ def transport_invoice_pdf_response(invoice, as_attachment=False, language="en"):
     )
     disposition = "attachment" if as_attachment else "inline"
     response["Content-Disposition"] = (
-        f'{disposition}; filename="{invoice.invoice_number}.pdf"'
+        f'{disposition}; filename="{document_pdf_filename("Transport-Invoice", invoice.invoice_number)}"'
     )
     return response
 
@@ -1039,6 +1088,26 @@ def language_change(request):
     return response
 
 
+@require_POST
+def currency_change(request):
+    currency = request.POST.get("currency", "USD")
+    if currency not in {"USD", "UGX"}:
+        currency = "USD"
+    rate_value = request.POST.get("exchange_rate", "3800")
+    try:
+        exchange_rate = Decimal(str(rate_value))
+    except Exception:
+        exchange_rate = Decimal("3800")
+    if exchange_rate <= 0:
+        exchange_rate = Decimal("3800")
+    request.session["display_currency"] = currency
+    request.session["ugx_exchange_rate"] = str(exchange_rate)
+    next_url = (
+        request.POST.get("next") or request.META.get("HTTP_REFERER") or "dashboard"
+    )
+    return redirect(next_url)
+
+
 @login_required
 def dashboard(request):
     if has_only_requisition_access(request.user):
@@ -1048,11 +1117,6 @@ def dashboard(request):
             return redirect("requisition_create")
         return redirect("requisition_list")
 
-    transport_records = TransportRecord.objects.select_related(
-        "supplier", "requisition"
-    ).prefetch_related("customer_orders__purchase_order", "transit_points")[
-        :LIST_RESULTS_LIMIT
-    ]
     context = {
         "requisition_count": Requisition.objects.count(),
         "submitted_count": Requisition.objects.filter(
@@ -1065,16 +1129,9 @@ def dashboard(request):
         "status_breakdown": Requisition.objects.values("status")
         .annotate(total=Count("id"))
         .order_by("status"),
-        "latest_requisitions": Requisition.objects.select_related(
-            "requester"
-        ).prefetch_related("items")[:LIST_RESULTS_LIMIT],
-        "latest_transport_records": transport_records,
         "latest_commercial_documents": CommercialDocument.objects.select_related(
             "client", "transport", "purchase_order", "requisition"
         )[:LIST_RESULTS_LIMIT],
-        "transport_total": sum(
-            (record.total_cost for record in transport_records), Decimal("0")
-        ),
     }
     return render(request, "operations/dashboard.html", context)
 
@@ -1082,6 +1139,11 @@ def dashboard(request):
 @login_required
 @access_required(UserModuleAccess.Module.REQUISITIONS, ACTION_READ)
 def requisition_list(request):
+    if has_only_requisition_access(request.user) and has_module_access(
+        request.user, UserModuleAccess.Module.REQUISITIONS, ACTION_CREATE
+    ):
+        return redirect("requisition_create")
+
     query = request.GET.get("q", "").strip()
     status = request.GET.get("status", "all").strip() or "all"
     allowed_statuses = {code for code, _label in Requisition.Status.choices}
@@ -1100,6 +1162,8 @@ def requisition_list(request):
         queryset = queryset.filter(
             Q(requisition_number__icontains=query)
             | Q(requesting_company__icontains=query)
+            | Q(suggested_supplier_name__icontains=query)
+            | Q(suggested_supplier_contact__icontains=query)
             | Q(item_description__icontains=query)
             | Q(items__description__icontains=query)
             | Q(requester__username__icontains=query)
@@ -1169,13 +1233,7 @@ def requisition_create(request):
             messages.success(
                 request, f"Requisition {requisition.requisition_number} submitted."
             )
-            if has_only_requisition_access(request.user):
-                return redirect("requisition_create")
-            if has_module_access(
-                request.user, UserModuleAccess.Module.REQUISITIONS, ACTION_READ
-            ):
-                return redirect("requisition_list")
-            return redirect("dashboard")
+            return redirect("requisition_submitted", pk=requisition.pk)
     pending_requisitions = []
     if has_module_access(
         request.user, UserModuleAccess.Module.REQUISITIONS, ACTION_READ
@@ -1246,6 +1304,8 @@ def requisition_edit(request, pk):
             messages.success(
                 request, f"Requisition {requisition.requisition_number} updated."
             )
+            if has_only_requisition_access(request.user):
+                return redirect("requisition_create")
             return redirect("requisition_list")
 
     return render(
@@ -1257,8 +1317,64 @@ def requisition_edit(request, pk):
             "form": form,
             "item_formset": item_formset,
             "action_label": "Save requisition",
-            "cancel_url": "requisition_list",
+            "cancel_url": (
+                "requisition_create"
+                if has_only_requisition_access(request.user)
+                else "requisition_list"
+            ),
             "multipart": True,
+        },
+    )
+
+
+@login_required
+def requisition_submitted(request, pk):
+    requisition = get_object_or_404(
+        Requisition.objects.select_related("requester").prefetch_related("items"), pk=pk
+    )
+    can_open = (
+        request.user.is_superuser
+        or requisition.requester_id == request.user.id
+        or has_module_access(
+            request.user, UserModuleAccess.Module.REQUISITIONS, ACTION_UPDATE
+        )
+        or user_in_groups(request.user, [PROCUREMENT_GROUP])
+    )
+    if not can_open:
+        raise PermissionDenied("You cannot open this requisition confirmation.")
+
+    download_url = request.build_absolute_uri(
+        reverse("requisition_download", args=[requisition.pk])
+    )
+    subject = f"Requisition {requisition.requisition_number}"
+    message = "\n".join(
+        [
+            f"Requisition: {requisition.requisition_number}",
+            f"Company / site: {requisition.requester_label}",
+            f"Items: {requisition.item_summary}",
+            f"Pieces: {requisition.total_pieces}",
+            f"Download: {download_url}",
+        ]
+    )
+    supplier_contact = requisition.suggested_supplier_contact.strip()
+    email_url = (
+        f"mailto:{supplier_contact}?subject={quote(subject)}&body={quote(message)}"
+        if "@" in supplier_contact
+        else f"mailto:?subject={quote(subject)}&body={quote(message)}"
+    )
+    phone = digits_only(supplier_contact)
+    whatsapp_url = (
+        f"https://wa.me/{phone}?text={quote(message)}"
+        if phone
+        else f"https://wa.me/?text={quote(message)}"
+    )
+    return render(
+        request,
+        "operations/requisition_submitted.html",
+        {
+            "requisition": requisition,
+            "email_url": email_url,
+            "whatsapp_url": whatsapp_url,
         },
     )
 
@@ -1675,11 +1791,15 @@ def procurement_dashboard(request):
     if query:
         submitted_requisitions = submitted_requisitions.filter(
             Q(requisition_number__icontains=query)
+            | Q(suggested_supplier_name__icontains=query)
+            | Q(suggested_supplier_contact__icontains=query)
             | Q(item_description__icontains=query)
             | Q(requester__username__icontains=query)
         )
         accepted_requisitions = accepted_requisitions.filter(
             Q(requisition_number__icontains=query)
+            | Q(suggested_supplier_name__icontains=query)
+            | Q(suggested_supplier_contact__icontains=query)
             | Q(item_description__icontains=query)
             | Q(requester__username__icontains=query)
         )
@@ -1738,7 +1858,7 @@ def procurement_dashboard(request):
     context = {
         "submitted_requisitions": submitted_requisitions.select_related(
             "requester"
-        ).prefetch_related("items")[:visible_limit],
+        ).prefetch_related("items", "commercial_documents")[:visible_limit],
         "items_ready_for_inquiry": procurement_split_items(
             query, search_date, visible_limit
         ),
@@ -1769,6 +1889,7 @@ def procurement_dashboard(request):
 def requisition_process_list(request):
     query = request.GET.get("q", "").strip()
     requisitions = Requisition.objects.select_related("requester").prefetch_related(
+        "commercial_documents__supplier",
         "items__purchase_inquiries__supplier",
         "items__purchase_inquiries__supplier_invoices",
         "items__purchase_inquiries__purchase_orders__supplier",
@@ -1792,12 +1913,60 @@ def requisition_process_list(request):
             | Q(inquiries__purchase_orders__order_number__icontains=query)
             | Q(inquiries__purchase_orders__supplier__name__icontains=query)
             | Q(inquiries__purchase_orders__receipts__receipt_number__icontains=query)
+            | Q(commercial_documents__document_number__icontains=query)
+            | Q(commercial_documents__title__icontains=query)
+            | Q(commercial_documents__business_reference__icontains=query)
+            | Q(commercial_documents__supplier__name__icontains=query)
         ).distinct()
     requisitions = requisitions[:50]
     return render(
         request,
         "operations/requisition_process.html",
         {"requisitions": requisitions, "query": query},
+    )
+
+
+@access_required(UserModuleAccess.Module.COMMERCIAL_DOCUMENTS, ACTION_CREATE)
+def requisition_document_upload(request, pk):
+    requisition = get_object_or_404(
+        Requisition.objects.select_related("requester").prefetch_related("items"),
+        pk=pk,
+    )
+    form = RequisitionDocumentUploadForm(
+        request.POST or None,
+        request.FILES or None,
+        initial={
+            "document_date": date.today(),
+            "currency": "USD",
+            "title": f"Supplier document for {requisition.requisition_number}",
+        },
+    )
+    if request.method == "POST" and form.is_valid():
+        supplier = form.resolve_supplier()
+        document = form.save(commit=False)
+        document.requisition = requisition
+        document.supplier = supplier
+        document.status = CommercialDocument.Status.ISSUED
+        document.client_name = requisition.requester_label
+        document.client_contact = requisition.requester.email
+        document.created_by = request.user
+        document.save()
+        messages.success(
+            request,
+            f"Document {document.document_number} uploaded for {requisition.requisition_number}.",
+        )
+        return redirect("requisition_process_list")
+    return render(
+        request,
+        "operations/form_page.html",
+        {
+            "title": f"Upload document for {requisition.requisition_number}",
+            "subtitle": "Attach supplier proformas, invoices, receipts, quotations, or other files directly to this requisition before PI or PO exists.",
+            "form": form,
+            "action_label": "Upload document",
+            "cancel_url": "requisition_process_list",
+            "multipart": True,
+        },
     )
 
 
@@ -2211,7 +2380,9 @@ def transport_list(request):
     search_date = parse_date(date_value) if date_value else None
     records = TransportRecord.objects.select_related(
         "supplier", "requisition", "purchase_order"
-    ).prefetch_related("customer_orders__purchase_order", "transit_points")
+    ).prefetch_related(
+        "customer_orders__purchase_order", "transit_points", "customer_invoices"
+    )
     if query:
         records = records.filter(
             Q(transport_number__icontains=query)
@@ -2228,7 +2399,14 @@ def transport_list(request):
     if search_date:
         records = records.filter(date=search_date)
     matching_count = records.count()
-    records = records[:LIST_RESULTS_LIMIT]
+    records = list(records[:200])
+    total_revenue = sum(
+        (record.invoice_revenue_total for record in records), Decimal("0")
+    )
+    total_costs = sum(
+        (record.transit_expense_total for record in records), Decimal("0")
+    )
+    total_profit = total_revenue - total_costs
     return render(
         request,
         "operations/transport_list.html",
@@ -2237,6 +2415,9 @@ def transport_list(request):
             "query": query,
             "date_value": date_value,
             "matching_count": matching_count,
+            "total_revenue": total_revenue,
+            "total_costs": total_costs,
+            "total_profit": total_profit,
         },
     )
 
@@ -2247,39 +2428,55 @@ def transport_create(request):
     form = TransportRecordForm(
         request.POST or None, instance=record, initial={"date": date.today()}
     )
-    order_formset = TransportCustomerOrderFormSet(
-        request.POST or None, instance=record, prefix="customer_orders"
-    )
-    transit_formset = TransportTransitPointFormSet(
-        request.POST or None, instance=record, prefix="transit_points"
-    )
-    if (
-        request.method == "POST"
-        and form.is_valid()
-        and order_formset.is_valid()
-        and transit_formset.is_valid()
-    ):
+    if request.method == "POST" and form.is_valid():
         record = form.save(commit=False)
         record.created_by = request.user
+        if record.distance_km is None:
+            record.distance_km = 0
         record.save()
-        order_formset.instance = record
-        order_formset.save()
-        transit_formset.instance = record
-        transit_formset.save()
-        sync_transport_procurement_status(record)
         messages.success(
-            request, f"Transport record {record.transport_number} created."
+            request,
+            f"Transport record {record.transport_number} created. Add customers and expense actuals next.",
         )
-        return redirect("transport_detail", pk=record.pk)
+        return redirect("transport_customer_add", pk=record.pk)
     return render(
         request,
         "operations/transport_form.html",
         {
             "form": form,
-            "order_formset": order_formset,
-            "transit_formset": transit_formset,
         },
     )
+
+
+@access_required(UserModuleAccess.Module.TRANSPORT, ACTION_UPDATE)
+def transport_edit(request, pk):
+    record = get_object_or_404(TransportRecord, pk=pk)
+    form = TransportRecordForm(request.POST or None, instance=record)
+    if request.method == "POST" and form.is_valid():
+        record = form.save()
+        messages.success(request, f"Trip setup for {record.transport_number} updated.")
+        return redirect("transport_customer_add", pk=record.pk)
+    return render(
+        request,
+        "operations/transport_form.html",
+        {
+            "form": form,
+            "record": record,
+        },
+    )
+
+
+def transport_charge_target_choices(order_formset):
+    choices = []
+    for index, order_form in enumerate(order_formset.forms):
+        label = ""
+        if order_form.is_bound:
+            label = order_form.data.get(order_form.add_prefix("customer_name"), "")
+        else:
+            label = order_form.initial.get("customer_name", "")
+        label = label.strip() or f"Customer {index + 1}"
+        choices.append((f"customer:{index}", label))
+    return choices
 
 
 @access_required(UserModuleAccess.Module.TRANSPORT, ACTION_READ)
@@ -2302,7 +2499,34 @@ def transport_detail(request, pk):
             "record": record,
             "attachment_form": TransportAttachmentForm(),
             "charge_form": TransportGovernmentChargeForm(),
-            "transit_cost_form": TransportTransitCostForm(transport=record),
+        },
+    )
+
+
+@access_required(UserModuleAccess.Module.TRANSPORT, ACTION_CREATE)
+def transport_customer_add(request, pk):
+    record = get_object_or_404(
+        TransportRecord.objects.select_related("requisition").prefetch_related(
+            "customer_orders__requisition"
+        ),
+        pk=pk,
+    )
+    form = TransportCustomerOrderForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        customer_order = form.save(commit=False)
+        customer_order.transport = record
+        customer_order.save()
+        sync_transport_procurement_status(record)
+        messages.success(request, f"Customer {customer_order.customer_name} saved.")
+        return redirect("transport_customer_add", pk=record.pk)
+    if request.method == "POST":
+        messages.error(request, "Customer could not be saved. Check the details.")
+    return render(
+        request,
+        "operations/transport_customer_step.html",
+        {
+            "record": record,
+            "customer_form": form,
         },
     )
 
@@ -2315,8 +2539,11 @@ def transport_invoices_generate(request, pk):
         pk=pk,
     )
     invoices = generate_transport_customer_invoices(record, request.user)
-    messages.success(request, f"Generated {len(invoices)} customer invoice(s).")
-    return redirect("transport_detail", pk=record.pk)
+    messages.success(
+        request, f"Generated and issued {len(invoices)} customer invoice(s)."
+    )
+    invoice_url = reverse("transport_invoice_list")
+    return redirect(f"{invoice_url}?q={quote(record.transit_number)}")
 
 
 @access_required(UserModuleAccess.Module.TRANSPORT, ACTION_READ)
@@ -2372,7 +2599,11 @@ def transport_invoice_detail(request, invoice_id):
     return render(
         request,
         "operations/transport_invoice_detail.html",
-        {"invoice": invoice, "whatsapp_url": whatsapp_url},
+        {
+            "invoice": invoice,
+            "invoice_item_rows": transport_invoice_item_rows(invoice.customer_order),
+            "whatsapp_url": whatsapp_url,
+        },
     )
 
 
@@ -2402,6 +2633,16 @@ def transport_invoice_print(request, invoice_id):
     )
 
 
+def transport_delivery_note_message(document):
+    return (
+        f"Delivery Note {document.document_number}\n"
+        f"Customer: {document.display_client}\n"
+        f"Transit: {document.transport.transit_number if document.transport else document.business_reference}\n"
+        f"Date: {document.document_date}\n"
+        f"Goods: {document.description or '-'}"
+    )
+
+
 @access_required(UserModuleAccess.Module.TRANSPORT, ACTION_READ)
 def transport_billing_manual(request):
     return render(request, "operations/transport_billing_manual.html")
@@ -2409,18 +2650,96 @@ def transport_billing_manual(request):
 
 @access_required(UserModuleAccess.Module.TRANSPORT, ACTION_CREATE)
 def transport_delivery_note_create(request, pk):
-    if not has_module_access(
-        request.user, UserModuleAccess.Module.COMMERCIAL_DOCUMENTS, ACTION_CREATE
-    ):
-        raise PermissionDenied
     record = get_object_or_404(
         TransportRecord.objects.select_related(
             "requisition", "purchase_order", "supplier"
-        ),
+        ).prefetch_related("customer_orders"),
         pk=pk,
     )
     first_customer = record.customer_orders.order_by("loading_sequence", "id").first()
-    initial = {
+    customer = (
+        first_customer.customer_name
+        if first_customer
+        else record.customer_names_summary
+    )
+    document, created = CommercialDocument.objects.get_or_create(
+        document_type=CommercialDocument.DocumentType.DELIVERY_NOTE,
+        transport=record,
+        business_reference=record.transit_number,
+        defaults={
+            "status": CommercialDocument.Status.ISSUED,
+            "title": f"Delivery note for {record.transit_number}",
+            "requisition": (
+                first_customer.requisition
+                if first_customer and first_customer.requisition_id
+                else record.requisition
+            ),
+            "purchase_order": record.purchase_order,
+            "supplier": record.supplier,
+            "document_date": date.today(),
+            "client_name": customer or "Transport customer",
+            "description": record.customer_names_summary or "Transport goods delivered",
+            "notes": f"Route: {record.origin} to {record.destination}. Vehicle: {record.vehicle}. Driver: {record.driver}.",
+            "created_by": request.user,
+        },
+    )
+    if record.status != TransportRecord.Status.DELIVERED:
+        record.status = TransportRecord.Status.DELIVERED
+        record.save(update_fields=["status", "updated_at"])
+    if created:
+        messages.success(
+            request, f"Delivery note {document.document_number} generated."
+        )
+    else:
+        messages.info(
+            request, f"Delivery note {document.document_number} already exists."
+        )
+    return redirect(
+        "transport_delivery_note_detail", pk=record.pk, document_id=document.pk
+    )
+
+
+@access_required(UserModuleAccess.Module.TRANSPORT, ACTION_READ)
+def transport_delivery_note_detail(request, pk, document_id):
+    document = get_object_or_404(
+        CommercialDocument.objects.select_related(
+            "transport", "requisition", "purchase_order", "supplier", "created_by"
+        ),
+        pk=document_id,
+        transport_id=pk,
+        document_type=CommercialDocument.DocumentType.DELIVERY_NOTE,
+    )
+    whatsapp_url = (
+        f"https://wa.me/?text={quote(transport_delivery_note_message(document))}"
+    )
+    return render(
+        request,
+        "operations/transport_delivery_note_detail.html",
+        {"document": document, "whatsapp_url": whatsapp_url},
+    )
+
+
+@access_required(UserModuleAccess.Module.TRANSPORT, ACTION_UPDATE)
+@require_POST
+def transport_status_update(request, pk, status):
+    record = get_object_or_404(TransportRecord, pk=pk)
+    allowed_statuses = {code for code, _label in TransportRecord.Status.choices}
+    if status not in allowed_statuses:
+        messages.error(request, "Unknown transit status.")
+        return redirect("transport_detail", pk=record.pk)
+    if status == TransportRecord.Status.DELIVERED:
+        return redirect("transport_delivery_note_create", pk=record.pk)
+    record.status = status
+    record.save(update_fields=["status", "updated_at"])
+    messages.success(
+        request, f"Transit status changed to {record.get_status_display()}."
+    )
+    return redirect("transport_detail", pk=record.pk)
+
+
+def transport_delivery_note_initial(record):
+    first_customer = record.customer_orders.order_by("loading_sequence", "id").first()
+    return {
         "document_type": CommercialDocument.DocumentType.DELIVERY_NOTE,
         "status": CommercialDocument.Status.ISSUED,
         "title": f"Delivery note for {record.transit_number}",
@@ -2434,13 +2753,6 @@ def transport_delivery_note_create(request, pk):
         "description": record.customer_names_summary,
         "notes": f"Route: {record.origin} to {record.destination}. Vehicle: {record.vehicle}. Driver: {record.driver}.",
     }
-    return commercial_document_form(
-        request,
-        initial=initial,
-        title="New Transport Delivery Note",
-        cancel_url="transport_detail",
-        cancel_kwargs={"pk": record.pk},
-    )
 
 
 @access_required(UserModuleAccess.Module.TRANSPORT, ACTION_CREATE)
@@ -2478,90 +2790,140 @@ def transport_charge_add(request, pk):
 
 
 @access_required(UserModuleAccess.Module.TRANSPORT, ACTION_CREATE)
-@require_POST
 def transport_transit_cost_add(request, pk):
-    record = get_object_or_404(TransportRecord, pk=pk)
-    form = TransportTransitCostForm(request.POST, transport=record)
-    if form.is_valid():
+    record = get_object_or_404(
+        TransportRecord.objects.prefetch_related("transit_costs"), pk=pk
+    )
+    form = TransportTransitCostForm(request.POST or None, transport=record)
+    if request.method == "POST" and form.is_valid():
         cost = form.save(commit=False)
         cost.transport = record
+        cost.allocation_method = TransportTransitCost.AllocationMethod.INTERNAL_ONLY
         cost.save()
-        messages.success(request, f"Transit cost {cost.display_name} added.")
-    else:
+        messages.success(request, f"Expense actual {cost.display_name} saved.")
+        return redirect("transport_transit_cost_add", pk=record.pk)
+    if request.method == "POST":
         messages.error(
-            request, "Transit cost could not be added. Check the cost details."
+            request, "Expense actual could not be saved. Check the cost details."
         )
-    return redirect("transport_detail", pk=record.pk)
+    return render(
+        request,
+        "operations/transport_expense_step.html",
+        {
+            "record": record,
+            "transit_cost_form": form,
+        },
+    )
 
 
 @access_required(UserModuleAccess.Module.TRANSPORT_REPORTS, ACTION_READ)
 def transport_reports(request):
-    records = list(
-        TransportRecord.objects.select_related(
-            "supplier", "requisition", "purchase_order"
-        ).prefetch_related(
-            "customer_orders__purchase_order__supplier", "transit_points"
-        )
-    )
-    total_cost = sum((record.total_cost for record in records), Decimal("0"))
-    total_tons = sum(
-        (record.weight_tons or Decimal("0") for record in records), Decimal("0")
-    )
-    total_cbm = sum((record.cbm for record in records), Decimal("0"))
-
-    def report_money(value):
-        return Decimal(value or 0).quantize(REPORT_QUANT, rounding=ROUND_HALF_UP)
-
-    def grouped_total(label_getter, value_getter=lambda record: record.total_cost):
-        grouped = defaultdict(Decimal)
-        for record in records:
-            grouped[label_getter(record)] += value_getter(record)
-        return [
-            {"label": label, "total": report_money(total)}
-            for label, total in sorted(grouped.items())
-        ]
-
+    query = request.GET.get("q", "").strip()
+    records_queryset = transport_report_queryset()
+    if query:
+        records_queryset = records_queryset.filter(
+            Q(transport_number__icontains=query)
+            | Q(transit_number__icontains=query)
+            | Q(vehicle__icontains=query)
+            | Q(driver__icontains=query)
+            | Q(origin__icontains=query)
+            | Q(destination__icontains=query)
+            | Q(customer_orders__customer_name__icontains=query)
+        ).distinct()
+    matching_count = records_queryset.count()
+    records = list(records_queryset[:200])
+    report_rows = [
+        {
+            "record": record,
+            "trip_charge": display_money(request, record.overall_charge),
+            "invoice_total": display_money(request, record.customer_charge_total),
+            "expense_total": display_money(request, record.transit_expense_total),
+            "profit": display_money(request, record.transit_profit),
+        }
+        for record in records
+    ]
     context = {
-        "cost_per_shipment": [
-            {"label": record.transport_number, "total": report_money(record.total_cost)}
-            for record in records
-        ],
-        "revenue_per_transit": grouped_total(
-            lambda record: record.transit_number or record.transport_number,
-            lambda record: record.invoice_revenue_total,
+        "records": report_rows,
+        "query": query,
+        "matching_count": matching_count,
+        "currency": display_currency_state(request)[0],
+        "total_trip_charges": display_money(
+            request, sum((record.overall_charge for record in records), Decimal("0"))
         ),
-        "profit_per_transit": grouped_total(
-            lambda record: record.transit_number or record.transport_number,
-            lambda record: record.transit_profit,
+        "total_expenses": display_money(
+            request,
+            sum((record.transit_expense_total for record in records), Decimal("0")),
         ),
-        "cost_per_supplier": grouped_total(
-            lambda record: record.supplier_names_summary or "Unassigned"
-        ),
-        "cost_per_customer": grouped_total(
-            lambda record: record.customer_names_summary or "Unassigned"
-        ),
-        "cost_by_destination": grouped_total(lambda record: record.destination),
-        "cost_by_requisition": grouped_total(
-            lambda record: (
-                record.requisition.requisition_number
-                if record.requisition
-                else "Unassigned"
-            )
-        ),
-        "cost_by_transit": grouped_total(
-            lambda record: record.transit_number or "Unassigned"
-        ),
-        "cost_by_transit_point": grouped_total(
-            lambda record: record.transit_points_summary or "Unassigned"
-        ),
-        "average_cost_per_ton": (
-            report_money(total_cost / total_tons) if total_tons else None
-        ),
-        "average_cost_per_cbm": (
-            report_money(total_cost / total_cbm) if total_cbm else None
+        "total_profit": display_money(
+            request, sum((record.transit_profit for record in records), Decimal("0"))
         ),
     }
     return render(request, "operations/reports.html", context)
+
+
+@access_required(UserModuleAccess.Module.TRANSPORT_REPORTS, ACTION_READ)
+def transport_report_detail(request, pk):
+    record = get_object_or_404(transport_report_queryset(), pk=pk)
+    context = {
+        "record": record,
+        "currency": display_currency_state(request)[0],
+        "trip_charge": display_money(request, record.overall_charge),
+        "invoice_total": display_money(request, record.customer_charge_total),
+        "invoice_gap": display_money(
+            request, record.overall_charge - record.customer_charge_total
+        ),
+        "expense_total": display_money(request, record.transit_expense_total),
+        "profit": display_money(request, record.transit_profit),
+        "customer_rows": [
+            {
+                "customer": customer_order,
+                "amount": display_money(request, customer_order.charge_total),
+            }
+            for customer_order in record.customer_orders.all()
+        ],
+        "expense_rows": [
+            {"cost": cost, "amount": display_money(request, cost.amount)}
+            for cost in record.transit_costs.all()
+        ],
+    }
+    return render(request, "operations/transport_report_detail.html", context)
+
+
+@access_required(UserModuleAccess.Module.TRANSPORT, ACTION_READ)
+def transport_in_transit(request):
+    records = list(
+        transport_report_queryset()
+        .filter(status=TransportRecord.Status.IN_TRANSIT)
+        .order_by("-date", "-created_at")[:200]
+    )
+    rows = [
+        {
+            "record": record,
+            "trip_charge": display_money(request, record.overall_charge),
+            "expenses": display_money(request, record.transit_expense_total),
+            "balance": display_money(request, record.transit_profit),
+        }
+        for record in records
+    ]
+    return render(
+        request,
+        "operations/transport_in_transit.html",
+        {"records": rows, "currency": display_currency_state(request)[0]},
+    )
+
+
+@access_required(UserModuleAccess.Module.TRANSPORT, ACTION_READ)
+def transport_goods_reached(request):
+    records = list(
+        transport_report_queryset()
+        .filter(status=TransportRecord.Status.IN_TRANSIT)
+        .order_by("-date", "-created_at")[:200]
+    )
+    return render(
+        request,
+        "operations/transport_goods_reached.html",
+        {"records": records},
+    )
 
 
 @access_required(UserModuleAccess.Module.COMMERCIAL_DOCUMENTS, ACTION_READ)

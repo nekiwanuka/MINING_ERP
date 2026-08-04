@@ -1,0 +1,71 @@
+{% extends 'operations/base.html' %}
+{% load operations_i18n %}
+{% block title %}In-Transit Charges | {{ record.transport_number }} | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading transport-detail-heading">
+    <div>
+        <p class="eyebrow">Transport Step 3</p>
+        <h1>In-transit charges</h1>
+        <p class="muted-copy">Record expense actuals that deduct from the total trip charge.</p>
+    </div>
+    <div class="button-row">
+        <a class="secondary-button" href="{% url 'transport_customer_add' record.pk %}">Back: customers</a>
+        <a class="primary-button" href="{% url 'transport_detail' record.pk %}">Next: status and invoices</a>
+    </div>
+</section>
+
+<section class="transport-balance-strip" aria-label="Trip financial summary">
+    <article><span>Total trip charge</span><strong>{% money record.overall_charge %}</strong></article>
+    <article><span>Expense actuals</span><strong>{% money record.transit_expense_total %}</strong></article>
+    <article><span>Trip charge balance</span><strong>{% money record.overall_charge_balance|default:record.transit_profit %}</strong></article>
+</section>
+
+<section class="panel transport-focus-panel">
+    <div class="transport-panel-title">
+        <div>
+            <p class="eyebrow">Charge form</p>
+            <h2>Add in-transit charge</h2>
+            <span>Fuel, road tax, border costs, driver fees, and other actual expenses.</span>
+        </div>
+    </div>
+    <form method="post" action="{% url 'transport_transit_cost_add' record.pk %}" class="step-save-form">
+        {% csrf_token %}
+        <div class="step-form-grid expense-step-grid">
+            {% include 'operations/partials/form_fields.html' with form=transit_cost_form %}
+        </div>
+        <div class="transport-save-bar simple-save-bar">
+            <div>
+                <strong>Save this charge</strong>
+                <span>Add as many actuals as needed before moving to status and invoices.</span>
+            </div>
+            <button class="primary-button" type="submit">Save in-transit charge</button>
+        </div>
+    </form>
+</section>
+
+<section class="panel transport-focus-panel">
+    <div class="panel-header"><h2>Saved in-transit charges</h2></div>
+    <div class="table-wrap compact">
+        <table>
+            <thead><tr><th>Charge</th><th>Place</th><th>Date</th><th>Amount</th><th>Notes</th></tr></thead>
+            <tbody>
+                {% for cost in record.transit_costs.all %}
+                    <tr>
+                        <td>{{ cost.display_name }}</td>
+                        <td>{{ cost.transit_point|default:'-' }}</td>
+                        <td>{{ cost.cost_date }}</td>
+                        <td><strong>{% money cost.amount %}</strong></td>
+                        <td>{{ cost.notes|default:'-' }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5" class="empty-cell">No in-transit charges saved yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="transport-step-actions">
+        <a class="secondary-button" href="{% url 'transport_customer_add' record.pk %}">Back</a>
+        <a class="primary-button" href="{% url 'transport_detail' record.pk %}">Next: status and invoices</a>
+    </div>
+</section>
+{% endblock %}

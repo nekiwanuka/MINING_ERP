@@ -88,6 +88,7 @@ class RequisitionAdmin(admin.ModelAdmin):
     list_display = (
         "requisition_number",
         "requesting_company",
+        "suggested_supplier_name",
         "uploaded_document",
         "requester",
         "language",
@@ -100,6 +101,8 @@ class RequisitionAdmin(admin.ModelAdmin):
     search_fields = (
         "requisition_number",
         "requesting_company",
+        "suggested_supplier_name",
+        "suggested_supplier_contact",
         "item_description",
         "items__description",
         "requester__username",

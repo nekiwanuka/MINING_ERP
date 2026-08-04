@@ -42,10 +42,16 @@ router.register(
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("language/", views.language_change, name="language_change"),
+    path("currency/", views.currency_change, name="currency_change"),
     path("requisitions/", views.requisition_list, name="requisition_list"),
     path("requisitions/new/", views.requisition_create, name="requisition_create"),
     path(
         "requisitions/<int:pk>/edit/", views.requisition_edit, name="requisition_edit"
+    ),
+    path(
+        "requisitions/<int:pk>/submitted/",
+        views.requisition_submitted,
+        name="requisition_submitted",
     ),
     path(
         "requisitions/<int:pk>/download/",
@@ -73,6 +79,11 @@ urlpatterns = [
         "procurement/requisitions/<int:pk>/review/",
         views.procurement_requisition_review,
         name="procurement_requisition_review",
+    ),
+    path(
+        "procurement/requisitions/<int:pk>/documents/new/",
+        views.requisition_document_upload,
+        name="requisition_document_upload",
     ),
     path(
         "procurement/requisitions/<int:pk>/accept/",
@@ -126,21 +137,47 @@ urlpatterns = [
     ),
     path("transport/", views.transport_list, name="transport_list"),
     path("transport/new/", views.transport_create, name="transport_create"),
+    path("transport/<int:pk>/edit/", views.transport_edit, name="transport_edit"),
     path(
         "transport/billing-manual/",
         views.transport_billing_manual,
         name="transport_billing_manual",
     ),
+    path(
+        "transport/in-transit/",
+        views.transport_in_transit,
+        name="transport_in_transit",
+    ),
+    path(
+        "transport/goods-reached/",
+        views.transport_goods_reached,
+        name="transport_goods_reached",
+    ),
     path("transport/<int:pk>/", views.transport_detail, name="transport_detail"),
+    path(
+        "transport/<int:pk>/customers/",
+        views.transport_customer_add,
+        name="transport_customer_add",
+    ),
     path(
         "transport/<int:pk>/invoices/generate/",
         views.transport_invoices_generate,
         name="transport_invoices_generate",
     ),
     path(
+        "transport/<int:pk>/status/<str:status>/",
+        views.transport_status_update,
+        name="transport_status_update",
+    ),
+    path(
         "transport/<int:pk>/delivery-note/new/",
         views.transport_delivery_note_create,
         name="transport_delivery_note_create",
+    ),
+    path(
+        "transport/<int:pk>/delivery-notes/<int:document_id>/",
+        views.transport_delivery_note_detail,
+        name="transport_delivery_note_detail",
     ),
     path(
         "transport/invoices/",
@@ -178,6 +215,11 @@ urlpatterns = [
         name="transport_charge_add",
     ),
     path("transport/reports/", views.transport_reports, name="transport_reports"),
+    path(
+        "transport/reports/<int:pk>/",
+        views.transport_report_detail,
+        name="transport_report_detail",
+    ),
     path("documents/", views.commercial_document_list, name="commercial_document_list"),
     path(
         "documents/new/",

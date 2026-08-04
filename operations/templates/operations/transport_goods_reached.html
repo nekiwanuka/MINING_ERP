@@ -1,0 +1,47 @@
+{% extends 'operations/base.html' %}
+{% block title %}Goods Reached | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Transport</p>
+        <h1>GR - Goods Reached</h1>
+        <p class="muted-copy">Call the customer, confirm arrival, then mark the trip reached to generate the delivery note.</p>
+    </div>
+    <div class="button-row">
+        <a class="secondary-button" href="{% url 'transport_in_transit' %}">In Transit</a>
+        <a class="secondary-button" href="{% url 'transport_reports' %}">Reports</a>
+    </div>
+</section>
+
+<section class="panel transport-report-panel">
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Trip</th><th>Customer to call</th><th>Route</th><th>Vehicle / driver</th><th>Action</th></tr></thead>
+            <tbody>
+                {% for record in records %}
+                    <tr>
+                        <td><a href="{% url 'transport_report_detail' record.pk %}">{{ record.transit_number }}</a><br><span class="muted-copy">{{ record.transport_number }}</span></td>
+                        <td>
+                            {% for customer in record.customer_orders.all %}
+                                <strong>{{ customer.customer_name|default:'Unnamed customer' }}</strong>{% if customer.destination %}<br><span class="muted-copy">{{ customer.destination }}</span>{% endif %}{% if not forloop.last %}<hr>{% endif %}
+                            {% empty %}
+                                <span class="muted-copy">No customer saved</span>
+                            {% endfor %}
+                        </td>
+                        <td>{{ record.origin }} to {{ record.destination }}</td>
+                        <td>{{ record.vehicle }}<br><span class="muted-copy">{{ record.driver }}</span></td>
+                        <td>
+                            <form method="post" action="{% url 'transport_status_update' record.pk 'delivered' %}">
+                                {% csrf_token %}
+                                <button class="primary-button" type="submit">Mark reached and generate delivery note</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5" class="empty-cell">No in-transit trips waiting for GR.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

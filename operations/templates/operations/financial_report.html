@@ -1,4 +1,5 @@
 {% extends 'operations/base.html' %}
+{% load operations_i18n %}
 {% block title %}Financial Reports | Mining ERP{% endblock %}
 {% block content %}
 <section class="page-heading">
@@ -11,10 +12,10 @@
 </section>
 
 <section class="metric-grid">
-    <article class="metric-card"><span>Cash in</span><strong>{{ cash_in_total|floatformat:2 }}</strong></article>
-    <article class="metric-card"><span>Cash out</span><strong>{{ cash_out_total|floatformat:2 }}</strong></article>
-    <article class="metric-card"><span>Loss</span><strong>{{ loss_total|floatformat:2 }}</strong></article>
-    <article class="metric-card"><span>Net balance</span><strong>{{ net_total|floatformat:2 }}</strong></article>
+    <article class="metric-card"><span>Cash in</span><strong>{% money cash_in_total %}</strong></article>
+    <article class="metric-card"><span>Cash out</span><strong>{% money cash_out_total %}</strong></article>
+    <article class="metric-card"><span>Loss</span><strong>{% money loss_total %}</strong></article>
+    <article class="metric-card"><span>Net balance</span><strong>{% money net_total %}</strong></article>
 </section>
 
 <section class="panel">

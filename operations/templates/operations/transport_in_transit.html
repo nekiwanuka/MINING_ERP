@@ -1,0 +1,43 @@
+{% extends 'operations/base.html' %}
+{% block title %}In Transit | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Transport</p>
+        <h1>In Transit</h1>
+        <p class="muted-copy">Record ongoing in-transit charges without opening the full trip workspace.</p>
+    </div>
+    <div class="button-row">
+        <a class="secondary-button" href="{% url 'transport_goods_reached' %}">GR - Goods Reached</a>
+        <a class="secondary-button" href="{% url 'transport_reports' %}">Reports</a>
+    </div>
+</section>
+
+<section class="panel transport-report-panel">
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Trip</th><th>Route</th><th>Customers</th><th>Trip charge</th><th>Expenses</th><th>Balance</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for row in records %}
+                    <tr>
+                        <td><a href="{% url 'transport_report_detail' row.record.pk %}">{{ row.record.transit_number }}</a><br><span class="status-pill">{{ row.record.get_status_display }}</span></td>
+                        <td>{{ row.record.origin }} to {{ row.record.destination }}<br><span class="muted-copy">{{ row.record.vehicle }} · {{ row.record.driver }}</span></td>
+                        <td>{{ row.record.customer_names_summary|default:'-' }}</td>
+                        <td>{{ currency }} {{ row.trip_charge|floatformat:0 }}</td>
+                        <td>{{ currency }} {{ row.expenses|floatformat:0 }}</td>
+                        <td class="profit-cell {% if row.balance < 0 %}is-loss{% else %}is-profit{% endif %}">{{ currency }} {{ row.balance|floatformat:0 }}</td>
+                        <td>
+                            <div class="table-actions">
+                                <a href="{% url 'transport_transit_cost_add' row.record.pk %}">Record charge</a>
+                                <a href="{% url 'transport_report_detail' row.record.pk %}">Report</a>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7" class="empty-cell">No trips are currently marked In Transit.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends 'operations/base.html' %}
+{% block title %}{{ record.transit_number }} Report | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Trip Report</p>
+        <h1>{{ record.transit_number }}</h1>
+        <p class="muted-copy">{{ record.origin }} to {{ record.destination }} · {{ record.vehicle }} · {{ record.get_status_display }}</p>
+    </div>
+    <div class="button-row">
+        <a class="secondary-button" href="{% url 'transport_reports' %}">Back to reports</a>
+        <a class="secondary-button" href="{% url 'transport_detail' record.pk %}">Trip workspace</a>
+        <a class="secondary-button" href="{% url 'transport_transit_cost_add' record.pk %}">Add in-transit charge</a>
+    </div>
+</section>
+
+<section class="panel transport-report-sheet">
+    <div class="panel-header">
+        <div>
+            <p class="eyebrow">Trip balance</p>
+            <h2>Financial summary</h2>
+        </div>
+    </div>
+    <div class="table-wrap compact">
+        <table class="report-summary-table">
+            <tbody>
+                <tr><th>Total trip charge</th><td>{{ currency }} {{ trip_charge|floatformat:0 }}</td></tr>
+                <tr><th>Customer invoices entered</th><td>{{ currency }} {{ invoice_total|floatformat:0 }}</td></tr>
+                <tr><th>Trip charge not matched to customer invoices</th><td>{{ currency }} {{ invoice_gap|floatformat:0 }}</td></tr>
+                <tr><th>Internal/in-transit expenses</th><td>{{ currency }} {{ expense_total|floatformat:0 }}</td></tr>
+                <tr class="report-total-row {% if profit < 0 %}is-loss{% else %}is-profit{% endif %}"><th>Balance / profit</th><td>{{ currency }} {{ profit|floatformat:0 }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p class="report-formula-line">Total trip charge {{ currency }} {{ trip_charge|floatformat:0 }} - expenses {{ currency }} {{ expense_total|floatformat:0 }} = {{ currency }} {{ profit|floatformat:0 }}</p>
+</section>
+
+<section class="transport-report-columns">
+    <article class="panel">
+        <div class="panel-header">
+            <div>
+                <p class="eyebrow">Customer invoices</p>
+                <h2>Amounts per customer</h2>
+            </div>
+        </div>
+        <div class="table-wrap compact">
+            <table>
+                <thead><tr><th>Customer</th><th>Goods</th><th>Requisition</th><th>Invoice amount</th><th>Invoice</th></tr></thead>
+                <tbody>
+                    {% for row in customer_rows %}
+                        <tr>
+                            <td>{{ row.customer.customer_name|default:'Unnamed customer' }}</td>
+                            <td>{{ row.customer.cargo_description|default:row.customer.package_type|default:'-' }}</td>
+                            <td>{{ row.customer.requisition|default:'-' }}</td>
+                            <td><strong>{{ currency }} {{ row.amount|floatformat:0 }}</strong></td>
+                            <td>
+                                {% for invoice in row.customer.invoices.all %}
+                                    <a href="{% url 'transport_invoice_detail' invoice.pk %}">{{ invoice.invoice_number }}</a>{% if not forloop.last %}, {% endif %}
+                                {% empty %}
+                                    <span class="muted-copy">Not generated</span>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="5" class="empty-cell">No customer entries yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+    <article class="panel">
+        <div class="panel-header">
+            <div>
+                <p class="eyebrow">Internal deductions</p>
+                <h2>In-transit expenses</h2>
+            </div>
+        </div>
+        <div class="table-wrap compact">
+            <table>
+                <thead><tr><th>Expense</th><th>Place</th><th>Date</th><th>Amount</th></tr></thead>
+                <tbody>
+                    {% for row in expense_rows %}
+                        <tr>
+                            <td>{{ row.cost.display_name }}</td>
+                            <td>{{ row.cost.transit_point|default:'-' }}</td>
+                            <td>{{ row.cost.cost_date }}</td>
+                            <td><strong>{{ currency }} {{ row.amount|floatformat:0 }}</strong></td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="4" class="empty-cell">No in-transit expenses yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+</section>
+{% endblock %}

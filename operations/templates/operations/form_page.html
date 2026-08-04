@@ -19,4 +19,24 @@
         </div>
     </form>
 </section>
+<script>
+    const fuelBeforeInput = document.querySelector('[data-fuel-before-refill]');
+    const fuelAfterInput = document.querySelector('[data-fuel-after-refill]');
+    const litresIssuedInput = document.querySelector('[data-fuel-litres-issued]');
+
+    function calculateFuelRefillLitres() {
+        if (!fuelBeforeInput || !fuelAfterInput || !litresIssuedInput) return;
+        const beforeValue = Number.parseFloat(fuelBeforeInput.value || '0');
+        const afterValue = Number.parseFloat(fuelAfterInput.value || '0');
+        if (Number.isNaN(beforeValue) || Number.isNaN(afterValue) || afterValue < beforeValue) {
+            litresIssuedInput.value = '';
+            return;
+        }
+        litresIssuedInput.value = (afterValue - beforeValue).toFixed(3);
+    }
+
+    fuelBeforeInput?.addEventListener('input', calculateFuelRefillLitres);
+    fuelAfterInput?.addEventListener('input', calculateFuelRefillLitres);
+    calculateFuelRefillLitres();
+</script>
 {% endblock %}

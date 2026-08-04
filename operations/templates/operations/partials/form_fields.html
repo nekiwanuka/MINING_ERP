@@ -3,7 +3,7 @@
 {% endif %}
 {% for field in form %}
     <label class="field-block">
-        <span>{{ field.label }}</span>
+        <span class="field-label-text">{{ field.label }}{% if field.help_text %}<span class="tooltip-indicator" title="{{ field.help_text }}" aria-label="{{ field.help_text }}">?</span>{% endif %}</span>
         {{ field }}
         {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
         {% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}

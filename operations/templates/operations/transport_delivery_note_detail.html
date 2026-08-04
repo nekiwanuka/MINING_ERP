@@ -1,0 +1,73 @@
+{% extends 'operations/base.html' %}
+{% block title %}{{ document.document_number }} | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading invoice-action-heading">
+    <div>
+        <p class="eyebrow">Transport Delivery Note</p>
+        <h1>{{ document.document_number }}</h1>
+        <p class="muted-copy">{{ document.display_client }} · {{ document.document_date }}</p>
+    </div>
+    <div class="button-row">
+        <a class="secondary-button" href="{% url 'transport_detail' document.transport.pk %}">Back to trip</a>
+        <a class="secondary-button" target="_blank" rel="noopener" href="{{ whatsapp_url }}">Send WhatsApp</a>
+        <button class="primary-button" type="button" onclick="window.print()">Print</button>
+    </div>
+</section>
+
+<section class="transport-invoice-document" aria-label="Transport delivery note document">
+    <header class="invoice-document-header">
+        <div class="invoice-brand-block">
+            {% if app_setting.logo %}
+                <img class="document-logo" src="{{ app_setting.logo.url }}" alt="{{ app_setting.application_name }} logo">
+            {% endif %}
+            <strong>{{ app_setting.application_name|default:'Mining ERP' }}</strong>
+            <span>Transport and Logistics</span>
+        </div>
+        <div class="invoice-title-block">
+            <span>Delivery Note</span>
+            <strong>{{ document.document_number }}</strong>
+            <small>{{ document.document_date }}</small>
+        </div>
+    </header>
+
+    <section class="invoice-document-grid">
+        <article>
+            <span>Customer</span>
+            <strong>{{ document.display_client }}</strong>
+            <p>{{ document.client_phone|default:'-' }}</p>
+            <p>{{ document.client_email|default:'-' }}</p>
+        </article>
+        <article>
+            <span>Trip reference</span>
+            <strong>{{ document.transport.transit_number }}</strong>
+            <p>Vehicle: {{ document.transport.vehicle }}</p>
+            <p>Route: {{ document.transport.origin }} to {{ document.transport.destination }}</p>
+        </article>
+    </section>
+
+    <section class="invoice-route-strip">
+        <div><span>Status</span><strong>{{ document.transport.get_status_display }}</strong></div>
+        <div><span>Driver</span><strong>{{ document.transport.driver }}</strong></div>
+        <div><span>Requisition</span><strong>{{ document.requisition|default:'-' }}</strong></div>
+        <div><span>Reference</span><strong>{{ document.business_reference|default:'-' }}</strong></div>
+    </section>
+
+    <section class="delivery-note-body">
+        <span>Goods delivered</span>
+        <p>{{ document.description|linebreaksbr|default:'Transport goods delivered.' }}</p>
+        <span>Notes</span>
+        <p>{{ document.notes|linebreaksbr|default:'-' }}</p>
+    </section>
+
+    <footer class="invoice-document-footer">
+        <div>
+            <span>Issued by</span>
+            <strong>{{ document.created_by|default:'-' }}</strong>
+        </div>
+        <div>
+            <span>Received by</span>
+            <strong>&nbsp;</strong>
+        </div>
+    </footer>
+</section>
+{% endblock %}

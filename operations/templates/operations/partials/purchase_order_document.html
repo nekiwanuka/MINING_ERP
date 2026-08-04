@@ -45,11 +45,11 @@
                 <tr>
                     <td>{{ order.inquiry.description }}</td>
                     <td>{{ order.inquiry.quantity|floatformat:2 }}</td>
-                    <td>{{ order.amount|floatformat:2 }}</td>
+                    <td>{% money order.amount %}</td>
                 </tr>
             </tbody>
             <tfoot>
-                <tr><th colspan="2">{{ 'Total'|tr:active_language }}</th><th>{{ order.amount|floatformat:2 }}</th></tr>
+                <tr><th colspan="2">{{ 'Total'|tr:active_language }}</th><th>{% money order.amount %}</th></tr>
             </tfoot>
         </table>
     </div>

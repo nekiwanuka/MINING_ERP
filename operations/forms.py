@@ -33,29 +33,63 @@ from .models import (
 
 DATE_WIDGET = forms.DateInput(attrs={"type": "date"})
 MONEY_WIDGET = forms.NumberInput(attrs={"step": "0.01", "min": "0"})
+WHOLE_MONEY_WIDGET = forms.NumberInput(attrs={"step": "1", "min": "0"})
 MEASURE_WIDGET = forms.NumberInput(attrs={"step": "0.001", "min": "0"})
+
+
+def field_entry_tip(field_name, field):
+    label = field.label or field_name.replace("_", " ").title()
+    if field.help_text:
+        return str(field.help_text)
+    if "amount" in field_name or "charge" in field_name or "fee" in field_name:
+        return f"Enter the amount for {label.lower()}."
+    if isinstance(field, forms.DecimalField) and not any(
+        word in field_name
+        for word in ["km", "distance", "weight", "length", "width", "height", "cbm"]
+    ):
+        return f"Enter the amount for {label.lower()}."
+    if isinstance(field.widget, forms.Select):
+        return f"Select the correct {label.lower()}."
+    if isinstance(field.widget, forms.CheckboxInput):
+        return f"Tick this box if {label.lower()} applies."
+    if isinstance(field.widget, forms.FileInput):
+        return f"Upload the file for {label.lower()}."
+    if isinstance(field.widget, forms.DateInput):
+        return f"Enter the {label.lower()} using the calendar or YYYY-MM-DD format."
+    if isinstance(field.widget, forms.TimeInput):
+        return f"Enter the {label.lower()} using HH:MM format."
+    if isinstance(field.widget, forms.NumberInput):
+        return f"Enter the number for {label.lower()}."
+    if isinstance(field.widget, forms.Textarea):
+        return f"Enter the details for {label.lower()}."
+    return f"Enter the {label.lower()}."
+
+
+def style_form_fields(fields):
+    for field_name, field in fields.items():
+        css_class = field.widget.attrs.get("class", "")
+        if isinstance(field.widget, forms.CheckboxInput):
+            field.widget.attrs["class"] = f"{css_class} checkbox-control".strip()
+        else:
+            field.widget.attrs["class"] = f"{css_class} field-control".strip()
+
+        tip = field_entry_tip(field_name, field)
+        if not field.help_text:
+            field.help_text = tip
+        field.widget.attrs.setdefault("title", tip)
+        field.widget.attrs.setdefault("aria-label", field.label or "Field")
 
 
 class StyledModelForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            css_class = field.widget.attrs.get("class", "")
-            if isinstance(field.widget, forms.CheckboxInput):
-                field.widget.attrs["class"] = f"{css_class} checkbox-control".strip()
-            else:
-                field.widget.attrs["class"] = f"{css_class} field-control".strip()
+        style_form_fields(self.fields)
 
 
 class StyledForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            css_class = field.widget.attrs.get("class", "")
-            if isinstance(field.widget, forms.CheckboxInput):
-                field.widget.attrs["class"] = f"{css_class} checkbox-control".strip()
-            else:
-                field.widget.attrs["class"] = f"{css_class} field-control".strip()
+        style_form_fields(self.fields)
 
 
 class ManagedUserForm(StyledModelForm):
@@ -122,12 +156,7 @@ class ModuleAccessForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            css_class = field.widget.attrs.get("class", "")
-            if isinstance(field.widget, forms.CheckboxInput):
-                field.widget.attrs["class"] = f"{css_class} checkbox-control".strip()
-            else:
-                field.widget.attrs["class"] = f"{css_class} field-control".strip()
+        style_form_fields(self.fields)
 
 
 ModuleAccessFormSet = formset_factory(ModuleAccessForm, extra=0)
@@ -136,15 +165,26 @@ ModuleAccessFormSet = formset_factory(ModuleAccessForm, extra=0)
 class RequisitionForm(StyledModelForm):
     class Meta:
         model = Requisition
-        fields = ["requesting_company", "uploaded_document", "language", "urgent"]
+        fields = [
+            "requesting_company",
+            "suggested_supplier_name",
+            "suggested_supplier_contact",
+            "uploaded_document",
+            "language",
+            "urgent",
+        ]
         labels = {
             "requesting_company": "Mining company / site",
+            "suggested_supplier_name": "Supplier name (optional)",
+            "suggested_supplier_contact": "Supplier contact (optional)",
             "uploaded_document": "Upload prepared requisition",
             "language": "Description language",
             "urgent": "Urgent requisition",
         }
         help_texts = {
             "requesting_company": "Use the requester company or mining center name. If the username is the company name, this is filled automatically.",
+            "suggested_supplier_name": "Optional. Enter the supplier you recommend for this requisition.",
+            "suggested_supplier_contact": "Optional. Enter the supplier phone, email, or contact person if known.",
             "uploaded_document": "Optional. Upload a prepared requisition instead of entering item lines below.",
         }
 
@@ -170,7 +210,7 @@ RequisitionItemFormSet = inlineformset_factory(
     RequisitionItem,
     form=RequisitionItemForm,
     fields=("description", "pieces"),
-    extra=3,
+    extra=1,
     min_num=0,
     validate_min=False,
     can_delete=False,
@@ -423,6 +463,71 @@ class CommercialDocumentForm(StyledModelForm):
         return self.cleaned_data.get("client")
 
 
+class RequisitionDocumentUploadForm(StyledModelForm):
+    new_supplier_name = forms.CharField(
+        required=False,
+        label="Or enter supplier name",
+        help_text="Use this when the supplier is not registered yet.",
+    )
+    new_supplier_contact = forms.CharField(required=False, label="Supplier contact")
+
+    class Meta:
+        model = CommercialDocument
+        fields = [
+            "document_type",
+            "title",
+            "supplier",
+            "new_supplier_name",
+            "new_supplier_contact",
+            "document_date",
+            "due_date",
+            "currency",
+            "amount",
+            "business_reference",
+            "description",
+            "notes",
+            "attachment",
+        ]
+        labels = {
+            "title": "Document title / number",
+            "business_reference": "Supplier reference / invoice number",
+            "attachment": "Upload document file",
+        }
+        widgets = {
+            "document_date": DATE_WIDGET,
+            "due_date": DATE_WIDGET,
+            "amount": MONEY_WIDGET,
+            "description": forms.Textarea(attrs={"rows": 3}),
+            "notes": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["supplier"].required = False
+        self.fields["supplier"].queryset = Supplier.objects.all()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        supplier = cleaned_data.get("supplier")
+        new_supplier_name = cleaned_data.get("new_supplier_name", "").strip()
+        if not supplier and not new_supplier_name:
+            self.add_error(
+                "new_supplier_name", "Select a supplier or enter one manually."
+            )
+        return cleaned_data
+
+    def resolve_supplier(self):
+        new_supplier_name = self.cleaned_data.get("new_supplier_name", "").strip()
+        if new_supplier_name:
+            supplier, _created = Supplier.objects.get_or_create(name=new_supplier_name)
+            contact = self.cleaned_data.get("new_supplier_contact", "").strip()
+            if contact and supplier.contact_person != contact:
+                supplier.contact_person = contact
+                supplier.save(update_fields=["contact_person", "updated_at"])
+            return supplier
+        return self.cleaned_data.get("supplier")
+
+
 class FinancialRecordForm(StyledModelForm):
     class Meta:
         model = FinancialRecord
@@ -537,11 +642,41 @@ class FuelIssueForm(StyledModelForm):
         self.fields["batch"].queryset = FuelStockBatch.objects.prefetch_related(
             "issues"
         )
+        self.fields["fuel_before_refill"].widget.attrs[
+            "data-fuel-before-refill"
+        ] = "true"
+        self.fields["fuel_after_refill"].widget.attrs["data-fuel-after-refill"] = "true"
+        self.fields["litres_issued"].required = False
+        self.fields["litres_issued"].help_text = (
+            "Auto calculated as fuel after refilling minus fuel before refilling."
+        )
+        self.fields["litres_issued"].widget.attrs.update(
+            {
+                "data-fuel-litres-issued": "true",
+                "readonly": "readonly",
+            }
+        )
 
     def clean(self):
         cleaned_data = super().clean()
         batch = cleaned_data.get("batch")
+        fuel_before_refill = cleaned_data.get("fuel_before_refill")
+        fuel_after_refill = cleaned_data.get("fuel_after_refill")
         litres_issued = cleaned_data.get("litres_issued")
+        if fuel_before_refill is not None and fuel_after_refill is not None:
+            if fuel_after_refill < fuel_before_refill:
+                self.add_error(
+                    "fuel_after_refill",
+                    "Fuel after refilling cannot be less than fuel before refilling.",
+                )
+            else:
+                litres_issued = fuel_after_refill - fuel_before_refill
+                cleaned_data["litres_issued"] = litres_issued
+        if litres_issued is None:
+            self.add_error(
+                "litres_issued",
+                "Enter fuel before and after refilling to calculate litres refilled now.",
+            )
         if batch and litres_issued and litres_issued > batch.available_litres:
             self.add_error(
                 "litres_issued",
@@ -632,7 +767,6 @@ class ExpatriateVisaForm(StyledModelForm):
 
 class TransportRecordForm(StyledModelForm):
     OPTIONAL_DECIMAL_FIELDS = [
-        "weight_tons",
         "transit_start_km",
         "common_route_end_km",
         "final_destination_km",
@@ -654,9 +788,6 @@ class TransportRecordForm(StyledModelForm):
         "storage",
         "demurrage",
         "miscellaneous",
-        "length",
-        "width",
-        "height",
         "custom_tax",
         "import_duty",
         "vat",
@@ -672,77 +803,29 @@ class TransportRecordForm(StyledModelForm):
             "driver",
             "turn_boy",
             "container_number",
-            "requisition",
-            "supplier",
             "origin",
             "destination",
             "distance_km",
-            "transit_start_km",
-            "common_route_end_km",
-            "final_destination_km",
             "overall_charge",
-            "weight_tons",
-            "freight",
-            "fuel",
-            "driver_allowance",
-            "turn_boy_allowance",
-            "vehicle_operating_allowance",
-            "road_toll",
-            "planned_ferry_fees",
-            "border_charges",
-            "taxes",
-            "insurance",
-            "escort_fees",
-            "handling_charges",
-            "loading",
-            "offloading",
-            "storage",
-            "demurrage",
-            "miscellaneous",
-            "length",
-            "width",
-            "height",
-            "cbm_quantity",
-            "custom_tax",
-            "import_duty",
-            "vat",
-            "excise_duty",
-            "other_government_charges",
         ]
         widgets = {
             "date": DATE_WIDGET,
             "distance_km": MONEY_WIDGET,
-            "transit_start_km": MONEY_WIDGET,
-            "common_route_end_km": MONEY_WIDGET,
-            "final_destination_km": MONEY_WIDGET,
-            "overall_charge": MONEY_WIDGET,
-            "weight_tons": MONEY_WIDGET,
-            "freight": MONEY_WIDGET,
-            "fuel": MONEY_WIDGET,
-            "driver_allowance": MONEY_WIDGET,
-            "turn_boy_allowance": MONEY_WIDGET,
-            "vehicle_operating_allowance": MONEY_WIDGET,
-            "road_toll": MONEY_WIDGET,
-            "planned_ferry_fees": MONEY_WIDGET,
-            "border_charges": MONEY_WIDGET,
-            "taxes": MONEY_WIDGET,
-            "insurance": MONEY_WIDGET,
-            "escort_fees": MONEY_WIDGET,
-            "handling_charges": MONEY_WIDGET,
-            "loading": MONEY_WIDGET,
-            "offloading": MONEY_WIDGET,
-            "storage": MONEY_WIDGET,
-            "demurrage": MONEY_WIDGET,
-            "miscellaneous": MONEY_WIDGET,
-            "length": MEASURE_WIDGET,
-            "width": MEASURE_WIDGET,
-            "height": MEASURE_WIDGET,
-            "custom_tax": MONEY_WIDGET,
-            "import_duty": MONEY_WIDGET,
-            "vat": MONEY_WIDGET,
-            "excise_duty": MONEY_WIDGET,
-            "other_government_charges": MONEY_WIDGET,
+            "overall_charge": WHOLE_MONEY_WIDGET,
         }
+        labels = {
+            "destination": "Final route / destination",
+            "distance_km": "Total trip distance km",
+            "overall_charge": "Total trip charge",
+        }
+        help_texts = {
+            "distance_km": "Optional. Enter the total route distance if known.",
+            "overall_charge": "Optional. Enter the total trip amount before in-transit expenses are deducted.",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["distance_km"].required = False
 
     def clean(self):
         cleaned_data = super().clean()
@@ -754,100 +837,51 @@ class TransportRecordForm(StyledModelForm):
 
 class TransportCustomerOrderForm(StyledModelForm):
     OPTIONAL_DECIMAL_FIELDS = [
-        "weight_kg",
-        "weight_tons",
-        "billable_distance_km",
-        "delivery_km",
-        "rate_per_km",
-        "length",
-        "width",
-        "height",
         "cargo_charge",
-        "handling_charge",
-        "loading_charge",
-        "offloading_charge",
-        "document_charge",
-        "storage_charge",
-        "miscellaneous_charge",
     ]
 
     class Meta:
         model = TransportCustomerOrder
         fields = [
             "customer_name",
-            "purchase_order",
+            "requisition",
             "cargo_description",
             "package_type",
+            "destination",
             "loading_point",
             "offloading_point",
-            "destination",
-            "delivery_km",
-            "loading_sequence",
-            "offloading_sequence",
-            "billable_distance_km",
-            "rate_per_km",
             "pieces",
-            "weight_kg",
-            "weight_tons",
-            "length",
-            "width",
-            "height",
-            "cbm_quantity",
-            "cargo_charge",
-            "handling_charge",
             "loading_charge",
             "offloading_charge",
-            "document_charge",
-            "storage_charge",
-            "other_charge_label",
-            "miscellaneous_charge",
+            "cargo_charge",
         ]
         labels = {
             "customer_name": "Customer name",
-            "purchase_order": "Purchase order",
-            "cargo_description": "Cargo, luggage, parcels, or items",
-            "package_type": "Package type",
+            "requisition": "Attach requisition",
+            "cargo_description": "Type of goods",
+            "package_type": "Goods / package type",
+            "destination": "Customer address / destination",
             "loading_point": "Loading point",
             "offloading_point": "Offloading point",
-            "destination": "Client destination",
-            "loading_sequence": "Loading sequence",
-            "offloading_sequence": "Offloading sequence",
-            "billable_distance_km": "Billable distance km",
-            "delivery_km": "Delivery KM",
-            "rate_per_km": "Rate per km",
-            "pieces": "Pieces / packages",
-            "weight_kg": "Weight kg",
-            "weight_tons": "Weight tons",
-            "cbm_quantity": "CBM quantity",
-            "cargo_charge": "Transport charge override",
-            "handling_charge": "Internal handling cost",
-            "loading_charge": "Loading charge",
-            "offloading_charge": "Offloading charge",
-            "document_charge": "Client document charge",
-            "storage_charge": "Storage charge",
-            "other_charge_label": "Other charge label",
-            "miscellaneous_charge": "Other customer charge",
+            "pieces": "Space used",
+            "loading_charge": "Loading fee (internal note)",
+            "offloading_charge": "Offloading fee (internal note)",
+            "cargo_charge": "Amount to show on invoice",
+        }
+        help_texts = {
+            "requisition": "Optional. Link the customer cargo to a requisition.",
+            "destination": "Enter the customer's delivery address, mine site, or branch.",
+            "pieces": "Enter truck spaces, pallet spaces, or units used by this customer.",
+            "loading_charge": "Optional internal note only. This amount is not added to the customer invoice.",
+            "offloading_charge": "Optional internal note only. This amount is not added to the customer invoice.",
+            "cargo_charge": "Enter the final customer invoice amount for Transit & Logistics Fees.",
         }
         widgets = {
-            "cargo_description": forms.Textarea(attrs={"rows": 3}),
-            "loading_sequence": forms.NumberInput(attrs={"min": "1", "step": "1"}),
-            "offloading_sequence": forms.NumberInput(attrs={"min": "1", "step": "1"}),
-            "billable_distance_km": MONEY_WIDGET,
-            "delivery_km": MONEY_WIDGET,
-            "rate_per_km": MONEY_WIDGET,
+            "cargo_description": forms.Textarea(attrs={"rows": 2}),
             "pieces": forms.NumberInput(attrs={"min": "0", "step": "1"}),
-            "weight_kg": forms.NumberInput(attrs={"step": "0.001", "min": "0"}),
-            "weight_tons": MONEY_WIDGET,
-            "length": MEASURE_WIDGET,
-            "width": MEASURE_WIDGET,
-            "height": MEASURE_WIDGET,
-            "cargo_charge": MONEY_WIDGET,
-            "handling_charge": MONEY_WIDGET,
-            "loading_charge": MONEY_WIDGET,
-            "offloading_charge": MONEY_WIDGET,
-            "document_charge": MONEY_WIDGET,
-            "storage_charge": MONEY_WIDGET,
-            "miscellaneous_charge": MONEY_WIDGET,
+            "loading_charge": WHOLE_MONEY_WIDGET,
+            "offloading_charge": WHOLE_MONEY_WIDGET,
+            "cargo_charge": WHOLE_MONEY_WIDGET,
         }
 
     def has_changed(self):
@@ -855,14 +889,12 @@ class TransportCustomerOrderForm(StyledModelForm):
             return False
         text_fields = [
             "customer_name",
-            "purchase_order",
+            "requisition",
             "cargo_description",
             "package_type",
             "loading_point",
             "offloading_point",
             "destination",
-            "delivery_km",
-            "other_charge_label",
         ]
         if any(
             self.data.get(self.add_prefix(field_name), "").strip()
@@ -870,12 +902,6 @@ class TransportCustomerOrderForm(StyledModelForm):
         ):
             return True
         if self._decimal_field_changed("pieces", "0"):
-            return True
-        if self._decimal_field_changed("loading_sequence", "0"):
-            return True
-        if self._decimal_field_changed("offloading_sequence", "0"):
-            return True
-        if self._decimal_field_changed("cbm_quantity", "1"):
             return True
         return any(
             self._decimal_field_changed(field_name, "0")
@@ -894,37 +920,35 @@ class TransportCustomerOrderForm(StyledModelForm):
     def clean(self):
         cleaned_data = super().clean()
         customer_name = cleaned_data.get("customer_name", "").strip()
-        purchase_order = cleaned_data.get("purchase_order")
         for field_name in self.OPTIONAL_DECIMAL_FIELDS:
             if cleaned_data.get(field_name) is None:
                 cleaned_data[field_name] = Decimal("0")
-        if cleaned_data.get("weight_kg") and not cleaned_data.get("weight_tons"):
-            cleaned_data["weight_tons"] = cleaned_data["weight_kg"] / Decimal("1000")
+        for field_name in ["loading_charge", "offloading_charge"]:
+            if cleaned_data.get(field_name) is None:
+                cleaned_data[field_name] = Decimal("0")
         if cleaned_data.get("pieces") is None:
             cleaned_data["pieces"] = 0
-        if cleaned_data.get("cbm_quantity") is None:
-            cleaned_data["cbm_quantity"] = 1
 
-        has_cargo_or_charges = any(
+        has_customer_details = any(
             [
-                purchase_order,
                 cleaned_data.get("cargo_description", "").strip(),
                 cleaned_data.get("package_type", "").strip(),
                 cleaned_data.get("loading_point", "").strip(),
                 cleaned_data.get("offloading_point", "").strip(),
-                cleaned_data.get("loading_sequence"),
-                cleaned_data.get("offloading_sequence"),
+                cleaned_data.get("destination", "").strip(),
                 cleaned_data.get("pieces"),
+                cleaned_data.get("loading_charge"),
+                cleaned_data.get("offloading_charge"),
                 *[
                     cleaned_data.get(field_name)
                     for field_name in self.OPTIONAL_DECIMAL_FIELDS
                 ],
             ]
         )
-        if has_cargo_or_charges and not customer_name:
+        if has_customer_details and not customer_name:
             self.add_error(
                 "customer_name",
-                "Enter the customer name for this cargo row.",
+                "Enter the customer name for this row.",
             )
         return cleaned_data
 
@@ -935,37 +959,145 @@ TransportCustomerOrderFormSet = inlineformset_factory(
     form=TransportCustomerOrderForm,
     fields=(
         "customer_name",
-        "purchase_order",
+        "requisition",
         "cargo_description",
         "package_type",
+        "destination",
         "loading_point",
         "offloading_point",
-        "destination",
-        "delivery_km",
-        "loading_sequence",
-        "offloading_sequence",
-        "billable_distance_km",
-        "rate_per_km",
         "pieces",
-        "weight_kg",
-        "weight_tons",
-        "length",
-        "width",
-        "height",
-        "cbm_quantity",
-        "cargo_charge",
-        "handling_charge",
         "loading_charge",
         "offloading_charge",
-        "document_charge",
-        "storage_charge",
-        "other_charge_label",
-        "miscellaneous_charge",
+        "cargo_charge",
     ),
-    extra=3,
-    min_num=1,
-    validate_min=True,
+    extra=0,
+    min_num=0,
+    validate_min=False,
     can_delete=False,
+)
+
+
+class TransportInitialChargeForm(StyledForm):
+    cost_type = forms.ChoiceField(
+        choices=TransportTransitCost.CostType.choices,
+        initial=TransportTransitCost.CostType.OTHER,
+        label="Internal cost type",
+        required=False,
+        help_text="Select fuel, allowances, taxes, border fees, or Other for a custom internal deduction.",
+    )
+    custom_name = forms.CharField(
+        required=False,
+        label="Internal cost name",
+        help_text="Enter a clear name such as Fuel, Driver allowance, Tax, Border charge, Ferry fee, or Parking.",
+    )
+    amount = forms.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        required=False,
+        help_text="Enter the internal deduction amount. This does not appear as a separate customer invoice line.",
+        widget=WHOLE_MONEY_WIDGET,
+    )
+    transit_point = forms.CharField(
+        required=False,
+        label="Transit point / place",
+        help_text="Enter the road section, border, checkpoint, town, or place where this charge applies.",
+    )
+    km_location = forms.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=Decimal("0.00"),
+        required=False,
+        label="KM location",
+        help_text="Enter the kilometre point for the charge. For a common-route distance charge, use the common route end km or the point where the shared route ends.",
+        widget=MONEY_WIDGET,
+    )
+    charge_target = forms.ChoiceField(
+        required=False,
+        label="Internal cost assignment",
+        help_text="Use General trip cost for fuel, allowances, and taxes. Choose a customer only when the cost belongs to that customer's delivery for profit analysis.",
+    )
+    notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Add any extra explanation needed for this charge.",
+    )
+
+    def __init__(self, *args, customer_choices=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        choices = [("base", "General trip cost")]
+        choices.extend(customer_choices or [])
+        self.fields["charge_target"].choices = choices
+
+    def has_changed(self):
+        if not super().has_changed():
+            return False
+        text_fields = ["custom_name", "transit_point", "notes"]
+        if any(
+            self.data.get(self.add_prefix(field_name), "").strip()
+            for field_name in text_fields
+        ):
+            return True
+        if self.data.get(self.add_prefix("charge_target"), "base") != "base":
+            return True
+        return any(
+            self._decimal_field_changed(field_name)
+            for field_name in ["amount", "km_location"]
+        )
+
+    def _decimal_field_changed(self, field_name):
+        value = self.data.get(self.add_prefix(field_name), "").strip()
+        if not value:
+            return False
+        try:
+            return Decimal(value) != Decimal("0")
+        except Exception:
+            return True
+
+    def clean(self):
+        cleaned_data = super().clean()
+        amount = cleaned_data.get("amount") or Decimal("0")
+        if not self.has_changed():
+            return cleaned_data
+        if not amount:
+            self.add_error("amount", "Enter the charge amount.")
+        if (
+            cleaned_data.get("cost_type") == TransportTransitCost.CostType.OTHER
+            and not cleaned_data.get("custom_name", "").strip()
+        ):
+            self.add_error("custom_name", "Enter the custom charge name.")
+        return cleaned_data
+
+    def save(self, transport, customer_orders_by_index):
+        if not self.has_changed() or self.errors:
+            return None
+        target = self.cleaned_data.get("charge_target") or "base"
+        customer_order = None
+        allocation_method = TransportTransitCost.AllocationMethod.DISTANCE_SHARED
+        if target.startswith("customer:"):
+            customer_index = int(target.split(":", 1)[1])
+            customer_order = customer_orders_by_index.get(customer_index)
+            allocation_method = TransportTransitCost.AllocationMethod.CLIENT_SPECIFIC
+
+        return TransportTransitCost.objects.create(
+            transport=transport,
+            cost_type=self.cleaned_data.get("cost_type")
+            or TransportTransitCost.CostType.OTHER,
+            custom_name=self.cleaned_data.get("custom_name", "").strip(),
+            amount=self.cleaned_data.get("amount") or Decimal("0"),
+            km_location=self.cleaned_data.get("km_location") or Decimal("0"),
+            transit_point=self.cleaned_data.get("transit_point", "").strip(),
+            allocation_method=allocation_method,
+            customer_order=customer_order,
+            notes=self.cleaned_data.get("notes", "").strip(),
+        )
+
+
+TransportInitialChargeFormSet = formset_factory(
+    TransportInitialChargeForm,
+    extra=3,
+    min_num=0,
+    validate_min=False,
 )
 
 
@@ -1080,56 +1212,24 @@ class TransportTransitCostForm(StyledModelForm):
             "custom_name",
             "amount",
             "cost_date",
-            "cost_time",
-            "km_location",
             "transit_point",
-            "allocation_method",
-            "customer_order",
-            "manual_client_amount",
             "notes",
         ]
         labels = {
-            "custom_name": "Custom cost name",
+            "custom_name": "Expense name",
             "cost_date": "Cost date",
-            "cost_time": "Cost time",
-            "km_location": "KM location",
-            "transit_point": "Transit point",
-            "customer_order": "Client cargo",
-            "manual_client_amount": "Manual client amount",
+            "transit_point": "Place / reference",
         }
         widgets = {
-            "amount": MONEY_WIDGET,
+            "amount": WHOLE_MONEY_WIDGET,
             "cost_date": DATE_WIDGET,
-            "cost_time": forms.TimeInput(attrs={"type": "time"}),
-            "km_location": MONEY_WIDGET,
-            "manual_client_amount": MONEY_WIDGET,
             "notes": forms.Textarea(attrs={"rows": 2}),
         }
 
     def __init__(self, *args, transport=None, **kwargs):
         self.transport = transport
         super().__init__(*args, **kwargs)
-        if transport:
-            self.fields["customer_order"].queryset = transport.customer_orders.all()
 
     def clean(self):
         cleaned_data = super().clean()
-        allocation_method = cleaned_data.get("allocation_method")
-        customer_order = cleaned_data.get("customer_order")
-        manual_client_amount = cleaned_data.get("manual_client_amount") or Decimal("0")
-        if (
-            allocation_method == TransportTransitCost.AllocationMethod.CLIENT_SPECIFIC
-            and not customer_order
-        ):
-            self.add_error("customer_order", "Choose the client for this cost.")
-        if (
-            allocation_method == TransportTransitCost.AllocationMethod.MANUAL
-            and not manual_client_amount
-        ):
-            self.add_error("manual_client_amount", "Enter the manual amount to bill.")
-        if (
-            allocation_method == TransportTransitCost.AllocationMethod.MANUAL
-            and not customer_order
-        ):
-            self.add_error("customer_order", "Choose the client for the manual charge.")
         return cleaned_data

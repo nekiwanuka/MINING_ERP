@@ -22,7 +22,7 @@
             </span>
         </a>
         <nav class="top-nav" aria-label="Primary navigation">
-            {% if can_read_requisitions %}<a href="{% url 'requisition_list' %}">{{ 'Requisitions'|tr:active_language }}</a>{% endif %}
+            {% if can_read_requisitions %}<a href="{% if requester_only %}{% url 'requisition_create' %}{% else %}{% url 'requisition_list' %}{% endif %}">{% if requester_only %}Request page{% else %}{{ 'Requisitions'|tr:active_language }}{% endif %}</a>{% endif %}
             {% if can_read_procurement %}
                 <details class="nav-group">
                     <summary aria-label="Open procurement menu">{{ 'Procurement'|tr:active_language }}</summary>
@@ -40,6 +40,8 @@
                     <summary aria-label="Open transport menu">{{ 'Transport'|tr:active_language }}</summary>
                     <span class="nav-submenu" aria-label="Transport menu links">
                         <a href="{% url 'transport_list' %}">Records</a>
+                        <a href="{% url 'transport_in_transit' %}">In Transit</a>
+                        <a href="{% url 'transport_goods_reached' %}">GR - Goods Reached</a>
                         <a href="{% url 'transport_invoice_list' %}">Invoices</a>
                         {% if can_read_transport_reports %}<a href="{% url 'transport_reports' %}">Reports</a>{% endif %}
                         <a href="{% url 'transport_billing_manual' %}">{{ 'Billing manual'|tr:active_language }}</a>
@@ -87,6 +89,26 @@
                 </select>
             </form>
         {% endif %}
+        <details class="currency-menu">
+            <summary aria-label="Open currency menu">Currency <span>{{ display_currency }}</span></summary>
+            <form action="{% url 'currency_change' %}" method="post" class="currency-form" aria-label="Change currency">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <label><span>Display</span>
+                    <select name="currency" aria-label="Currency">
+                        <option value="USD" {% if display_currency == 'USD' %}selected{% endif %}>USD</option>
+                        <option value="UGX" {% if display_currency == 'UGX' %}selected{% endif %}>UGX</option>
+                    </select>
+                </label>
+                <label><span>1 USD equals</span>
+                    <div class="currency-rate-control">
+                        <input type="number" name="exchange_rate" min="1" step="1" value="{{ ugx_exchange_rate|floatformat:0 }}" aria-label="UGX exchange rate for 1 USD" title="Enter how many Uganda shillings equal 1 USD">
+                        <strong>UGX</strong>
+                    </div>
+                </label>
+                <button type="submit">Apply currency</button>
+            </form>
+        </details>
         <form action="{% url 'logout' %}" method="post" class="logout-form">
             {% csrf_token %}
             <span class="current-user">{{ request.user.username }}</span>
@@ -127,8 +149,15 @@
             function translateMixedText(value) {
                 var translated = String(value || '');
                 phraseKeys.forEach(function (key) {
-                    if (key.length < 3 || translated.indexOf(key) === -1) { return; }
-                    translated = translated.replace(new RegExp(escapeRegExp(key), 'g'), translations[key]);
+                        if (key.trim().length < 2 || translated.toLowerCase().indexOf(key.toLowerCase()) === -1) { return; }
+                    if (/^[A-Za-z][A-Za-z0-9 /().,-]*$/.test(key)) {
+                        translated = translated.replace(
+                                new RegExp('(^|[^A-Za-z0-9])(' + escapeRegExp(key) + ')(?=$|[^A-Za-z0-9])', 'gi'),
+                            function (match, prefix) { return prefix + translations[key]; }
+                        );
+                    } else {
+                            translated = translated.replace(new RegExp(escapeRegExp(key), 'gi'), translations[key]);
+                    }
                 });
                 return translated === value ? null : translated;
             }

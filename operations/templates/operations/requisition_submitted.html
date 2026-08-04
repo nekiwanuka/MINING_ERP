@@ -1,0 +1,27 @@
+{% extends 'operations/base.html' %}
+{% block title %}Requisition submitted | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading requisition-heading">
+    <div>
+        <p class="eyebrow">Requisition submitted</p>
+        <h1>{{ requisition.requisition_number }}</h1>
+        <p>Your requisition has been saved. Choose what to do next.</p>
+    </div>
+</section>
+
+<section class="panel narrow-panel centered-form-panel requisition-panel">
+    <div class="process-summary-grid">
+        <div><span>Company / site</span><strong>{{ requisition.requester_label }}</strong></div>
+        <div><span>Pieces</span><strong>{{ requisition.total_pieces }}</strong></div>
+        <div><span>Status</span><strong>{{ requisition.get_status_display }}</strong></div>
+        <div><span>Suggested supplier</span><strong>{{ requisition.supplier_suggestion|default:"-" }}</strong></div>
+    </div>
+    <p class="muted-copy">{{ requisition.item_summary|truncatechars:180 }}</p>
+    <div class="form-actions">
+        <a class="primary-button" href="{% url 'requisition_download' requisition.pk %}">Download requisition</a>
+        <a class="secondary-button" href="{{ email_url }}">Send email</a>
+        <a class="secondary-button" target="_blank" rel="noopener" href="{{ whatsapp_url }}">Send WhatsApp</a>
+        <a class="secondary-button" href="{% url 'requisition_create' %}">Make another requisition</a>
+    </div>
+</section>
+{% endblock %}

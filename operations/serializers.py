@@ -45,6 +45,8 @@ class RequisitionSerializer(serializers.ModelSerializer):
             "requisition_number",
             "requester",
             "requesting_company",
+            "suggested_supplier_name",
+            "suggested_supplier_contact",
             "uploaded_document",
             "language",
             "urgent",

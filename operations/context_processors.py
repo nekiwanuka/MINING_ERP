@@ -1,6 +1,27 @@
-from .access import ACTION_CREATE, ACTION_READ, has_module_access
+from decimal import Decimal, InvalidOperation
+
+from .access import (
+    ACTION_CREATE,
+    ACTION_READ,
+    has_module_access,
+    has_only_requisition_access,
+)
 from .i18n import LANGUAGE_LABELS, TRANSLATIONS, normalize_language, translate
 from .models import ApplicationSetting, UserModuleAccess
+
+
+def currency_context(request):
+    currency = request.session.get("display_currency", "USD")
+    if currency not in {"USD", "UGX"}:
+        currency = "USD"
+    raw_rate = request.session.get("ugx_exchange_rate", "3800")
+    try:
+        exchange_rate = Decimal(str(raw_rate))
+    except (InvalidOperation, TypeError):
+        exchange_rate = Decimal("3800")
+    if exchange_rate <= 0:
+        exchange_rate = Decimal("3800")
+    return currency, exchange_rate
 
 
 def module_access(request):
@@ -12,6 +33,8 @@ def module_access(request):
             request.COOKIES.get("active_language", app_setting.default_language),
         )
     )
+    display_currency, ugx_exchange_rate = currency_context(request)
+    requester_only = has_only_requisition_access(user)
     return {
         "app_setting": app_setting,
         "app_language_options": [
@@ -19,6 +42,8 @@ def module_access(request):
             for code, label in ApplicationSetting.Language.choices
         ],
         "active_language": active_language,
+        "display_currency": display_currency,
+        "ugx_exchange_rate": ugx_exchange_rate,
         "ui_translations": TRANSLATIONS.get(active_language, {}),
         "t": lambda text: translate(text, active_language),
         "can_create_requisitions": has_module_access(
@@ -49,6 +74,7 @@ def module_access(request):
             user, UserModuleAccess.Module.VISAS, ACTION_READ
         ),
         "can_manage_users": bool(user and user.is_authenticated and user.is_superuser),
+        "requester_only": requester_only,
         "can_manage_setup": bool(user and user.is_authenticated and user.is_superuser),
         "can_show_api": bool(user and user.is_authenticated and user.is_superuser),
     }

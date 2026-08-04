@@ -1,4 +1,5 @@
 {% extends 'operations/base.html' %}
+{% load operations_i18n %}
 {% block title %}Requisition Process | Mining ERP{% endblock %}
 {% block content %}
 <section class="page-heading">
@@ -33,6 +34,7 @@
                     {% if requisition.uploaded_document %}
                         <a class="small-button" href="{% url 'requisition_uploaded_document_download' requisition.pk %}">Uploaded file</a>
                     {% endif %}
+                    <a class="small-button" href="{% url 'requisition_document_upload' requisition.pk %}">Upload supplier document</a>
                     <span class="status-pill">{{ requisition.get_status_display }}</span>
                 </div>
             </div>
@@ -41,9 +43,26 @@
                 <div><span>Items</span><strong>{{ requisition.items.count }}</strong></div>
                 <div><span>Purchase inquiries</span><strong>{{ requisition.inquiries.count }}</strong></div>
                 <div><span>Company / site</span><strong>{{ requisition.requester_label }}</strong></div>
+                <div><span>Suggested supplier</span><strong>{{ requisition.supplier_suggestion|default:"-" }}</strong></div>
                 <div><span>Source</span><strong>{% if requisition.uploaded_document %}Uploaded file{% else %}Generated form{% endif %}</strong></div>
                 <div><span>Requested</span><strong>{{ requisition.item_summary|truncatechars:80 }}</strong></div>
             </div>
+
+            <section class="process-item-block">
+                <div class="process-item-heading">
+                    <strong>Direct requisition documents</strong>
+                    <span>{{ requisition.commercial_documents.count }} files</span>
+                </div>
+                {% for document in requisition.commercial_documents.all %}
+                    <div class="process-line stacked-process-line">
+                        <span>{{ document.get_document_type_display }} · {{ document.title }}{% if document.supplier %} · {{ document.supplier.name }}{% endif %}{% if document.business_reference %} · Ref {{ document.business_reference }}{% endif %}</span>
+                        <strong>{% money document.amount %}</strong>
+                    </div>
+                    {% if document.attachment %}<div class="process-subline"><a href="{{ document.attachment.url }}">Open uploaded file</a></div>{% endif %}
+                {% empty %}
+                    <p class="empty-copy">No direct supplier proforma, invoice, receipt, or other document uploaded yet.</p>
+                {% endfor %}
+            </section>
 
             {% for item in requisition.items.all %}
                 <section class="process-item-block">
@@ -61,7 +80,7 @@
                                 <div>
                                     <h3>Uploaded supplier invoices</h3>
                                     {% for supplier_invoice in inquiry.supplier_invoices.all %}
-                                        <div class="process-line"><span>{{ supplier_invoice.invoice_number }}</span><strong>{{ supplier_invoice.amount|floatformat:2 }}</strong></div>
+                                        <div class="process-line"><span>{{ supplier_invoice.invoice_number }}</span><strong>{% money supplier_invoice.amount %}</strong></div>
                                     {% empty %}
                                         <p class="empty-copy">No supplier invoices uploaded.</p>
                                     {% endfor %}
@@ -71,7 +90,7 @@
                                     {% for order in inquiry.purchase_orders.all %}
                                         <div class="process-line stacked-process-line">
                                             <span><a href="{% url 'purchase_order_detail' order.pk %}">{{ order.order_number }}</a> · {{ order.supplier.name }}</span>
-                                            <strong>{{ order.amount|floatformat:2 }}</strong>
+                                            <strong>{% money order.amount %}</strong>
                                         </div>
                                         {% for receipt in order.receipts.all %}
                                             <div class="process-subline">Receipt {{ receipt.receipt_number }} · {{ receipt.receipt_date }}</div>

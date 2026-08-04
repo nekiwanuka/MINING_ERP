@@ -67,6 +67,7 @@
                     <div><dt>Source</dt><dd>{% if requisition.uploaded_document %}Uploaded file{% else %}Generated form{% endif %}</dd></div>
                     <div><dt>Pieces</dt><dd>{{ requisition.total_pieces }}</dd></div>
                     <div><dt>Company / site</dt><dd>{{ requisition.requester_label }}</dd></div>
+                    {% if requisition.supplier_suggestion %}<div><dt>Suggested supplier</dt><dd>{{ requisition.supplier_suggestion }}</dd></div>{% endif %}
                     <div><dt>Submitted by</dt><dd>{{ requisition.requester }}</dd></div>
                     <div><dt>Created</dt><dd>{{ requisition.created_at|date:"Y-m-d" }}</dd></div>
                     <div><dt>Urgency</dt><dd>{% if requisition.urgent %}Urgent{% else %}Not urgent{% endif %}</dd></div>
@@ -100,7 +101,7 @@
     <div class="table-wrap">
         <table>
             <thead>
-                <tr><th>Number</th><th>Urgency</th><th>Source</th><th>Items</th><th>Language</th><th>Pieces</th><th>Status</th><th>Company / site</th><th>Action</th></tr>
+                <tr><th>Number</th><th>Urgency</th><th>Source</th><th>Items</th><th>Language</th><th>Pieces</th><th>Status</th><th>Company / site</th><th>Suggested supplier</th><th>Action</th></tr>
             </thead>
             <tbody>
                 {% for requisition in requisitions %}
@@ -113,10 +114,11 @@
                         <td>{{ requisition.total_pieces }}</td>
                         <td><span class="status-pill">{{ requisition.display_status }}</span></td>
                         <td>{{ requisition.requester_label }}</td>
+                        <td>{{ requisition.supplier_suggestion|default:"-" }}</td>
                         <td><a class="small-button" href="{% url 'requisition_download' requisition.pk %}">Download</a> {% if requisition.uploaded_document %}<a class="small-button" href="{% url 'requisition_uploaded_document_download' requisition.pk %}">File</a>{% endif %} {% if requisition.can_edit_pending %}<a class="small-button" href="{% url 'requisition_edit' requisition.pk %}">Edit</a>{% else %}<span class="muted-copy">Locked</span>{% endif %}</td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="9" class="empty-cell">No requisitions found.</td></tr>
+                    <tr><td colspan="10" class="empty-cell">No requisitions found.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

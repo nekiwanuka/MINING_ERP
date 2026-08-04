@@ -1,4 +1,5 @@
 {% extends 'operations/base.html' %}
+{% load operations_i18n %}
 {% block title %}Transport Invoices | Mining ERP{% endblock %}
 {% block content %}
 <section class="page-heading">
@@ -43,7 +44,7 @@
                         <td>{{ invoice.transport.vehicle }}</td>
                         <td>{{ invoice.invoice_date }}</td>
                         <td><span class="status-pill">{{ invoice.get_status_display }}</span></td>
-                        <td>{{ invoice.total_amount|floatformat:2 }}</td>
+                        <td>{% money invoice.total_amount %}</td>
                         <td>
                             <div class="table-actions">
                                 <a href="{% url 'transport_invoice_detail' invoice.pk %}">View</a>

@@ -138,6 +138,10 @@ class Requisition(TimeStampedModel):
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="requisitions"
     )
     requesting_company = models.CharField(max_length=160, blank=True, default="")
+    suggested_supplier_name = models.CharField(max_length=160, blank=True, default="")
+    suggested_supplier_contact = models.CharField(
+        max_length=160, blank=True, default=""
+    )
     uploaded_document = models.FileField(upload_to="requisitions/", blank=True)
     item_description = models.TextField()
     language = models.CharField(
@@ -184,6 +188,12 @@ class Requisition(TimeStampedModel):
             or self.requester.get_full_name()
             or self.requester.username
         )
+
+    @property
+    def supplier_suggestion(self):
+        if self.suggested_supplier_name and self.suggested_supplier_contact:
+            return f"{self.suggested_supplier_name} - {self.suggested_supplier_contact}"
+        return self.suggested_supplier_name or self.suggested_supplier_contact
 
 
 class RequisitionItem(TimeStampedModel):
@@ -902,6 +912,11 @@ class ExpatriateVisa(TimeStampedModel):
 
 
 class TransportRecord(TimeStampedModel):
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        IN_TRANSIT = "in_transit", "In Transit"
+        DELIVERED = "delivered", "Delivered"
+
     transport_number = models.CharField(
         max_length=32,
         unique=True,
@@ -918,6 +933,9 @@ class TransportRecord(TimeStampedModel):
         unique=True,
         default=transit_number,
         editable=False,
+    )
+    status = models.CharField(
+        max_length=24, choices=Status.choices, default=Status.DRAFT
     )
     requisition = models.ForeignKey(
         Requisition,
@@ -1128,6 +1146,8 @@ class TransportRecord(TimeStampedModel):
 
     @property
     def transit_profit(self):
+        if self.overall_charge:
+            return self.overall_charge - self.transit_expense_total
         return self.invoice_revenue_total - self.transit_expense_total
 
     @property
@@ -1229,6 +1249,13 @@ class TransportCustomerOrder(TimeStampedModel):
         blank=True,
         related_name="customer_transport_orders",
     )
+    requisition = models.ForeignKey(
+        Requisition,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="customer_transport_orders",
+    )
     cargo_description = models.TextField(blank=True)
     package_type = models.CharField(max_length=80, blank=True)
     loading_point = models.CharField(max_length=160, blank=True)
@@ -1299,41 +1326,48 @@ class TransportCustomerOrder(TimeStampedModel):
 
     @property
     def transport_charge(self):
+        if self.cargo_charge:
+            return self.cargo_charge
         if self.rate_per_km and self.billing_distance_km:
             return self.rate_per_km * self.billing_distance_km
-        return self.cargo_charge
+        return Decimal("0")
+
+    @property
+    def route_shared_customer_count(self):
+        if not self.transport_id:
+            return 1
+        customer_orders = [
+            order
+            for order in self.transport.customer_orders.all()
+            if order.effective_delivery_km > self.transport.route_start_km
+        ]
+        return len(customer_orders) or 1
 
     @property
     def charge_total(self):
-        fields = [
-            self.transport_charge,
-            self.loading_charge,
-            self.offloading_charge,
-            self.document_charge,
-            self.miscellaneous_charge,
-        ]
-        return sum(fields, Decimal("0"))
+        return self.transport_charge
 
     @property
     def chargeable_units(self):
-        if self.calculated_weight_tons:
-            return self.calculated_weight_tons
-        cargo_cbm = self.cargo_cbm
-        if cargo_cbm:
-            return cargo_cbm
         if self.pieces:
             return Decimal(self.pieces)
         return Decimal("1")
 
     @property
     def billing_distance_km(self):
-        if self.delivery_km:
-            return max(
-                self.delivery_km - self.transport.route_start_km,
-                Decimal("0"),
-            )
         if self.billable_distance_km:
             return self.billable_distance_km
+        if self.delivery_km:
+            route_start = self.transport.route_start_km
+            common_distance = max(
+                self.transport.route_common_end_km - route_start,
+                Decimal("0"),
+            )
+            customer_distance = max(self.delivery_km - route_start, Decimal("0"))
+            private_distance = max(customer_distance - common_distance, Decimal("0"))
+            return (
+                common_distance / Decimal(self.route_shared_customer_count)
+            ) + private_distance
         return self.transport.distance_km or Decimal("0")
 
     @property
@@ -1473,7 +1507,7 @@ class TransportTransitPoint(TimeStampedModel):
 class TransportCustomerInvoice(TimeStampedModel):
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
-        FINALIZED = "finalized", "Finalized"
+        FINALIZED = "finalized", "Issued"
 
     invoice_number = models.CharField(
         max_length=32,

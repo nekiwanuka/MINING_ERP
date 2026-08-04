@@ -1,5 +1,5 @@
 {% extends 'operations/base.html' %}
-{% load static %}
+{% load static operations_i18n %}
 {% block title %}Procurement | Mining ERP{% endblock %}
 {% block content %}
 {% with review_count=submitted_requisitions|length split_count=items_ready_for_inquiry|length invoice_count=inquiries_waiting_invoice|length order_count=inquiries_ready_for_order|length receipt_count=orders_waiting_receipts|length recent_count=recent_purchase_orders|length %}
@@ -117,7 +117,10 @@
                         <strong class="work-item-title">{{ requisition.requisition_number }} {% if requisition.urgent %}<span class="urgent-pill">Urgent</span>{% endif %}</strong>
                         <span class="work-item-detail">{{ requisition.item_summary|truncatechars:110 }}</span>
                     </div>
-                    <a class="small-button procurement-action" href="{% url 'procurement_requisition_review' requisition.pk %}">Review / edit</a>
+                    <div class="button-row">
+                        <a class="small-button procurement-action" href="{% url 'procurement_requisition_review' requisition.pk %}">Review / edit</a>
+                        <a class="small-button procurement-action" href="{% url 'requisition_document_upload' requisition.pk %}">Upload supplier document</a>
+                    </div>
                 </div>
             {% empty %}
                 <div class="empty-state">
@@ -252,7 +255,7 @@
                 <div class="work-item procurement-work-item">
                     <div class="work-item-copy">
                         <strong class="work-item-title">{{ order.order_number }}</strong>
-                        <span class="work-item-detail">{{ order.supplier.name }} &middot; {{ order.amount|floatformat:2 }}</span>
+                        <span class="work-item-detail">{{ order.supplier.name }} &middot; {% money order.amount %}</span>
                     </div>
                     <a class="small-button procurement-action" href="{% url 'purchase_receipt_upload' order.pk %}">Upload receipt</a>
                 </div>

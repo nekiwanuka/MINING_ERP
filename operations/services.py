@@ -10,7 +10,7 @@ from .models import (
     TransportTransitCost,
 )
 
-MONEY_QUANT = Decimal("0.01")
+MONEY_QUANT = Decimal("1")
 
 
 def money(value):
@@ -196,22 +196,16 @@ def allocate_route_occupancy(amount, customer_order, customer_orders):
 
 
 def direct_charge_lines(customer_order):
-    charge_fields = [
-        ("Transport charge", customer_order.transport_charge),
-        ("Loading charge", customer_order.loading_charge),
-        ("Offloading charge", customer_order.offloading_charge),
-        ("Government / document charge", customer_order.document_charge),
+    billed_amount = money(customer_order.charge_total)
+    if not billed_amount:
+        return []
+    return [
         (
-            customer_order.other_charge_label or "Other customer charge",
-            customer_order.miscellaneous_charge,
-        ),
+            TransportCustomerInvoiceLine.LineType.DIRECT,
+            "Transit & Logistics Fees",
+            billed_amount,
+        )
     ]
-    lines = []
-    for label, amount in charge_fields:
-        amount = money(amount)
-        if amount:
-            lines.append((TransportCustomerInvoiceLine.LineType.DIRECT, label, amount))
-    return lines
 
 
 def distance_weight(customer_order):
@@ -277,8 +271,6 @@ def transit_point_invoice_amount(transit_point, customer_order, customer_orders)
 
 def generate_transport_customer_invoices(record, generated_by=None):
     customer_orders = list(record.customer_orders.all())
-    transit_points = list(record.transit_points.all())
-    transit_costs = list(record.transit_costs.all())
     invoices = []
     if not customer_orders:
         return invoices
@@ -290,6 +282,7 @@ def generate_transport_customer_invoices(record, generated_by=None):
                 transport=record,
                 customer_order=customer_order,
                 customer_name=customer_order.customer_name or "Unnamed customer",
+                status=TransportCustomerInvoice.Status.FINALIZED,
                 generated_by=generated_by,
             )
             sort_order = 1
@@ -300,67 +293,6 @@ def generate_transport_customer_invoices(record, generated_by=None):
                     line_type=line_type,
                     description=description,
                     amount=amount,
-                    sort_order=sort_order,
-                )
-                sort_order += 1
-
-            common_total = Decimal("0.00")
-            distribution_total = Decimal("0.00")
-            for _label, amount in planned_shared_transit_costs(record):
-                allocation = allocate_route_occupancy(
-                    amount, customer_order, customer_orders
-                )
-                common_total += allocation["common"]
-                distribution_total += allocation["distribution"]
-            if common_total:
-                TransportCustomerInvoiceLine.objects.create(
-                    invoice=invoice,
-                    line_type=TransportCustomerInvoiceLine.LineType.SHARED,
-                    description="Allocated common route costs",
-                    amount=money(common_total),
-                    sort_order=sort_order,
-                )
-                sort_order += 1
-            if distribution_total:
-                TransportCustomerInvoiceLine.objects.create(
-                    invoice=invoice,
-                    line_type=TransportCustomerInvoiceLine.LineType.SHARED,
-                    description="Allocated distribution route costs",
-                    amount=money(distribution_total),
-                    sort_order=sort_order,
-                )
-                sort_order += 1
-
-            for transit_point in transit_points:
-                transit_amount = transit_point_invoice_amount(
-                    transit_point, customer_order, customer_orders
-                )
-                if not transit_amount:
-                    continue
-                fee_name = (
-                    transit_point.fee_name or transit_point.get_fee_category_display()
-                )
-                description = f"{fee_name} at {transit_point.place_name}"
-                TransportCustomerInvoiceLine.objects.create(
-                    invoice=invoice,
-                    line_type=TransportCustomerInvoiceLine.LineType.TRANSIT,
-                    description=description,
-                    amount=transit_amount,
-                    sort_order=sort_order,
-                )
-                sort_order += 1
-
-            for transit_cost in transit_costs:
-                transit_amount = transit_cost_invoice_amount(
-                    transit_cost, customer_order, customer_orders
-                )
-                if not transit_amount:
-                    continue
-                TransportCustomerInvoiceLine.objects.create(
-                    invoice=invoice,
-                    line_type=TransportCustomerInvoiceLine.LineType.TRANSIT,
-                    description=transit_cost.display_name,
-                    amount=transit_amount,
                     sort_order=sort_order,
                 )
                 sort_order += 1

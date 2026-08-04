@@ -1,0 +1,73 @@
+{% extends 'operations/base.html' %}
+{% load operations_i18n %}
+{% block title %}Customers | {{ record.transport_number }} | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading transport-detail-heading">
+    <div>
+        <p class="eyebrow">Transport Step 2</p>
+        <h1>Customer entries</h1>
+        <p class="muted-copy">{{ record.transport_number }} · {{ record.origin }} to {{ record.destination }}</p>
+    </div>
+    <div class="button-row">
+        <a class="secondary-button" href="{% url 'transport_edit' record.pk %}">Back: trip setup</a>
+        <a class="primary-button" href="{% url 'transport_transit_cost_add' record.pk %}">Next: in-transit charges</a>
+    </div>
+</section>
+
+<section class="transport-balance-strip" aria-label="Trip financial summary">
+    <article><span>Total trip charge</span><strong>{% money record.overall_charge %}</strong></article>
+    <article><span>Customer invoice entries</span><strong>{% money record.customer_charge_total %}</strong></article>
+    <article><span>Status</span><strong>{{ record.get_status_display }}</strong></article>
+</section>
+
+<section class="panel transport-focus-panel">
+    <div class="transport-panel-title">
+        <div>
+            <p class="eyebrow">Customer form</p>
+            <h2>Add customer cargo</h2>
+            <span>Name, requisition, goods, address, space used, loading/offloading notes, and the only amount that appears on the invoice.</span>
+        </div>
+    </div>
+    <form method="post" action="{% url 'transport_customer_add' record.pk %}" class="step-save-form">
+        {% csrf_token %}
+        <div class="step-form-grid customer-step-grid">
+            {% include 'operations/partials/form_fields.html' with form=customer_form %}
+        </div>
+        <div class="transport-save-bar simple-save-bar">
+            <div>
+                <strong>Save this customer</strong>
+                <span>You can add another customer before moving to in-transit charges.</span>
+            </div>
+            <button class="primary-button" type="submit">Save customer</button>
+        </div>
+    </form>
+</section>
+
+<section class="panel transport-focus-panel">
+    <div class="panel-header"><h2>Saved customers</h2></div>
+    <div class="table-wrap compact">
+        <table>
+            <thead><tr><th>Customer</th><th>Requisition</th><th>Address</th><th>Goods</th><th>Space</th><th>Loading / Offloading</th><th>Invoice amount</th></tr></thead>
+            <tbody>
+                {% for customer_order in record.customer_orders.all %}
+                    <tr>
+                        <td>{{ customer_order.customer_name|default:'Unnamed customer' }}</td>
+                        <td>{{ customer_order.requisition|default:'-' }}</td>
+                        <td>{{ customer_order.destination|default:'-' }}</td>
+                        <td>{{ customer_order.cargo_description|default:customer_order.package_type|default:'-' }}</td>
+                        <td>{{ customer_order.chargeable_units|floatformat:0 }}</td>
+                        <td>{{ customer_order.loading_point|default:'-' }} / {{ customer_order.offloading_point|default:'-' }}</td>
+                        <td><strong>{% money customer_order.charge_total %}</strong></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7" class="empty-cell">No customers saved yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="transport-step-actions">
+        <a class="secondary-button" href="{% url 'transport_edit' record.pk %}">Back</a>
+        <a class="primary-button" href="{% url 'transport_transit_cost_add' record.pk %}">Next: in-transit charges</a>
+    </div>
+</section>
+{% endblock %}
