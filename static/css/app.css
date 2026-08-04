@@ -960,7 +960,7 @@ tbody tr:last-child td { border-bottom: 0; }
 @media (max-width: 420px) {
     .page-shell { width: min(100% - 10px, 1240px); }
     .app-header { padding: 8px 10px; }
-    .top-nav { grid-template-columns: 1fr; max-height: 46vh; }
+    .top-nav { grid-template-columns: 1fr; max-height: 44vh; }
     .page-heading h1 { font-size: 1.48rem; }
     .page-heading p { font-size: 0.96rem; }
     .metric-grid, .procurement-summary-grid, .requisition-summary-grid, .fuel-summary-grid { gap: 8px; }
@@ -972,7 +972,42 @@ tbody tr:last-child td { border-bottom: 0; }
     .table-actions a, .requester-pending-actions .small-button { width: 100%; }
     .procurement-filter-card { grid-template-columns: 1fr; }
     .access-matrix-row { grid-template-columns: 1fr; }
-    .login-panel { padding: 18px; }
+    .login-body { align-items: start; padding: 10px; background: linear-gradient(180deg, #27313c 0%, #1f2832 35%, #edf0f3 35%, #edf0f3 100%); }
+    .login-shell { gap: 10px; }
+    .login-brand-row { gap: 7px; padding-top: 4px; }
+    .login-brand-mark { width: 54px; height: 54px; border-radius: 8px; font-size: 1.12rem; }
+    .login-brand-logo { max-width: 44px; max-height: 44px; }
+    .login-system-name { font-size: 1.18rem; }
+    .login-language-form label { width: 100%; justify-content: space-between; }
+    .login-panel-heading { padding: 15px 16px 13px; }
+    .login-panel h2 { font-size: 1.42rem; }
+    .login-form { gap: 12px; padding: 16px; }
+    .forgot-password-note { font-size: 0.86rem; }
+    .login-remember-row { font-size: 0.9rem; }
+}
+
+@media (max-width: 360px) {
+    body { font-size: 15px; }
+    .page-shell { width: min(100% - 8px, 1240px); margin-top: 8px; }
+    .panel, .metric-card, .requisition-panel { padding: 12px; }
+    .page-heading { margin-bottom: 12px; }
+    .page-heading h1 { font-size: 1.34rem; }
+    .top-nav a, .nav-group > summary { min-height: 36px; padding: 6px 8px; }
+    .brand-mark, .brand-logo { width: 34px; height: 34px; }
+    .brand-copy strong { font-size: 0.92rem; }
+    .primary-button, .secondary-button, .small-button { min-height: 40px; padding: 8px 10px; font-size: 0.92rem; }
+    .field-block { gap: 5px; }
+    .field-label-text { gap: 5px; }
+    .tooltip-indicator { width: 18px; height: 18px; font-size: 0.72rem; }
+    .login-body { padding: 8px; }
+    .login-brand-mark { width: 48px; height: 48px; }
+    .login-system-name { font-size: 1.08rem; }
+    .login-language-form label { display: grid; gap: 6px; justify-items: stretch; color: #fff; }
+    .login-panel-heading { padding: 13px 14px 11px; }
+    .login-form { padding: 14px; }
+    .login-panel input[type="text"], .login-panel input[type="password"] { min-height: 42px; }
+    .password-toggle { right: 6px; width: 32px; min-height: 32px; }
+    .password-control input { padding-right: 46px; }
 }
 .checkbox-control {
     width: 24px !important;
