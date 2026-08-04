@@ -1,15 +1,20 @@
 {% extends 'operations/base.html' %}
 {% block title %}{{ title }} | Mining ERP{% endblock %}
 {% block content %}
-<section class="page-heading form-page-heading">
+<section class="page-heading form-page-heading document-page-heading">
     <div>
         <p class="eyebrow">Business Documents</p>
         <h1>{{ title }}</h1>
-        <p>Create quotations, invoices, proforma invoices, receipts, delivery notes, waybills, and other business documents.</p>
+        <p>Capture the document details, link it to the right business record, and attach the original file.</p>
     </div>
 </section>
 
-<section class="panel narrow-panel centered-form-panel">
+<section class="panel narrow-panel centered-form-panel document-form-panel">
+    <div class="document-form-banner">
+        <span>Document file</span>
+        <strong>{{ title }}</strong>
+        <p>Use clear titles and references so procurement, transport, and finance can find this later.</p>
+    </div>
     <form method="post" enctype="multipart/form-data" class="stacked-form">
         {% csrf_token %}
         {% include 'operations/partials/form_fields.html' with form=form %}

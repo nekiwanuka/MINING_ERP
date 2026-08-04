@@ -1,7 +1,8 @@
 {% extends 'operations/base.html' %}
+{% load operations_i18n %}
 {% block title %}{{ document.document_number }} | Mining ERP{% endblock %}
 {% block content %}
-<section class="page-heading">
+<section class="page-heading document-page-heading">
     <div>
         <p class="eyebrow">{{ document.get_document_type_display }}</p>
         <h1>{{ document.document_number }}</h1>
@@ -13,44 +14,52 @@
     </div>
 </section>
 
-<section class="two-column">
-    <article class="panel">
-        <div class="panel-header"><h2>Document details</h2></div>
-        <dl class="detail-list">
-            <div><dt>Type</dt><dd>{{ document.get_document_type_display }}</dd></div>
-            <div><dt>Status</dt><dd>{{ document.get_status_display }}</dd></div>
-            <div><dt>Date</dt><dd>{{ document.document_date }}</dd></div>
-            <div><dt>Due date</dt><dd>{{ document.due_date|default:'-' }}</dd></div>
-            <div><dt>Amount</dt><dd>{{ document.currency }} {{ document.amount|floatformat:2 }}</dd></div>
-            <div><dt>Created by</dt><dd>{{ document.created_by }}</dd></div>
-        </dl>
-    </article>
-    <article class="panel">
-        <div class="panel-header"><h2>Client</h2></div>
-        <dl class="detail-list">
-            <div><dt>Name</dt><dd>{{ document.display_client }}</dd></div>
-            <div><dt>Contact</dt><dd>{{ document.client_contact|default:'-' }}</dd></div>
-            <div><dt>Email</dt><dd>{{ document.client_email|default:'-' }}</dd></div>
-            <div><dt>Phone</dt><dd>{{ document.client_phone|default:'-' }}</dd></div>
-        </dl>
-    </article>
-</section>
+<section class="document-viewer" aria-label="Business document">
+    <header class="document-viewer-header">
+        <div>
+            <span>{{ document.get_document_type_display }}</span>
+            <strong>{{ document.document_number }}</strong>
+            <small>{{ document.document_date }}</small>
+        </div>
+        <div class="document-viewer-total">
+            <span>{{ document.get_status_display }}</span>
+            <strong>{% money document.amount %}</strong>
+        </div>
+    </header>
 
-<section class="two-column">
-    <article class="panel">
-        <div class="panel-header"><h2>Business links</h2></div>
-        <dl class="detail-list">
-            <div><dt>Transit</dt><dd>{% if document.transport %}<a href="{% url 'transport_detail' document.transport.pk %}">{{ document.transport.transit_number }}</a>{% else %}-{% endif %}</dd></div>
-            <div><dt>Purchase order</dt><dd>{{ document.purchase_order|default:'-' }}</dd></div>
-            <div><dt>Requisition</dt><dd>{{ document.requisition|default:'-' }}</dd></div>
-            <div><dt>Supplier</dt><dd>{{ document.supplier|default:'-' }}</dd></div>
-            <div><dt>Other reference</dt><dd>{{ document.business_reference|default:'-' }}</dd></div>
-        </dl>
-    </article>
-    <article class="panel">
-        <div class="panel-header"><h2>Description and notes</h2></div>
-        <p>{{ document.description|linebreaksbr|default:'No description entered.' }}</p>
-        <p>{{ document.notes|linebreaksbr|default:'No notes entered.' }}</p>
-    </article>
+    <section class="document-info-grid">
+        <article>
+            <span>Client</span>
+            <strong>{{ document.display_client }}</strong>
+            <p>{{ document.client_contact|default:'No contact entered.' }}</p>
+            <p>{{ document.client_email|default:'-' }}{% if document.client_phone %} · {{ document.client_phone }}{% endif %}</p>
+        </article>
+        <article>
+            <span>Business links</span>
+            <dl class="document-mini-list">
+                <div><dt>Transit</dt><dd>{% if document.transport %}<a href="{% url 'transport_detail' document.transport.pk %}">{{ document.transport.transit_number }}</a>{% else %}-{% endif %}</dd></div>
+                <div><dt>Purchase order</dt><dd>{{ document.purchase_order|default:'-' }}</dd></div>
+                <div><dt>Requisition</dt><dd>{{ document.requisition|default:'-' }}</dd></div>
+                <div><dt>Supplier</dt><dd>{{ document.supplier|default:'-' }}</dd></div>
+                <div><dt>Reference</dt><dd>{{ document.business_reference|default:'-' }}</dd></div>
+            </dl>
+        </article>
+    </section>
+
+    <section class="document-note-grid">
+        <article>
+            <span>Description</span>
+            <p>{{ document.description|linebreaksbr|default:'No description entered.' }}</p>
+        </article>
+        <article>
+            <span>Notes</span>
+            <p>{{ document.notes|linebreaksbr|default:'No notes entered.' }}</p>
+        </article>
+    </section>
+
+    <footer class="document-viewer-footer">
+        <div><span>Created by</span><strong>{{ document.created_by }}</strong></div>
+        <div><span>Due date</span><strong>{{ document.due_date|default:'-' }}</strong></div>
+    </footer>
 </section>
 {% endblock %}

@@ -53,15 +53,23 @@
                     <strong>Direct requisition documents</strong>
                     <span>{{ requisition.commercial_documents.count }} files</span>
                 </div>
+                <div class="process-document-list">
                 {% for document in requisition.commercial_documents.all %}
-                    <div class="process-line stacked-process-line">
-                        <span>{{ document.get_document_type_display }} · {{ document.title }}{% if document.supplier %} · {{ document.supplier.name }}{% endif %}{% if document.business_reference %} · Ref {{ document.business_reference }}{% endif %}</span>
-                        <strong>{% money document.amount %}</strong>
-                    </div>
-                    {% if document.attachment %}<div class="process-subline"><a href="{{ document.attachment.url }}">Open uploaded file</a></div>{% endif %}
+                    <article class="process-document-card">
+                        <div>
+                            <span>{{ document.get_document_type_display }}</span>
+                            <strong>{{ document.title }}</strong>
+                            <small>{% if document.supplier %}{{ document.supplier.name }}{% else %}No supplier linked{% endif %}{% if document.business_reference %} · Ref {{ document.business_reference }}{% endif %}</small>
+                        </div>
+                        <div class="process-document-actions">
+                            <strong>{% money document.amount %}</strong>
+                            {% if document.attachment %}<a class="small-button" href="{{ document.attachment.url }}">Open file</a>{% endif %}
+                        </div>
+                    </article>
                 {% empty %}
                     <p class="empty-copy">No direct supplier proforma, invoice, receipt, or other document uploaded yet.</p>
                 {% endfor %}
+                </div>
             </section>
 
             {% for item in requisition.items.all %}

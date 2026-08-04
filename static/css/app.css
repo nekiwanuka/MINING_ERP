@@ -672,8 +672,52 @@ tbody tr:last-child td { border-bottom: 0; }
 .internal-invoice-preview span { color: #777; font-size: 0.82rem; font-weight: 900; }
 .internal-invoice-preview strong { color: var(--danger); font-size: 1.25rem; }
 .invoice-action-heading { align-items: flex-start; }
-.transport-invoice-document { display: grid; gap: 18px; width: min(920px, 100%); margin: 0 auto 24px; padding: clamp(18px, 4vw, 34px); border: 1px solid var(--line); border-radius: 8px; background: #fff; box-shadow: var(--shadow); }
-.invoice-document-header { display: flex; justify-content: space-between; gap: 24px; padding-bottom: 18px; border-bottom: 2px solid var(--ink); }
+.document-page-heading { align-items: flex-start; }
+.document-register-panel { width: min(1160px, 100%); margin-inline: auto; }
+.document-filter-form { margin-bottom: 12px; }
+.document-card-list { display: grid; gap: 12px; }
+.document-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, auto); gap: 16px; align-items: center; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: linear-gradient(135deg, #fff 0%, #fffdf8 100%); box-shadow: 0 10px 26px rgba(20, 32, 27, 0.07); }
+.document-card-main { display: grid; gap: 7px; min-width: 0; }
+.document-type-pill { justify-self: start; display: inline-flex; min-height: 28px; align-items: center; padding: 5px 9px; border-radius: 999px; background: #e8f2ed; color: var(--accent-dark); font-size: 0.78rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.06em; }
+.document-card h2 { margin: 0; font-size: 1.25rem; line-height: 1.15; }
+.document-card p { margin: 0; color: var(--muted); font-weight: 700; overflow-wrap: anywhere; }
+.document-card-meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 4px 0 0; }
+.document-card-meta div { min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--field); }
+.document-card-meta dt, .document-info-grid span, .document-note-grid span, .document-viewer-header span, .document-viewer-footer span, .document-viewer-total span { color: var(--muted); font-size: 0.76rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; }
+.document-card-meta dd { margin: 3px 0 0; color: var(--ink); font-weight: 850; overflow-wrap: anywhere; }
+.document-card-side { display: grid; justify-items: end; gap: 10px; }
+.document-card-side strong { color: var(--ink); font-size: 1.35rem; line-height: 1.05; white-space: nowrap; }
+.document-viewer { display: grid; gap: 18px; width: min(920px, 100%); margin: 0 auto 24px; padding: clamp(18px, 4vw, 34px); border: 1px solid var(--line); border-radius: 8px; background: linear-gradient(180deg, #fff 0%, #fffdf8 100%); box-shadow: var(--shadow); }
+.document-viewer-header { display: flex; justify-content: space-between; gap: 24px; padding-bottom: 18px; border-bottom: 3px solid var(--ink); }
+.document-viewer-header > div { display: grid; gap: 4px; }
+.document-viewer-header strong { color: var(--ink); font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1; overflow-wrap: anywhere; }
+.document-viewer-header small { color: var(--muted); font-weight: 800; }
+.document-viewer-total { justify-items: end; text-align: right; }
+.document-viewer-total strong { font-size: clamp(1.45rem, 3vw, 2rem); }
+.document-info-grid, .document-note-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.document-info-grid article, .document-note-grid article { display: grid; gap: 7px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); }
+.document-info-grid strong { color: var(--ink); font-size: 1.16rem; overflow-wrap: anywhere; }
+.document-info-grid p, .document-note-grid p { margin: 0; color: var(--muted); font-weight: 700; line-height: 1.45; overflow-wrap: anywhere; }
+.document-mini-list { display: grid; gap: 7px; margin: 0; }
+.document-mini-list div { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding-bottom: 5px; }
+.document-mini-list dt { color: var(--muted); font-weight: 800; }
+.document-mini-list dd { margin: 0; color: var(--ink); font-weight: 850; text-align: right; overflow-wrap: anywhere; }
+.document-viewer-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; padding-top: 22px; }
+.document-viewer-footer div { display: grid; gap: 8px; min-height: 64px; border-top: 1px solid var(--ink); padding-top: 8px; }
+.document-form-panel { overflow: hidden; }
+.document-form-banner { display: grid; gap: 5px; margin: -6px -6px 18px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: linear-gradient(135deg, #eef5ef 0%, #fffdf8 100%); }
+.document-form-banner span, .process-document-card span { color: var(--muted); font-size: 0.76rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; }
+.document-form-banner strong { color: var(--ink); font-size: 1.25rem; }
+.document-form-banner p { margin: 0; color: var(--muted); font-weight: 700; line-height: 1.45; }
+.process-document-list { display: grid; gap: 10px; }
+.process-document-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #fffdf8; }
+.process-document-card > div:first-child { display: grid; gap: 4px; min-width: 0; }
+.process-document-card strong { color: var(--ink); overflow-wrap: anywhere; }
+.process-document-card small { color: var(--muted); font-weight: 750; overflow-wrap: anywhere; }
+.process-document-actions { display: grid; justify-items: end; gap: 8px; }
+.process-document-actions > strong { font-size: 1.16rem; white-space: nowrap; }
+.transport-invoice-document { display: grid; gap: 18px; width: min(920px, 100%); margin: 0 auto 24px; padding: clamp(18px, 4vw, 34px); border: 1px solid var(--line); border-radius: 8px; background: linear-gradient(180deg, #fff 0%, #fffdf8 100%); box-shadow: var(--shadow); }
+.invoice-document-header { display: flex; justify-content: space-between; gap: 24px; padding-bottom: 18px; border-bottom: 3px solid var(--ink); }
 .invoice-brand-block, .invoice-title-block { display: grid; gap: 4px; }
 .document-logo { width: 64px; height: 64px; object-fit: contain; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 4px; }
 .invoice-brand-block strong { color: var(--ink); font-size: 1.35rem; }
@@ -782,8 +826,8 @@ tbody tr:last-child td { border-bottom: 0; }
 .cost-focus span { display: block; color: var(--muted); font-weight: 800; }
 .cost-focus strong { display: block; font-size: 2.2rem; margin-top: 6px; }
 .message-preview { white-space: pre-wrap; margin: 0; color: var(--ink); font: inherit; font-weight: 700; line-height: 1.55; }
-.printable-po-document { display: grid; gap: 20px; width: min(920px, 100%); margin: 0 auto 18px; padding: clamp(20px, 4vw, 34px); background: linear-gradient(180deg, #fff 0%, #fffdf8 100%); }
-.po-letterhead { display: flex; justify-content: space-between; gap: 24px; padding-bottom: 22px; border-bottom: 2px solid var(--ink); }
+.printable-po-document { display: grid; gap: 20px; width: min(920px, 100%); margin: 0 auto 18px; padding: clamp(20px, 4vw, 34px); background: linear-gradient(180deg, #fff 0%, #fffdf8 100%); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.po-letterhead { display: flex; justify-content: space-between; gap: 24px; padding-bottom: 22px; border-bottom: 3px solid var(--ink); }
 .po-brand-block { display: flex; gap: 14px; align-items: center; }
 .po-brand-block strong { display: block; font-size: 1.35rem; }
 .po-brand-block address { max-width: 360px; margin-top: 6px; color: var(--muted); font-style: normal; line-height: 1.45; font-weight: 700; }
@@ -853,8 +897,9 @@ tbody tr:last-child td { border-bottom: 0; }
     .simple-trip-grid .field-block:has(textarea), .customer-step-grid .field-block:has(textarea) { grid-column: auto; }
     .transport-balance-strip, .transport-summary-grid, .transport-report-columns { grid-template-columns: 1fr; }
     .currency-form { right: auto; left: 0; width: min(240px, calc(100vw - 32px)); }
-    .invoice-document-header, .invoice-document-grid, .invoice-route-strip, .invoice-item-grid, .invoice-document-footer { grid-template-columns: 1fr; flex-direction: column; }
+    .invoice-document-header, .invoice-document-grid, .invoice-route-strip, .invoice-item-grid, .invoice-document-footer, .document-viewer-header, .document-info-grid, .document-note-grid, .document-viewer-footer { grid-template-columns: 1fr; flex-direction: column; }
     .invoice-title-block { text-align: left; }
+    .document-viewer-total { justify-items: start; text-align: left; }
     .transport-report-callout { align-items: stretch; flex-direction: column; }
     .transport-command-strip { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .transport-trip-grid, .transport-main-grid { grid-template-columns: 1fr; }
@@ -881,8 +926,10 @@ tbody tr:last-child td { border-bottom: 0; }
     .item-section-header, .form-actions { align-items: stretch; flex-direction: column; }
     .button-row, .list-filter-actions { width: 100%; align-items: stretch; flex-direction: column; }
     .procurement-action { width: 100%; min-width: 0; }
-    .requisition-search-form, .requisition-result-card, .requester-manual-grid, .requester-pending-card { grid-template-columns: 1fr; }
+    .requisition-search-form, .requisition-result-card, .requester-manual-grid, .requester-pending-card, .document-card, .document-card-meta, .process-document-card { grid-template-columns: 1fr; }
     .requisition-result-actions { justify-content: stretch; }
+    .document-card-side, .process-document-actions { justify-items: stretch; }
+    .document-card-side strong, .process-document-actions > strong { white-space: normal; }
     .requisition-meta-list { grid-template-columns: 1fr; }
     .requester-pending-actions { justify-content: stretch; }
     .requester-pending-actions .small-button { width: 100%; }
@@ -936,6 +983,9 @@ tbody tr:last-child td { border-bottom: 0; }
     .primary-button, .secondary-button, .small-button { min-height: 42px; padding: 9px 12px; }
     .button-row { gap: 8px; }
     .procurement-search-card, .list-filter-panel, .requisition-search-card { padding: 14px; }
+    .document-card, .document-viewer, .transport-invoice-document, .printable-po-document { padding: 14px; }
+    .document-mini-list div { align-items: flex-start; flex-direction: column; gap: 3px; }
+    .document-mini-list dd { text-align: left; }
     .procurement-filter-card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
     .procurement-filter { min-height: 44px; padding: 7px 9px; border-radius: 8px; }
     .procurement-accordion-toolbar { align-items: stretch; flex-direction: column; gap: 8px; }
@@ -966,6 +1016,8 @@ tbody tr:last-child td { border-bottom: 0; }
     .metric-grid, .procurement-summary-grid, .requisition-summary-grid, .fuel-summary-grid { gap: 8px; }
     .requester-manual-card, .requester-pending-panel, .centered-form-panel { width: 100%; }
     .requester-pending-card { padding: 12px; }
+    .document-viewer-header strong, .invoice-title-block strong, .po-title-block strong { font-size: 1.35rem; }
+    .document-card h2 { font-size: 1.12rem; }
     .field-control, .login-panel input, .field-block input, .field-block select, .field-block textarea { min-height: 42px; padding: 9px 10px; }
     .field-block textarea { min-height: 96px; }
     .table-actions, .requester-pending-actions { flex-direction: column; align-items: stretch; }
