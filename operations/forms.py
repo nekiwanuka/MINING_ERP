@@ -36,6 +36,62 @@ MONEY_WIDGET = forms.NumberInput(attrs={"step": "0.01", "min": "0"})
 WHOLE_MONEY_WIDGET = forms.NumberInput(attrs={"step": "1", "min": "0"})
 MEASURE_WIDGET = forms.NumberInput(attrs={"step": "0.001", "min": "0"})
 
+TEXT_FORMAT_EXCLUDED_NAMES = {
+    "username",
+    "password",
+    "email",
+    "client_email",
+    "new_client_email",
+    "new_supplier_email",
+    "language",
+    "currency",
+    "status",
+    "document_type",
+    "record_type",
+    "delivery_method",
+    "module",
+}
+
+TEXT_FORMAT_EXCLUDED_PARTS = [
+    "email",
+    "phone",
+    "number",
+    "reference",
+    "code",
+    "url",
+    "file",
+    "attachment",
+]
+
+
+def should_format_text_entry(field_name, field):
+    if field_name in TEXT_FORMAT_EXCLUDED_NAMES:
+        return False
+    if any(part in field_name for part in TEXT_FORMAT_EXCLUDED_PARTS):
+        return False
+    return isinstance(field, forms.CharField) and not isinstance(
+        field, forms.EmailField
+    )
+
+
+def capitalize_first_letter(value):
+    if not isinstance(value, str):
+        return value
+    value = value.strip()
+    for index, character in enumerate(value):
+        if character.isalpha():
+            return f"{value[:index]}{character.upper()}{value[index + 1:]}"
+    return value
+
+
+def format_text_entry(value, preserve_lines=False):
+    if not isinstance(value, str):
+        return value
+    if preserve_lines:
+        lines = [" ".join(line.split()) for line in value.splitlines()]
+        return "\n".join(capitalize_first_letter(line) for line in lines if line)
+    return capitalize_first_letter(" ".join(value.split()))
+
 
 def field_entry_tip(field_name, field):
     label = field.label or field_name.replace("_", " ").title()
@@ -78,6 +134,11 @@ def style_form_fields(fields):
             field.help_text = tip
         field.widget.attrs.setdefault("title", tip)
         field.widget.attrs.setdefault("aria-label", field.label or "Field")
+        if should_format_text_entry(field_name, field):
+            field.widget.attrs.setdefault(
+                "autocapitalize",
+                "sentences" if isinstance(field.widget, forms.Textarea) else "words",
+            )
 
 
 class StyledModelForm(forms.ModelForm):
@@ -85,11 +146,33 @@ class StyledModelForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         style_form_fields(self.fields)
 
+    def clean(self):
+        cleaned_data = super().clean()
+        for field_name, field in self.fields.items():
+            if field_name in cleaned_data and should_format_text_entry(
+                field_name, field
+            ):
+                cleaned_data[field_name] = format_text_entry(
+                    cleaned_data[field_name], isinstance(field.widget, forms.Textarea)
+                )
+        return cleaned_data
+
 
 class StyledForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         style_form_fields(self.fields)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        for field_name, field in self.fields.items():
+            if field_name in cleaned_data and should_format_text_entry(
+                field_name, field
+            ):
+                cleaned_data[field_name] = format_text_entry(
+                    cleaned_data[field_name], isinstance(field.widget, forms.Textarea)
+                )
+        return cleaned_data
 
 
 class ManagedUserForm(StyledModelForm):

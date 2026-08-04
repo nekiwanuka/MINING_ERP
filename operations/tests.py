@@ -162,6 +162,41 @@ class ProtectedApiTests(TestCase):
         self.assertEqual(requisition.items.count(), 5)
         self.assertEqual(requisition.total_pieces, 27)
 
+    def test_text_entries_are_formatted_on_requisition_submit(self):
+        self.client.login(username="requester", password="MiningERP2026!")
+
+        response = self.client.post(
+            "/requisitions/new/",
+            {
+                "requesting_company": "  kipushi mining center  ",
+                "suggested_supplier_name": "lubumbashi industrial supplies",
+                "suggested_supplier_contact": "+243 970 000 111",
+                "language": "en",
+                "items-TOTAL_FORMS": "1",
+                "items-INITIAL_FORMS": "0",
+                "items-MIN_NUM_FORMS": "0",
+                "items-MAX_NUM_FORMS": "1000",
+                "items-0-description": "  crusher spare parts  ",
+                "items-0-pieces": "4",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        requisition = Requisition.objects.prefetch_related("items").get()
+        self.assertEqual(requisition.requesting_company, "Kipushi mining center")
+        self.assertEqual(
+            requisition.suggested_supplier_name, "Lubumbashi industrial supplies"
+        )
+        self.assertEqual(requisition.suggested_supplier_contact, "+243 970 000 111")
+        self.assertEqual(requisition.items.first().description, "Crusher spare parts")
+
+    def test_login_page_uses_control_panel_layout(self):
+        response = self.client.get("/login/")
+
+        self.assertContains(response, "cpanel-login-body")
+        self.assertContains(response, "Control Panel")
+        self.assertContains(response, "login-brand-mark")
+
     def test_requisition_submitted_page_offers_next_actions(self):
         requisition = self.create_requisition()
         self.client.login(username="requester", password="MiningERP2026!")
