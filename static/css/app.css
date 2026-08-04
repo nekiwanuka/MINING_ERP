@@ -100,16 +100,16 @@ input[type="number"], input[type="date"], input[type="time"], .metric-card stron
     top: 0;
     z-index: 10;
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 12px;
-    padding: 12px 24px;
+    padding: 10px clamp(12px, 1.5vw, 24px);
     background: rgba(255, 255, 255, 0.96);
     border-bottom: 1px solid var(--line);
     backdrop-filter: blur(14px);
 }
 
-.brand { display: flex; align-items: center; gap: 10px; font-weight: 800; color: var(--ink); min-width: 0; flex: 0 1 210px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 800; color: var(--ink); min-width: 0; flex: 0 0 auto; max-width: 260px; }
 .brand:hover { text-decoration: none; }
 .brand-mark { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; background: var(--ink); color: #fff; }
 .brand-logo { width: 42px; height: 42px; object-fit: contain; border-radius: 7px; background: #fff; border: 1px solid var(--line); }
@@ -117,11 +117,11 @@ input[type="number"], input[type="date"], input[type="time"], .metric-card stron
 .brand-copy strong { font-size: 1.02rem; overflow-wrap: anywhere; }
 .brand-copy small { color: var(--muted); font-size: 0.8rem; font-weight: 700; overflow-wrap: anywhere; }
 .mobile-menu-toggle, .mobile-menu-header { display: none; }
-.app-menu-drawer { display: contents; }
-.menu-utilities { display: contents; }
-.menu-utility-label { display: contents; }
+.app-menu-drawer { display: flex; align-items: center; gap: 12px; flex: 1 1 auto; min-width: 0; }
+.menu-utilities { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; min-width: 0; }
+.menu-utility-label { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .mobile-menu-backdrop[hidden] { display: none; }
-.top-nav { display: flex; gap: 4px; align-items: center; flex: 1 1 620px; flex-wrap: wrap; justify-content: flex-start; min-width: 0; overflow: visible; }
+.top-nav { display: flex; gap: 3px; align-items: center; flex: 1 1 auto; flex-wrap: nowrap; justify-content: flex-start; min-width: 0; overflow: visible; }
 .top-nav a, .nav-group > summary {
     display: inline-flex;
     align-items: center;
@@ -129,9 +129,9 @@ input[type="number"], input[type="date"], input[type="time"], .metric-card stron
     border: 1px solid transparent;
     border-radius: 8px;
     color: var(--ink);
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     font-weight: 800;
-    padding: 7px 8px;
+    padding: 7px 7px;
     white-space: nowrap;
 }
 .top-nav a:hover, .nav-group > summary:hover { border-color: var(--line); background: var(--field); color: var(--accent-dark); text-decoration: none; }
@@ -894,6 +894,32 @@ tbody tr:last-child td { border-bottom: 0; }
 .error-card p { margin: 0; color: #565b63; font-weight: 800; }
 .error-card .primary-button { justify-self: center; border-color: #f48120; border-radius: 4px; background: #f48120; color: #fff; }
 .error-card .primary-button:hover { border-color: #d86500; background: #d86500; }
+
+@media (max-width: 1380px) {
+    .app-header { gap: 8px; }
+    .brand { max-width: 180px; gap: 8px; }
+    .brand-copy small { display: none; }
+    .brand-mark { width: 40px; height: 40px; }
+    .brand-logo { width: 38px; height: 38px; }
+    .brand-copy strong { font-size: 0.96rem; }
+    .app-menu-drawer { gap: 8px; }
+    .top-nav { gap: 1px; }
+    .top-nav a, .nav-group > summary { min-height: 38px; padding: 6px 6px; font-size: 0.86rem; }
+    .nav-group > summary::after { margin-left: 5px; }
+    .menu-utilities { gap: 7px; }
+    .menu-utility-label { gap: 6px; }
+    .menu-utility-label > span { font-size: 0.9rem; }
+    .language-form select, .currency-menu > summary { min-height: 38px; font-size: 0.86rem; padding: 6px 7px; }
+    .logout-form { gap: 6px; }
+    .current-user { max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .logout-form button { min-height: 38px; padding: 6px 9px; }
+}
+
+@media (max-width: 1180px) and (min-width: 761px) {
+    .menu-utility-label > span { display: none; }
+    .brand-copy strong { max-width: 112px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .top-nav a, .nav-group > summary { font-size: 0.82rem; padding-inline: 5px; }
+}
 
 @media (max-width: 700px), (max-height: 760px) {
     .login-body { place-items: start center; min-height: 100svh; padding: 12px; background: linear-gradient(180deg, #27313c 0%, #1f2832 30%, #edf0f3 30%, #edf0f3 100%); overflow-y: auto; }
