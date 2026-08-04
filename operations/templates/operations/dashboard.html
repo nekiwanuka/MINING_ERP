@@ -2,7 +2,7 @@
 {% load static operations_i18n %}
 {% block title %}Dashboard | Mining ERP{% endblock %}
 {% block content %}
-<section class="page-heading">
+<section class="page-heading dashboard-heading">
     <div>
         <p class="eyebrow">Operations Control</p>
         <h1>ERP dashboard</h1>
@@ -10,7 +10,7 @@
     <a class="primary-button" href="{% url 'requisition_create' %}">New requisition</a>
 </section>
 
-<section class="metric-grid">
+<section class="metric-grid dashboard-metric-grid">
     <article class="metric-card visual-metric-card">
         <img class="dashboard-tile-image" src="{% static 'img/tiles/review.png' %}" alt="">
         <div><span>Total requisitions</span><strong>{{ requisition_count }}</strong></div>
