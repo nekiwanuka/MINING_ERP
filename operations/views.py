@@ -599,7 +599,7 @@ def purchase_order_pdf_response(order, as_attachment=False, language="en"):
     )
     disposition = "attachment" if as_attachment else "inline"
     response["Content-Disposition"] = (
-        f'{disposition}; filename="{document_pdf_filename("Purchase-Order", order.order_number)}"'
+        f'{disposition}; filename="{order.order_number}.pdf"'
     )
     return response
 
@@ -1875,12 +1875,48 @@ def procurement_dashboard(request):
     context = {
         "procurement_rows": procurement_rows,
         "page_obj": page_obj,
+        "upload_document_types": CommercialDocument.DocumentType.choices,
         "status_choices": Requisition.Status.choices,
         "query": query,
         "date_value": date_value,
         "status": status,
     }
     return render(request, "operations/procurement.html", context)
+
+
+@access_required(UserModuleAccess.Module.PROCUREMENT, ACTION_READ)
+def procurement_upload_list(request):
+    query = request.GET.get("q", "").strip()
+    document_type = request.GET.get("type", "all").strip() or "all"
+    documents = CommercialDocument.objects.select_related(
+        "requisition", "supplier", "purchase_order", "created_by"
+    ).filter(requisition__isnull=False)
+    if query:
+        documents = documents.filter(
+            Q(document_number__icontains=query)
+            | Q(title__icontains=query)
+            | Q(requisition__requisition_number__icontains=query)
+            | Q(supplier__name__icontains=query)
+            | Q(business_reference__icontains=query)
+            | Q(description__icontains=query)
+        ).distinct()
+    allowed_types = {code for code, _label in CommercialDocument.DocumentType.choices}
+    if document_type in allowed_types:
+        documents = documents.filter(document_type=document_type)
+    matching_count = documents.count()
+    page_obj = Paginator(documents, 10).get_page(request.GET.get("page"))
+    return render(
+        request,
+        "operations/procurement_uploads.html",
+        {
+            "documents": page_obj.object_list,
+            "page_obj": page_obj,
+            "query": query,
+            "document_type": document_type,
+            "document_types": CommercialDocument.DocumentType.choices,
+            "matching_count": matching_count,
+        },
+    )
 
 
 @access_required(UserModuleAccess.Module.PROCUREMENT, ACTION_READ)

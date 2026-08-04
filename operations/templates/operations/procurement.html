@@ -18,11 +18,11 @@
 <section class="procurement-search-card" aria-label="Procurement search">
     <form method="get" class="procurement-search-form">
         <label class="procurement-search-field" for="procurement-search">
-            <span>Search requisitions and documents</span>
+            <span>Universal procurement search</span>
             <input id="procurement-search" class="field-control" type="search" name="q" value="{{ query|default:'' }}" placeholder="REQ, supplier, PI, invoice, PO, receipt, requester, item">
         </label>
         <label class="procurement-date-field" for="procurement-date">
-            <span>Date</span>
+            <span>Search by date</span>
             <input id="procurement-date" class="field-control" type="date" name="date" value="{{ date_value|default:'' }}">
         </label>
         <label class="procurement-date-field" for="procurement-status">
@@ -75,6 +75,7 @@
                         </td>
                         <td>
                             <div class="procurement-mini-stack">
+                                {% if row.open_item %}<span>{{ row.open_item.remaining_quantity|floatformat:2 }} of {{ row.open_item.pieces }} pieces remaining</span>{% endif %}
                                 {% if row.first_waiting_invoice %}<span>Waiting invoice: {{ row.first_waiting_invoice.inquiry_number }}</span>{% endif %}
                                 {% if row.first_ready_order %}<span>Ready for PO: {{ row.first_ready_order.inquiry_number }}</span>{% endif %}
                                 {% if row.first_waiting_receipt %}<span>Waiting receipt: {{ row.first_waiting_receipt.order_number }}</span>{% endif %}
@@ -82,18 +83,26 @@
                             </div>
                         </td>
                         <td>
-                            <div class="table-actions procurement-table-actions">
-                                {% if requisition.status == requisition.Status.SUBMITTED %}<a class="small-button" href="{% url 'procurement_requisition_review' requisition.pk %}">Review</a>{% endif %}
-                                {% if row.can_generate_pi %}<a class="small-button" href="{% url 'inquiry_create' requisition.pk %}">Generate PI</a>{% endif %}
-                                {% if row.first_ready_order %}<a class="small-button" href="{% url 'purchase_order_create' row.first_ready_order.pk %}">Generate PO</a>{% elif row.open_item %}<a class="small-button" href="{% url 'item_purchase_order_create' row.open_item.pk %}">Generate PO</a>{% endif %}
-                            </div>
+                            <details class="procurement-action-menu">
+                                <summary>Generate<span class="accordion-arrow" aria-hidden="true"></span></summary>
+                                <div>
+                                    {% if requisition.status == requisition.Status.SUBMITTED %}<a href="{% url 'procurement_requisition_review' requisition.pk %}">Review requisition</a>{% endif %}
+                                    {% if row.can_generate_pi %}<a href="{% url 'inquiry_create' requisition.pk %}">Generate PI</a>{% endif %}
+                                    {% if row.first_ready_order %}<a href="{% url 'purchase_order_create' row.first_ready_order.pk %}">Split / Create PO</a>{% elif row.open_item %}<a href="{% url 'item_purchase_order_create' row.open_item.pk %}">Split / Create PO</a>{% endif %}
+                                    {% if row.orders %}<a href="{% url 'purchase_order_detail' row.orders.0.pk %}">Open generated PO</a>{% endif %}
+                                    {% if not requisition.status == requisition.Status.SUBMITTED and not row.can_generate_pi and not row.first_ready_order and not row.open_item and not row.orders %}<span>No generation action now.</span>{% endif %}
+                                </div>
+                            </details>
                         </td>
                         <td>
-                            <div class="table-actions procurement-table-actions">
-                                <a class="secondary-button" href="{% url 'requisition_document_upload' requisition.pk %}?type=proforma_invoice">Upload PI</a>
-                                <a class="secondary-button" href="{% url 'requisition_document_upload' requisition.pk %}?type=invoice">Upload invoice</a>
-                                <a class="secondary-button" href="{% url 'requisition_document_upload' requisition.pk %}?type=other">Upload PO</a>
-                            </div>
+                            <details class="procurement-action-menu">
+                                <summary>Upload<span class="accordion-arrow" aria-hidden="true"></span></summary>
+                                <div>
+                                    {% for value, label in upload_document_types %}
+                                        <a href="{% url 'requisition_document_upload' requisition.pk %}?type={{ value|urlencode }}">{{ label }}</a>
+                                    {% endfor %}
+                                </div>
+                            </details>
                         </td>
                         <td>
                             <div class="table-actions procurement-table-actions">

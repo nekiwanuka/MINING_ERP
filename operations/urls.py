@@ -70,6 +70,11 @@ urlpatterns = [
         name="requisition_process_list",
     ),
     path(
+        "procurement/uploads/",
+        views.procurement_upload_list,
+        name="procurement_upload_list",
+    ),
+    path(
         "procurement/manual/",
         views.procurement_workflow_manual,
         name="procurement_workflow_manual",

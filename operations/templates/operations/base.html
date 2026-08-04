@@ -40,6 +40,7 @@
                             <a href="{% url 'procurement_dashboard' %}">{{ 'Dashboard'|tr:active_language }}</a>
                             {% if can_read_requisitions %}<a href="{% url 'requisition_list' %}">Requisition history</a>{% endif %}
                             <a href="{% url 'requisition_process_list' %}">Business process</a>
+                            <a href="{% url 'procurement_upload_list' %}">Uploaded documents</a>
                             <a href="{% url 'procurement_workflow_manual' %}">Workflow manual</a>
                             <a href="{% url 'supplier_create' %}">New supplier</a>
                         </span>

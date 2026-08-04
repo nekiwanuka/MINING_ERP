@@ -1,0 +1,63 @@
+{% extends 'operations/base.html' %}
+{% load operations_i18n %}
+{% block title %}Procurement Uploads | Mining ERP{% endblock %}
+{% block content %}
+<section class="page-heading document-page-heading">
+    <div>
+        <p class="eyebrow">Procurement</p>
+        <h1>Uploaded documents</h1>
+        <p>Supplier files uploaded against requisitions, with the document type and linked requisition visible.</p>
+    </div>
+    <a class="secondary-button" href="{% url 'procurement_dashboard' %}">Back to procurement</a>
+</section>
+
+<section class="panel document-register-panel">
+    <form method="get" class="list-filter-form list-filter-form-wide document-filter-form">
+        <label class="list-filter-field">Search
+            <input class="field-control" type="search" name="q" value="{{ query }}" placeholder="REQ, document, supplier, reference">
+        </label>
+        <label class="list-filter-field">Type
+            <select class="field-control" name="type">
+                <option value="all" {% if document_type == 'all' %}selected{% endif %}>All document types</option>
+                {% for value, label in document_types %}
+                    <option value="{{ value }}" {% if document_type == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <div class="list-filter-actions">
+            <button class="small-button" type="submit">Filter</button>
+            <a class="secondary-button" href="{% url 'procurement_upload_list' %}">Reset</a>
+        </div>
+    </form>
+    <p class="list-results-note">Showing {{ documents|length }} of {{ matching_count }} uploaded document(s).</p>
+    <div class="table-wrap procurement-upload-table-wrap">
+        <table class="procurement-upload-table">
+            <thead>
+                <tr><th>Document</th><th>Type</th><th>Requisition</th><th>Supplier</th><th>Reference</th><th>Amount</th><th>File</th></tr>
+            </thead>
+            <tbody>
+                {% for document in documents %}
+                    <tr>
+                        <td><a href="{% url 'commercial_document_detail' document.pk %}" target="_blank" rel="noopener noreferrer">{{ document.document_number }}</a><br><small>{{ document.title }}</small></td>
+                        <td><span class="document-type-pill">{{ document.get_document_type_display }}</span></td>
+                        <td>{% if document.requisition %}<a href="{% url 'requisition_process_list' %}?q={{ document.requisition.requisition_number|urlencode }}">{{ document.requisition.requisition_number }}</a>{% else %}-{% endif %}</td>
+                        <td>{{ document.supplier|default:'-' }}</td>
+                        <td>{{ document.business_reference|default:'-' }}</td>
+                        <td>{% money document.amount %}</td>
+                        <td>{% if document.attachment %}<a class="small-button" href="{{ document.attachment.url }}" target="_blank" rel="noopener noreferrer">Open</a>{% else %}-{% endif %}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7" class="empty-cell">No requisition uploads matched your search.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if page_obj.paginator.num_pages > 1 %}
+        <nav class="pagination-bar" aria-label="Procurement upload pages">
+            {% if page_obj.has_previous %}<a class="secondary-button" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if document_type != 'all' %}type={{ document_type|urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+            <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}<a class="secondary-button" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if document_type != 'all' %}type={{ document_type|urlencode }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+        </nav>
+    {% endif %}
+</section>
+{% endblock %}
