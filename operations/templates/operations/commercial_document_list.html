@@ -32,7 +32,7 @@
             <a class="secondary-button" href="{% url 'commercial_document_list' %}">Reset</a>
         </div>
     </form>
-    <p class="list-results-note">Showing up to 5 of {{ matching_count }} matching document(s).</p>
+    <p class="list-results-note">Showing {{ documents|length }} of {{ matching_count }} matching document(s).</p>
     <div class="document-card-list">
         {% for document in documents %}
             <article class="document-card">
@@ -59,5 +59,12 @@
             </div>
         {% endfor %}
     </div>
+    {% if page_obj.paginator.num_pages > 1 %}
+        <nav class="pagination-bar" aria-label="Document pages">
+            {% if page_obj.has_previous %}<a class="secondary-button" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if document_type != 'all' %}type={{ document_type|urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+            <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}<a class="secondary-button" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if document_type != 'all' %}type={{ document_type|urlencode }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+        </nav>
+    {% endif %}
 </section>
 {% endblock %}

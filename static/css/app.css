@@ -378,6 +378,16 @@ tbody tr:last-child td { border-bottom: 0; }
 .status-pill { display: inline-flex; align-items: center; min-height: 34px; padding: 7px 12px; border-radius: 999px; background: #e8f2ed; color: var(--accent-dark); font-size: 0.9rem; font-weight: 800; }
 .urgent-pill { display: inline-flex; align-items: center; min-height: 34px; padding: 7px 12px; border-radius: 999px; background: #fff0d9; color: #8a4c04; font-size: 0.9rem; font-weight: 900; }
 .muted-pill { background: #eef1ee; color: var(--muted); }
+.procurement-table-panel { width: min(1240px, 100%); margin-inline: auto; }
+.procurement-action-table { min-width: 1120px; }
+.procurement-action-table td:first-child { min-width: 210px; }
+.procurement-action-table td:first-child strong, .procurement-action-table td:first-child small { display: block; }
+.procurement-action-table td:first-child small { margin-top: 4px; color: var(--muted); font-weight: 700; line-height: 1.35; }
+.procurement-doc-counts, .procurement-mini-stack, .procurement-table-actions { display: grid; gap: 7px; }
+.procurement-doc-counts span, .procurement-mini-stack span { display: inline-flex; align-items: center; min-height: 30px; padding: 5px 8px; border-radius: 7px; background: var(--field); color: var(--ink); font-size: 0.86rem; font-weight: 850; }
+.procurement-table-actions .small-button, .procurement-table-actions .secondary-button { width: 100%; min-height: 36px; justify-content: center; padding: 7px 9px; font-size: 0.86rem; }
+.pagination-bar { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 16px; color: var(--muted); font-weight: 900; }
+.pagination-bar span { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); color: var(--ink); }
 .urgent-text { display: inline-flex; margin-left: 6px; color: #8a4c04; font-size: 0.8rem; text-transform: uppercase; }
 .list-filter-panel { width: min(1160px, 100%); margin: 0 auto 18px; padding: clamp(16px, 3vw, 24px); }
 .list-filter-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(170px, 240px) auto; gap: 14px; align-items: end; }
@@ -1057,6 +1067,9 @@ tbody tr:last-child td { border-bottom: 0; }
     th, td { padding: 11px 10px; }
     table { min-width: 560px; }
     .compact table { min-width: 420px; }
+    .procurement-action-table { min-width: 980px; }
+    .pagination-bar { align-items: stretch; flex-direction: column; }
+    .pagination-bar .secondary-button { width: 100%; }
     .status-pill, .urgent-pill, .status-badge, .profit-pill { min-height: 30px; padding: 5px 9px; font-size: 0.82rem; }
     .primary-button, .secondary-button, .small-button { min-height: 42px; padding: 9px 12px; }
     .button-row { gap: 8px; }

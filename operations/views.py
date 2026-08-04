@@ -10,6 +10,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.db.models import Count, Q, Sum
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -1771,122 +1772,113 @@ def procurement_dashboard(request):
     query = request.GET.get("q", "").strip()
     date_value = request.GET.get("date", "").strip()
     search_date = parse_date(date_value) if date_value else None
-    phase = request.GET.get("phase", "all").strip() or "all"
-    visible_limit = 5
-    allowed_phases = {"all", "review", "orders", "invoices", "receipts", "complete"}
-    if phase not in allowed_phases:
-        phase = "all"
+    status = request.GET.get("status", "all").strip() or "all"
+    allowed_statuses = {code for code, _label in Requisition.Status.choices}
+    if status != "all" and status not in allowed_statuses:
+        status = "all"
 
-    submitted_requisitions = Requisition.objects.filter(
-        status=Requisition.Status.SUBMITTED
+    requisitions = Requisition.objects.select_related("requester").prefetch_related(
+        "items__purchase_inquiries__supplier",
+        "items__purchase_inquiries__supplier_invoices",
+        "items__purchase_inquiries__purchase_orders__supplier",
+        "items__purchase_inquiries__purchase_orders__receipts",
+        "inquiries__supplier",
+        "inquiries__supplier_invoices",
+        "inquiries__purchase_orders__supplier",
+        "inquiries__purchase_orders__receipts",
+        "commercial_documents__supplier",
     )
-    accepted_requisitions = Requisition.objects.filter(
-        status__in=[Requisition.Status.ACCEPTED, Requisition.Status.INQUIRIES_SENT]
-    )
-    inquiries_waiting_invoice = PurchaseInquiry.objects.filter(
-        status=PurchaseInquiry.Status.SENT
-    )
-    inquiries_ready_for_order = PurchaseInquiry.objects.filter(
-        status=PurchaseInquiry.Status.INVOICE_LOADED
-    )
-    orders_waiting_receipts = PurchaseOrder.objects.filter(
-        status=PurchaseOrder.Status.ISSUED
-    )
-    recent_purchase_orders = PurchaseOrder.objects.all()
 
     if query:
-        submitted_requisitions = submitted_requisitions.filter(
+        requisitions = requisitions.filter(
             Q(requisition_number__icontains=query)
+            | Q(requesting_company__icontains=query)
             | Q(suggested_supplier_name__icontains=query)
             | Q(suggested_supplier_contact__icontains=query)
             | Q(item_description__icontains=query)
+            | Q(items__description__icontains=query)
             | Q(requester__username__icontains=query)
-        )
-        accepted_requisitions = accepted_requisitions.filter(
-            Q(requisition_number__icontains=query)
-            | Q(suggested_supplier_name__icontains=query)
-            | Q(suggested_supplier_contact__icontains=query)
-            | Q(item_description__icontains=query)
-            | Q(requester__username__icontains=query)
-        )
-        inquiries_waiting_invoice = inquiries_waiting_invoice.filter(
-            Q(inquiry_number__icontains=query)
-            | Q(requisition__requisition_number__icontains=query)
-            | Q(supplier__name__icontains=query)
-            | Q(description__icontains=query)
-        )
-        inquiries_ready_for_order = inquiries_ready_for_order.filter(
-            Q(inquiry_number__icontains=query)
-            | Q(requisition__requisition_number__icontains=query)
-            | Q(supplier__name__icontains=query)
-            | Q(description__icontains=query)
-        )
-        orders_waiting_receipts = orders_waiting_receipts.filter(
-            Q(order_number__icontains=query)
-            | Q(inquiry__inquiry_number__icontains=query)
-            | Q(supplier__name__icontains=query)
-            | Q(inquiry__description__icontains=query)
-        )
-        recent_purchase_orders = recent_purchase_orders.filter(
-            Q(order_number__icontains=query)
-            | Q(inquiry__inquiry_number__icontains=query)
-            | Q(supplier__name__icontains=query)
-            | Q(inquiry__description__icontains=query)
-            | Q(inquiry__requisition__requisition_number__icontains=query)
-            | Q(inquiry__supplier_invoices__invoice_number__icontains=query)
-            | Q(receipts__receipt_number__icontains=query)
+            | Q(inquiries__inquiry_number__icontains=query)
+            | Q(inquiries__supplier__name__icontains=query)
+            | Q(inquiries__supplier_invoices__invoice_number__icontains=query)
+            | Q(inquiries__purchase_orders__order_number__icontains=query)
+            | Q(inquiries__purchase_orders__receipts__receipt_number__icontains=query)
+            | Q(commercial_documents__document_number__icontains=query)
+            | Q(commercial_documents__title__icontains=query)
+            | Q(commercial_documents__business_reference__icontains=query)
         )
     if search_date:
-        submitted_requisitions = submitted_requisitions.filter(
+        requisitions = requisitions.filter(
             Q(created_at__date=search_date) | Q(updated_at__date=search_date)
         )
-        accepted_requisitions = accepted_requisitions.filter(
-            Q(created_at__date=search_date) | Q(updated_at__date=search_date)
+    if status != "all":
+        requisitions = requisitions.filter(status=status)
+
+    paginator = Paginator(requisitions.distinct(), 10)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    procurement_rows = []
+    for requisition in page_obj.object_list:
+        inquiries = list(requisition.inquiries.all())
+        orders = [
+            order for inquiry in inquiries for order in inquiry.purchase_orders.all()
+        ]
+        invoices = [
+            invoice
+            for inquiry in inquiries
+            for invoice in inquiry.supplier_invoices.all()
+        ]
+        receipts = [receipt for order in orders for receipt in order.receipts.all()]
+        open_item = None
+        for item in requisition.items.all():
+            item.ordered_quantity = requisition_item_ordered_quantity(item)
+            item.remaining_quantity = max(
+                Decimal(item.pieces) - item.ordered_quantity, Decimal("0")
+            )
+            if item.remaining_quantity and open_item is None:
+                open_item = item
+        first_waiting_invoice = next(
+            (
+                inquiry
+                for inquiry in inquiries
+                if inquiry.status == PurchaseInquiry.Status.SENT
+            ),
+            None,
         )
-        inquiries_waiting_invoice = inquiries_waiting_invoice.filter(
-            Q(sent_at__date=search_date) | Q(created_at__date=search_date)
+        first_ready_order = next(
+            (
+                inquiry
+                for inquiry in inquiries
+                if inquiry.status == PurchaseInquiry.Status.INVOICE_LOADED
+            ),
+            None,
         )
-        inquiries_ready_for_order = inquiries_ready_for_order.filter(
-            Q(sent_at__date=search_date)
-            | Q(created_at__date=search_date)
-            | Q(supplier_invoices__invoice_date=search_date)
+        first_waiting_receipt = next(
+            (order for order in orders if order.status == PurchaseOrder.Status.ISSUED),
+            None,
         )
-        orders_waiting_receipts = orders_waiting_receipts.filter(
-            Q(order_date=search_date) | Q(created_at__date=search_date)
-        )
-        recent_purchase_orders = recent_purchase_orders.filter(
-            Q(order_date=search_date)
-            | Q(created_at__date=search_date)
-            | Q(receipts__receipt_date=search_date)
-            | Q(inquiry__supplier_invoices__invoice_date=search_date)
+        procurement_rows.append(
+            {
+                "requisition": requisition,
+                "inquiries": inquiries,
+                "orders": orders,
+                "invoices": invoices,
+                "receipts": receipts,
+                "open_item": open_item,
+                "first_waiting_invoice": first_waiting_invoice,
+                "first_ready_order": first_ready_order,
+                "first_waiting_receipt": first_waiting_receipt,
+                "can_generate_pi": requisition.status
+                in [Requisition.Status.ACCEPTED, Requisition.Status.INQUIRIES_SENT],
+            }
         )
 
     context = {
-        "submitted_requisitions": submitted_requisitions.select_related(
-            "requester"
-        ).prefetch_related("items", "commercial_documents")[:visible_limit],
-        "items_ready_for_inquiry": procurement_split_items(
-            query, search_date, visible_limit
-        ),
-        "accepted_requisitions": accepted_requisitions.select_related(
-            "requester"
-        ).prefetch_related("items")[:visible_limit],
-        "inquiries_waiting_invoice": inquiries_waiting_invoice.select_related(
-            "requisition", "requisition_item", "supplier"
-        ).distinct()[:visible_limit],
-        "inquiries_ready_for_order": inquiries_ready_for_order.select_related(
-            "requisition", "requisition_item", "supplier"
-        ).distinct()[:visible_limit],
-        "orders_waiting_receipts": orders_waiting_receipts.select_related(
-            "inquiry", "supplier"
-        ).distinct()[:visible_limit],
-        "recent_purchase_orders": recent_purchase_orders.select_related(
-            "inquiry", "supplier", "inquiry__requisition", "inquiry__requisition_item"
-        ).distinct()[:visible_limit],
-        "suppliers": Supplier.objects.all()[:LIST_RESULTS_LIMIT],
+        "procurement_rows": procurement_rows,
+        "page_obj": page_obj,
+        "status_choices": Requisition.Status.choices,
         "query": query,
         "date_value": date_value,
-        "phase": phase,
+        "status": status,
     }
     return render(request, "operations/procurement.html", context)
 
@@ -1924,11 +1916,11 @@ def requisition_process_list(request):
             | Q(commercial_documents__business_reference__icontains=query)
             | Q(commercial_documents__supplier__name__icontains=query)
         ).distinct()
-    requisitions = requisitions[:50]
+    page_obj = Paginator(requisitions.distinct(), 10).get_page(request.GET.get("page"))
     return render(
         request,
         "operations/requisition_process.html",
-        {"requisitions": requisitions, "query": query},
+        {"requisitions": page_obj.object_list, "page_obj": page_obj, "query": query},
     )
 
 
@@ -1938,10 +1930,19 @@ def requisition_document_upload(request, pk):
         Requisition.objects.select_related("requester").prefetch_related("items"),
         pk=pk,
     )
+    document_type = request.GET.get(
+        "type", CommercialDocument.DocumentType.PROFORMA_INVOICE
+    )
+    allowed_document_types = {
+        value for value, _label in CommercialDocument.DocumentType.choices
+    }
+    if document_type not in allowed_document_types:
+        document_type = CommercialDocument.DocumentType.PROFORMA_INVOICE
     form = RequisitionDocumentUploadForm(
         request.POST or None,
         request.FILES or None,
         initial={
+            "document_type": document_type,
             "document_date": date.today(),
             "currency": "USD",
             "title": f"Supplier document for {requisition.requisition_number}",
@@ -2960,12 +2961,13 @@ def commercial_document_list(request):
     if document_type in allowed_types:
         documents = documents.filter(document_type=document_type)
     matching_count = documents.count()
-    documents = documents[:LIST_RESULTS_LIMIT]
+    page_obj = Paginator(documents, 10).get_page(request.GET.get("page"))
     return render(
         request,
         "operations/commercial_document_list.html",
         {
-            "documents": documents,
+            "documents": page_obj.object_list,
+            "page_obj": page_obj,
             "query": query,
             "document_type": document_type,
             "document_types": CommercialDocument.DocumentType.choices,
