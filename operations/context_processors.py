@@ -35,6 +35,7 @@ def module_access(request):
     )
     display_currency, ugx_exchange_rate = currency_context(request)
     requester_only = has_only_requisition_access(user)
+    can_open_django_admin = bool(user and user.is_authenticated and user.is_staff)
     return {
         "app_setting": app_setting,
         "app_language_options": [
@@ -73,8 +74,8 @@ def module_access(request):
         "can_read_visas": has_module_access(
             user, UserModuleAccess.Module.VISAS, ACTION_READ
         ),
-        "can_manage_users": bool(user and user.is_authenticated and user.is_superuser),
+        "can_manage_users": can_open_django_admin,
         "requester_only": requester_only,
-        "can_manage_setup": bool(user and user.is_authenticated and user.is_superuser),
-        "can_show_api": bool(user and user.is_authenticated and user.is_superuser),
+        "can_manage_setup": can_open_django_admin,
+        "can_show_api": can_open_django_admin,
     }

@@ -159,6 +159,12 @@ def superuser_required(view_func):
     )(view_func)
 
 
+def django_admin_required(view_func):
+    return user_passes_test(
+        lambda user: user.is_authenticated and user.is_staff, login_url="login"
+    )(view_func)
+
+
 def procurement_required(view_func):
     return user_passes_test(
         lambda user: has_any_module_access(user, [UserModuleAccess.Module.PROCUREMENT])
@@ -3133,7 +3139,7 @@ def financial_record_create(request):
     )
 
 
-@superuser_required
+@django_admin_required
 def user_access_list(request):
     query = request.GET.get("q", "").strip()
     status = request.GET.get("status", "all").strip() or "all"
@@ -3166,12 +3172,12 @@ def user_access_list(request):
     )
 
 
-@superuser_required
+@django_admin_required
 def user_access_create(request):
     return user_access_form(request)
 
 
-@superuser_required
+@django_admin_required
 def user_access_edit(request, user_id):
     user = get_object_or_404(
         get_user_model().objects.prefetch_related("module_access"), pk=user_id
@@ -3210,7 +3216,7 @@ def user_access_form(request, managed_user=None):
     )
 
 
-@superuser_required
+@django_admin_required
 def application_setup(request):
     setting = ApplicationSetting.load()
     form = ApplicationSettingForm(
