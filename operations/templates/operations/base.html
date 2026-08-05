@@ -54,6 +54,7 @@
                             <a href="{% url 'transport_in_transit' %}">In Transit</a>
                             <a href="{% url 'transport_goods_reached' %}">GR - Goods Reached</a>
                             <a href="{% url 'transport_invoice_list' %}">Invoices</a>
+                            <a href="{% url 'transport_invoice_list' %}?status=paid">{{ 'Payments'|tr:active_language }}</a>
                             {% if can_read_transport_reports %}<a href="{% url 'transport_reports' %}">Reports</a>{% endif %}
                             <a href="{% url 'transport_billing_manual' %}">{{ 'Billing manual'|tr:active_language }}</a>
                         </span>

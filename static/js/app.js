@@ -1,4 +1,19 @@
 (function () {
+    function dismissToastFromControl(control) {
+        var toast = control ? control.closest('[data-toast]') : null;
+        if (!toast) { return; }
+        var stack = toast.closest('.toast-stack');
+        toast.remove();
+        if (stack && !stack.querySelector('[data-toast]')) { stack.remove(); }
+    }
+
+    document.addEventListener('click', function (event) {
+        var closeButton = event.target.closest('[data-toast-close]');
+        if (!closeButton) { return; }
+        event.preventDefault();
+        dismissToastFromControl(closeButton);
+    });
+
     function translatePage() {
         var script = document.getElementById('ui-translations');
         if (!script) { return; }
@@ -102,8 +117,7 @@
     function setupToasts() {
         document.querySelectorAll('[data-toast-close]').forEach(function (button) {
             button.addEventListener('click', function () {
-                var toast = button.closest('[data-toast]');
-                if (toast) { toast.hidden = true; }
+                dismissToastFromControl(button);
             });
         });
     }

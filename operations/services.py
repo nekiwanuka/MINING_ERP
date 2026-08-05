@@ -282,7 +282,7 @@ def generate_transport_customer_invoices(record, generated_by=None):
                 transport=record,
                 customer_order=customer_order,
                 customer_name=customer_order.customer_name or "Unnamed customer",
-                status=TransportCustomerInvoice.Status.FINALIZED,
+                status=TransportCustomerInvoice.Status.DRAFT,
                 generated_by=generated_by,
             )
             sort_order = 1

@@ -48,6 +48,11 @@
                         <td>
                             <div class="table-actions">
                                 <a href="{% url 'transport_invoice_detail' invoice.pk %}">View</a>
+                                {% if invoice.status == invoice.Status.DRAFT %}
+                                    <form method="post" action="{% url 'transport_invoice_issue' invoice.pk %}">{% csrf_token %}<button type="submit">Issue</button></form>
+                                {% elif invoice.status == invoice.Status.FINALIZED %}
+                                    <form method="post" action="{% url 'transport_invoice_pay' invoice.pk %}">{% csrf_token %}<button type="submit">Pay</button></form>
+                                {% endif %}
                                 <a href="{% url 'transport_invoice_print' invoice.pk %}" target="_blank" rel="noopener">Print</a>
                                 <a href="{% url 'transport_invoice_download' invoice.pk %}">Download</a>
                             </div>

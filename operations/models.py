@@ -36,6 +36,10 @@ def transport_invoice_number():
     return prefixed_number("TINV")
 
 
+def transport_payment_number():
+    return prefixed_number("PAY")
+
+
 def commercial_document_number():
     return prefixed_number("DOC")
 
@@ -1506,8 +1510,9 @@ class TransportTransitPoint(TimeStampedModel):
 
 class TransportCustomerInvoice(TimeStampedModel):
     class Status(models.TextChoices):
-        DRAFT = "draft", "Draft"
+        DRAFT = "draft", "Pending"
         FINALIZED = "finalized", "Issued"
+        PAID = "paid", "Paid"
 
     invoice_number = models.CharField(
         max_length=32,
@@ -1536,6 +1541,15 @@ class TransportCustomerInvoice(TimeStampedModel):
         null=True,
         blank=True,
         related_name="generated_transport_customer_invoices",
+    )
+    payment_number = models.CharField(max_length=32, unique=True, null=True, blank=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    paid_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="paid_transport_customer_invoices",
     )
     notes = models.TextField(blank=True)
 

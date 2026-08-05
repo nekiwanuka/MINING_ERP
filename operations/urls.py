@@ -195,6 +195,16 @@ urlpatterns = [
         name="transport_invoice_detail",
     ),
     path(
+        "transport/invoices/<int:invoice_id>/issue/",
+        views.transport_invoice_issue,
+        name="transport_invoice_issue",
+    ),
+    path(
+        "transport/invoices/<int:invoice_id>/pay/",
+        views.transport_invoice_pay,
+        name="transport_invoice_pay",
+    ),
+    path(
         "transport/invoices/<int:invoice_id>/download/",
         views.transport_invoice_download,
         name="transport_invoice_download",

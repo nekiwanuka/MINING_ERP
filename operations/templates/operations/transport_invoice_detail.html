@@ -11,6 +11,11 @@
     <div class="button-row">
         <a class="secondary-button" href="{% url 'transport_invoice_list' %}">All invoices</a>
         <a class="secondary-button" href="{% url 'transport_detail' invoice.transport.pk %}">Back to trip</a>
+        {% if invoice.status == invoice.Status.DRAFT %}
+            <form method="post" action="{% url 'transport_invoice_issue' invoice.pk %}">{% csrf_token %}<button class="primary-button" type="submit">Issue</button></form>
+        {% elif invoice.status == invoice.Status.FINALIZED %}
+            <form method="post" action="{% url 'transport_invoice_pay' invoice.pk %}">{% csrf_token %}<button class="primary-button" type="submit">Pay</button></form>
+        {% endif %}
         <a class="secondary-button" href="{% url 'transport_invoice_download' invoice.pk %}">Download PDF</a>
         <a class="secondary-button" target="_blank" rel="noopener" href="{{ whatsapp_url }}">Send WhatsApp</a>
         <a class="primary-button" target="_blank" rel="noopener" href="{% url 'transport_invoice_print' invoice.pk %}">Print PDF</a>
@@ -53,6 +58,14 @@
         {% if invoice.customer_order.pieces %}<div><span>Space used</span><strong>{{ invoice.customer_order.pieces|floatformat:0 }}</strong></div>{% endif %}
         <div><span>Status</span><strong>{{ invoice.get_status_display }}</strong></div>
     </section>
+
+    {% if invoice.status == invoice.Status.PAID %}
+        <section class="paid-stamp paid-stamp-overlay" aria-label="Payment stamp">
+            <strong>PAID</strong>
+            <span>Payment No: {{ invoice.payment_number }}</span>
+            <span>Date Paid: {{ invoice.paid_at|date:'Y-m-d' }}</span>
+        </section>
+    {% endif %}
 
     {% if invoice_item_rows %}
         <section class="invoice-item-details">

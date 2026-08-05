@@ -5,7 +5,7 @@
     <div>
         <p class="eyebrow">Workflow Manual</p>
         <h1>Simplified transport billing</h1>
-        <p>Create one transit, add customers by distance and rate per km, then enter internal costs for profit/loss deductions.</p>
+        <p>Create one transit, add customers by distance and rate per km, issue invoices, accept payment, then generate the delivery note after goods reach.</p>
     </div>
 </section>
 
@@ -25,13 +25,22 @@
     <div class="form-section"><h2>5. Internal cost assignment</h2></div>
     <p class="muted-copy">Use General trip cost for shared trip deductions. Choose a specific customer only when that cost belongs to one customer's delivery for internal profit analysis. These costs stay hidden from customer invoices.</p>
 
-    <div class="form-section"><h2>6. Customer invoice</h2></div>
-    <p class="muted-copy">Customers do not see the internal cost details. Each customer invoice shows one simple line: Transit &amp; Logistics Fees. That line is calculated from billable km multiplied by the customer rate per km, unless a manual agreed amount is entered.</p>
+    <div class="form-section"><h2>6. Generate customer invoices</h2></div>
+    <p class="muted-copy">Open the transport detail page and click Generate invoices. The system creates one pending customer invoice for each saved customer and opens the generated invoice or filtered invoice list.</p>
 
-    <div class="form-section"><h2>7. Fair sharing rule</h2></div>
+    <div class="form-section"><h2>7. Issue invoice</h2></div>
+    <p class="muted-copy">Open each pending invoice and click Issue after checking customer name, transit reference, route, goods, and amount. Issued invoices can be printed, downloaded, or sent to the customer.</p>
+
+    <div class="form-section"><h2>8. Accept payment</h2></div>
+    <p class="muted-copy">After money is received, open the issued invoice and click Pay. The system creates a payment number, marks the invoice Paid, prints a red paid stamp over the invoice, and moves the related trip to In Transit.</p>
+
+    <div class="form-section"><h2>9. Goods reached and delivery note</h2></div>
+    <p class="muted-copy">When the goods reach the customer, use GR - Goods Reached. The system marks the trip delivered and generates the delivery note. Paid invoice and payment references are shown on the delivery note.</p>
+
+    <div class="form-section"><h2>10. Fair sharing rule</h2></div>
     <p class="muted-copy">The system divides the shared first leg equally across all customers, then adds the private distance after the branch-off for customers who travel farther.</p>
 
-    <div class="form-section"><h2>8. Profit tracking</h2></div>
+    <div class="form-section"><h2>11. Profit tracking</h2></div>
     <p class="muted-copy">The transport detail page still keeps the accounting view. It compares customer invoice revenue against in transit charges and recorded expenses to show profit or loss.</p>
 </section>
 
@@ -75,8 +84,8 @@
         </table>
     </div>
 
-    <div class="form-section"><h2>Invoice result</h2></div>
-    <p class="muted-copy">The customer invoice stays simple. It does not list fuel, driver, border, toll, loading, or offloading details separately. Those costs stay internal for the profit/loss report.</p>
+    <div class="form-section"><h2>Invoice and payment result</h2></div>
+    <p class="muted-copy">The customer invoice stays simple. It does not list fuel, driver, border, toll, loading, or offloading details separately. After payment is accepted, the paid invoice carries the official payment stamp and payment number.</p>
     <div class="table-wrap compact">
         <table>
             <thead><tr><th>Invoice line</th><th>Martha</th><th>Peter</th><th>Kresto</th></tr></thead>

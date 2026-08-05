@@ -52,6 +52,15 @@
         <div><span>Reference</span><strong>{{ document.business_reference|default:'-' }}</strong></div>
     </section>
 
+    {% if paid_invoices %}
+        <section class="delivery-note-body payment-reference-block">
+            <span>Payment reference</span>
+            {% for invoice in paid_invoices %}
+                <p>{{ invoice.invoice_number }} · {{ invoice.payment_number }} · {{ invoice.get_status_display }}</p>
+            {% endfor %}
+        </section>
+    {% endif %}
+
     <section class="delivery-note-body">
         <span>Goods delivered</span>
         <p>{{ document.description|linebreaksbr|default:'Transport goods delivered.' }}</p>

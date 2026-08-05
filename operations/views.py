@@ -98,6 +98,7 @@ from .models import (
     TransportCustomerOrder,
     TransportRecord,
     TransportTransitCost,
+    transport_payment_number,
     UserModuleAccess,
     VisaEmbassy,
 )
@@ -779,7 +780,7 @@ def requisition_pdf_response(requisition, as_attachment=False, language="en"):
 
 
 def transport_invoice_message(invoice):
-    return (
+    message = (
         f"Transport Invoice {invoice.invoice_number}\n"
         f"Customer: {invoice.customer_name}\n"
         f"Transit: {invoice.transport.transit_number}\n"
@@ -787,6 +788,9 @@ def transport_invoice_message(invoice):
         f"Route: {invoice.transport.origin} to {invoice.transport.destination}\n"
         f"Total: USD {invoice.total_amount:.0f}"
     )
+    if invoice.status == TransportCustomerInvoice.Status.PAID:
+        message = f"{message}\nPaid: {invoice.payment_number or '-'}"
+    return message
 
 
 def transport_invoice_item_rows(customer_order):
@@ -847,6 +851,31 @@ def transport_invoice_pdf(invoice, language="en"):
         leading=24,
         textColor=colors.HexColor("#14201b"),
     )
+
+    def draw_paid_stamp(canvas, _document):
+        if invoice.status != TransportCustomerInvoice.Status.PAID:
+            return
+        paid_date = (
+            timezone.localtime(invoice.paid_at).date() if invoice.paid_at else "-"
+        )
+        canvas.saveState()
+        canvas.translate(142 * mm, 199 * mm)
+        canvas.rotate(-12)
+        canvas.setStrokeColor(colors.HexColor("#b91c1c"))
+        canvas.setFillColor(colors.HexColor("#b91c1c"))
+        canvas.setLineWidth(1.6)
+        canvas.roundRect(-32 * mm, -16 * mm, 64 * mm, 32 * mm, 5 * mm, stroke=1, fill=0)
+        canvas.setLineWidth(0.7)
+        canvas.roundRect(-29 * mm, -13 * mm, 58 * mm, 26 * mm, 4 * mm, stroke=1, fill=0)
+        canvas.setFont(bold_font_name, 26)
+        canvas.drawCentredString(0, 3 * mm, "PAID")
+        canvas.setFont(bold_font_name, 6.5)
+        canvas.drawCentredString(
+            0, -5 * mm, f"PAYMENT NO: {invoice.payment_number or '-'}"
+        )
+        canvas.drawCentredString(0, -9 * mm, f"DATE PAID: {paid_date}")
+        canvas.restoreState()
+
     if app_setting.logo:
         try:
             brand_mark = Image(app_setting.logo.path, width=18 * mm, height=18 * mm)
@@ -1012,7 +1041,7 @@ def transport_invoice_pdf(invoice, language="en"):
         )
     )
     story.extend([Spacer(1, 12), lines, Spacer(1, 24), signatures])
-    document.build(story)
+    document.build(story, onFirstPage=draw_paid_stamp, onLaterPages=draw_paid_stamp)
     return buffer.getvalue()
 
 
@@ -2503,6 +2532,28 @@ def transport_list(request):
         records = records.filter(date=search_date)
     matching_count = records.count()
     records = list(records[:200])
+    for record in records:
+        invoice_statuses = [
+            invoice.status for invoice in record.customer_invoices.all()
+        ]
+        if not invoice_statuses:
+            record.invoice_status_label = record.get_status_display()
+            record.invoice_status_class = "status-transit"
+        elif any(
+            status == TransportCustomerInvoice.Status.DRAFT
+            for status in invoice_statuses
+        ):
+            record.invoice_status_label = "Pending invoice"
+            record.invoice_status_class = "status-ready"
+        elif any(
+            status == TransportCustomerInvoice.Status.FINALIZED
+            for status in invoice_statuses
+        ):
+            record.invoice_status_label = "Issued"
+            record.invoice_status_class = "status-issued"
+        else:
+            record.invoice_status_label = "Paid"
+            record.invoice_status_class = "status-paid"
     total_revenue = sum(
         (record.invoice_revenue_total for record in records), Decimal("0")
     )
@@ -2642,9 +2693,9 @@ def transport_invoices_generate(request, pk):
         pk=pk,
     )
     invoices = generate_transport_customer_invoices(record, request.user)
-    messages.success(
-        request, f"Generated and issued {len(invoices)} customer invoice(s)."
-    )
+    messages.success(request, f"Generated {len(invoices)} pending customer invoice(s).")
+    if len(invoices) == 1:
+        return redirect("transport_invoice_detail", invoice_id=invoices[0].pk)
     invoice_url = reverse("transport_invoice_list")
     return redirect(f"{invoice_url}?q={quote(record.transit_number)}")
 
@@ -2708,6 +2759,56 @@ def transport_invoice_detail(request, invoice_id):
             "whatsapp_url": whatsapp_url,
         },
     )
+
+
+@access_required(UserModuleAccess.Module.TRANSPORT, ACTION_UPDATE)
+@require_POST
+def transport_invoice_issue(request, invoice_id):
+    invoice = get_object_or_404(TransportCustomerInvoice, pk=invoice_id)
+    if invoice.status == TransportCustomerInvoice.Status.PAID:
+        messages.info(request, f"Invoice {invoice.invoice_number} is already paid.")
+    elif invoice.status == TransportCustomerInvoice.Status.FINALIZED:
+        messages.info(request, f"Invoice {invoice.invoice_number} is already issued.")
+    else:
+        invoice.status = TransportCustomerInvoice.Status.FINALIZED
+        invoice.save(update_fields=["status", "updated_at"])
+        messages.success(request, f"Invoice {invoice.invoice_number} issued.")
+    return redirect("transport_invoice_detail", invoice_id=invoice.pk)
+
+
+@access_required(UserModuleAccess.Module.TRANSPORT, ACTION_UPDATE)
+@require_POST
+def transport_invoice_pay(request, invoice_id):
+    invoice = get_object_or_404(
+        TransportCustomerInvoice.objects.select_related("transport"), pk=invoice_id
+    )
+    if invoice.status == TransportCustomerInvoice.Status.DRAFT:
+        messages.error(request, "Issue the invoice before accepting payment.")
+        return redirect("transport_invoice_detail", invoice_id=invoice.pk)
+    if invoice.status != TransportCustomerInvoice.Status.PAID:
+        invoice.status = TransportCustomerInvoice.Status.PAID
+        invoice.payment_number = invoice.payment_number or transport_payment_number()
+        invoice.paid_at = timezone.now()
+        invoice.paid_by = request.user
+        invoice.save(
+            update_fields=[
+                "status",
+                "payment_number",
+                "paid_at",
+                "paid_by",
+                "updated_at",
+            ]
+        )
+        if invoice.transport.status != TransportRecord.Status.IN_TRANSIT:
+            invoice.transport.status = TransportRecord.Status.IN_TRANSIT
+            invoice.transport.save(update_fields=["status", "updated_at"])
+        messages.success(
+            request,
+            f"Payment {invoice.payment_number} accepted for invoice {invoice.invoice_number}.",
+        )
+    else:
+        messages.info(request, f"Invoice {invoice.invoice_number} is already paid.")
+    return redirect("transport_invoice_detail", invoice_id=invoice.pk)
 
 
 @access_required(UserModuleAccess.Module.TRANSPORT, ACTION_READ)
@@ -2812,13 +2913,20 @@ def transport_delivery_note_detail(request, pk, document_id):
         transport_id=pk,
         document_type=CommercialDocument.DocumentType.DELIVERY_NOTE,
     )
+    paid_invoices = document.transport.customer_invoices.filter(
+        status=TransportCustomerInvoice.Status.PAID
+    ).order_by("invoice_number")
     whatsapp_url = (
         f"https://wa.me/?text={quote(transport_delivery_note_message(document))}"
     )
     return render(
         request,
         "operations/transport_delivery_note_detail.html",
-        {"document": document, "whatsapp_url": whatsapp_url},
+        {
+            "document": document,
+            "paid_invoices": paid_invoices,
+            "whatsapp_url": whatsapp_url,
+        },
     )
 
 

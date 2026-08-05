@@ -48,11 +48,7 @@
                     <tr data-filter-text="{{ record.transport_number }} {{ record.transit_number }} {{ record.vehicle }} {{ record.origin }} {{ record.destination }} {{ record.customer_names_summary }}">
                         <td><a href="{% url 'transport_detail' record.pk %}">{{ record.transport_number }}</a></td>
                         <td>
-                            {% if record.customer_invoices.all %}
-                                <span class="status-badge status-ready">Pending invoicing</span>
-                            {% else %}
-                                <span class="status-badge status-transit">In transit</span>
-                            {% endif %}
+                            <span class="status-badge {{ record.invoice_status_class }}">{{ record.invoice_status_label }}</span>
                         </td>
                         <td>{{ record.vehicle }}</td>
                         <td>{{ record.origin }} to {{ record.destination }}</td>

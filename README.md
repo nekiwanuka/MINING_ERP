@@ -76,5 +76,8 @@ Use **Transport > Billing manual** in the app for the operator workflow.
 3. Record each customer's loading point, offloading point, loading sequence, offloading sequence, billable distance, cargo units, and direct customer charges.
 4. Add each border, toll, duty, permit, tax, customs, or checkpoint fee as its own transit/government fee row.
 5. Set the fee route sequence so the system knows which customers were still onboard when that fee happened.
-6. Open the transport detail page and click **Generate and issue invoices**.
-7. Review one issued invoice per customer. Direct charges stay with the customer, shared fleet charges are split by chargeable units and distance, and transit/government fees are split only among customers onboard at that fee point.
+6. Open the transport detail page and click **Generate invoices**. The system creates one pending invoice per customer.
+7. Open each pending invoice, review customer, route, goods, and amount, then click **Issue**.
+8. After money is received, click **Pay** on the issued invoice. The system creates a payment number, marks the invoice paid, prints the paid stamp over the invoice, and moves the trip to **In Transit**.
+9. When goods reach the customer, click **GR - Goods Reached** to generate the delivery note. The delivery note shows the linked paid invoice and payment reference.
+10. Direct charges stay with the customer, shared fleet charges are split by chargeable units and distance, and transit/government fees are split only among customers onboard at that fee point.

@@ -111,21 +111,22 @@
         <div>
             <p class="eyebrow">Step 4</p>
             <h2>Customer invoices</h2>
-            <p class="muted-copy">Generates and issues one Transit &amp; Logistics Fees invoice per saved customer, then opens the invoice page.</p>
+            <p class="muted-copy">Generates one pending Transit &amp; Logistics Fees invoice per saved customer, then opens the invoice page.</p>
         </div>
         <form method="post" action="{% url 'transport_invoices_generate' record.pk %}">
             {% csrf_token %}
-            <button class="small-button" type="submit">Generate and issue invoices</button>
+            <button class="small-button" type="submit">Generate invoices</button>
         </form>
     </div>
     <div class="table-wrap compact">
         <table>
-            <thead><tr><th>Invoice</th><th>Customer</th><th>Total</th><th>Date</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Invoice</th><th>Customer</th><th>Status</th><th>Total</th><th>Date</th><th>Actions</th></tr></thead>
             <tbody>
                 {% for invoice in record.customer_invoices.all %}
                     <tr>
                         <td><a href="{% url 'transport_invoice_detail' invoice.pk %}">{{ invoice.invoice_number }}</a></td>
                         <td>{{ invoice.customer_name }}</td>
+                        <td><span class="status-pill">{{ invoice.get_status_display }}</span></td>
                         <td><strong>{% money invoice.total_amount %}</strong></td>
                         <td>{{ invoice.invoice_date }}</td>
                         <td>
@@ -137,7 +138,7 @@
                         </td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="5" class="empty-cell">No invoices generated yet.</td></tr>
+                    <tr><td colspan="6" class="empty-cell">No invoices generated yet.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

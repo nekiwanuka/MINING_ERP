@@ -1046,6 +1046,38 @@ class TransportCalculationTests(TestCase):
         self.assertEqual(record.tax_total, Decimal("15.00"))
         self.assertEqual(record.total_cost, Decimal("165.00"))
 
+    def test_transport_list_shows_actual_invoice_workflow_status(self):
+        UserModuleAccess.objects.create(
+            user=self.user,
+            module=UserModuleAccess.Module.TRANSPORT,
+            can_read=True,
+        )
+        record = TransportRecord.objects.create(
+            date=timezone.localdate(),
+            vehicle="TRK-88",
+            driver="Peter K.",
+            origin="Kampala Depot",
+            destination="Mbarara Warehouse",
+            distance_km=Decimal("280.00"),
+            created_by=self.user,
+        )
+        record.customer_orders.create(
+            customer_name="Mbarara Quarry",
+            cargo_description="Mining consumables",
+            rate_per_km=Decimal("1.00"),
+            delivery_km=Decimal("280.00"),
+        )
+        invoices = generate_transport_customer_invoices(record, self.user)
+        for invoice in invoices:
+            invoice.status = TransportCustomerInvoice.Status.FINALIZED
+            invoice.save(update_fields=["status", "updated_at"])
+        self.client.login(username="transport", password="MiningERP2026!")
+
+        response = self.client.get("/transport/")
+
+        self.assertContains(response, "Issued")
+        self.assertNotContains(response, "Pending invoicing")
+
     def test_transport_steps_save_trip_customers_expenses_and_invoices(self):
         UserModuleAccess.objects.create(
             user=self.user,
@@ -1181,12 +1213,6 @@ class TransportCalculationTests(TestCase):
         self.assertEqual(record.overall_charge_balance, Decimal("425.00"))
         expense_step_page = self.client.get(f"/transport/{record.pk}/transit-costs/")
         self.assertContains(expense_step_page, "Save in-transit charge")
-        in_transit_response = self.client.post(
-            f"/transport/{record.pk}/status/in_transit/"
-        )
-        self.assertEqual(in_transit_response.status_code, 302)
-        record.refresh_from_db()
-        self.assertEqual(record.status, TransportRecord.Status.IN_TRANSIT)
         invoice_response = self.client.post(
             f"/transport/{record.pk}/invoices/generate/"
         )
@@ -1202,14 +1228,25 @@ class TransportCalculationTests(TestCase):
         second_invoice = invoices[1]
         self.assertEqual(first_invoice.customer_name, "Kasese Minerals")
         self.assertEqual(second_invoice.customer_name, "Kilembe Smelter")
+        self.assertEqual(first_invoice.status, TransportCustomerInvoice.Status.DRAFT)
+        self.assertEqual(first_invoice.get_status_display(), "Pending")
         self.assertEqual(first_invoice.total_amount, Decimal("120.00"))
         self.assertEqual(second_invoice.total_amount, Decimal("80.00"))
+        pending_pay_response = self.client.post(
+            f"/transport/invoices/{first_invoice.pk}/pay/"
+        )
+        self.assertEqual(pending_pay_response.status_code, 302)
+        first_invoice.refresh_from_db()
+        record.refresh_from_db()
+        self.assertEqual(first_invoice.status, TransportCustomerInvoice.Status.DRAFT)
+        self.assertEqual(record.status, TransportRecord.Status.DRAFT)
         first_descriptions = [line.description for line in first_invoice.lines.all()]
         second_descriptions = [line.description for line in second_invoice.lines.all()]
         self.assertNotIn("Shared fleet charges", " ".join(first_descriptions))
         self.assertEqual(first_descriptions, ["Transit & Logistics Fees"])
         self.assertEqual(second_descriptions, ["Transit & Logistics Fees"])
         invoice_list_page = self.client.get("/transport/invoices/")
+        paid_invoice_list_page = self.client.get("/transport/invoices/?status=paid")
         invoice_page = self.client.get(f"/transport/invoices/{first_invoice.pk}/")
         invoice_download = self.client.get(
             f"/transport/invoices/{first_invoice.pk}/download/"
@@ -1220,6 +1257,8 @@ class TransportCalculationTests(TestCase):
         manual_page = self.client.get("/transport/billing-manual/")
         self.assertContains(invoice_list_page, first_invoice.invoice_number)
         self.assertContains(invoice_list_page, "Customer invoices")
+        self.assertContains(invoice_list_page, "Payments")
+        self.assertEqual(paid_invoice_list_page.status_code, 200)
         self.assertContains(invoice_page, first_invoice.invoice_number)
         self.assertContains(invoice_page, "Items / goods")
         self.assertContains(invoice_page, "Type of goods")
@@ -1231,6 +1270,29 @@ class TransportCalculationTests(TestCase):
         self.assertContains(invoice_page, "Send WhatsApp")
         self.assertContains(invoice_page, "Download PDF")
         self.assertContains(invoice_page, "Print PDF")
+        self.assertContains(invoice_page, "Issue")
+        issue_response = self.client.post(
+            f"/transport/invoices/{first_invoice.pk}/issue/"
+        )
+        self.assertEqual(issue_response.status_code, 302)
+        first_invoice.refresh_from_db()
+        self.assertEqual(
+            first_invoice.status, TransportCustomerInvoice.Status.FINALIZED
+        )
+        issued_page = self.client.get(f"/transport/invoices/{first_invoice.pk}/")
+        self.assertContains(issued_page, "Pay")
+        pay_response = self.client.post(f"/transport/invoices/{first_invoice.pk}/pay/")
+        self.assertEqual(pay_response.status_code, 302)
+        first_invoice.refresh_from_db()
+        record.refresh_from_db()
+        self.assertEqual(first_invoice.status, TransportCustomerInvoice.Status.PAID)
+        self.assertTrue(first_invoice.payment_number.startswith("PAY-"))
+        self.assertIsNotNone(first_invoice.paid_at)
+        self.assertEqual(first_invoice.paid_by, self.user)
+        self.assertEqual(record.status, TransportRecord.Status.IN_TRANSIT)
+        paid_page = self.client.get(f"/transport/invoices/{first_invoice.pk}/")
+        self.assertContains(paid_page, "PAID")
+        self.assertContains(paid_page, first_invoice.payment_number)
         self.assertEqual(invoice_download.status_code, 200)
         self.assertEqual(invoice_print.status_code, 200)
         self.assertEqual(invoice_download["Content-Type"], "application/pdf")
@@ -1246,6 +1308,10 @@ class TransportCalculationTests(TestCase):
         self.assertTrue(invoice_download.content.startswith(b"%PDF"))
         self.assertEqual(invoice_download.content, invoice_print.content)
         self.assertContains(manual_page, "Simplified transport billing")
+        self.assertContains(manual_page, "Generate customer invoices")
+        self.assertContains(manual_page, "Accept payment")
+        self.assertContains(manual_page, "Goods reached and delivery note")
+        self.assertNotContains(manual_page, "Generate and issue invoices")
         detail_page = self.client.get(f"/transport/{record.pk}/")
         self.assertContains(detail_page, "Customer invoice entries")
         self.assertContains(detail_page, "In-transit charges")
@@ -1265,6 +1331,7 @@ class TransportCalculationTests(TestCase):
         )
         delivery_note_page = self.client.get(delivered_response["Location"])
         self.assertContains(delivery_note_page, "Delivery Note")
+        self.assertContains(delivery_note_page, first_invoice.payment_number)
         self.assertContains(delivery_note_page, "Send WhatsApp")
         record.refresh_from_db()
         self.assertEqual(record.status, TransportRecord.Status.DELIVERED)
@@ -1346,10 +1413,8 @@ class TransportCalculationTests(TestCase):
         self.assertEqual(second.billing_distance_km, Decimal("50.00"))
         self.assertEqual(first_invoice.total_amount, Decimal("150.00"))
         self.assertEqual(second_invoice.total_amount, Decimal("75.00"))
-        self.assertEqual(
-            first_invoice.status, TransportCustomerInvoice.Status.FINALIZED
-        )
-        self.assertEqual(second_invoice.get_status_display(), "Issued")
+        self.assertEqual(first_invoice.status, TransportCustomerInvoice.Status.DRAFT)
+        self.assertEqual(second_invoice.get_status_display(), "Pending")
         first_descriptions = [line.description for line in first_invoice.lines.all()]
         second_descriptions = [line.description for line in second_invoice.lines.all()]
         self.assertEqual(first_descriptions, ["Transit & Logistics Fees"])
