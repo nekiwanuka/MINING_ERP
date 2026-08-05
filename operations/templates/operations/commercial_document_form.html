@@ -17,15 +17,17 @@
     </div>
     <form method="post" enctype="multipart/form-data" class="stacked-form">
         {% csrf_token %}
-        {% include 'operations/partials/form_fields.html' with form=form %}
-        <div class="form-actions">
-            {% if cancel_kwargs.pk %}
-                <a class="secondary-button" href="{% url cancel_url cancel_kwargs.pk %}">Cancel</a>
-            {% else %}
-                <a class="secondary-button" href="{% url cancel_url %}">Cancel</a>
-            {% endif %}
-            <button class="primary-button" type="submit">Save document</button>
-        </div>
+        {% if form.fieldsets %}
+            {% include 'operations/partials/form_fieldsets.html' with form=form %}
+        {% else %}
+            {% include 'operations/partials/form_fields.html' with form=form %}
+        {% endif %}
+        {% if cancel_kwargs.pk %}
+            {% url cancel_url cancel_kwargs.pk as cancel_href %}
+        {% else %}
+            {% url cancel_url as cancel_href %}
+        {% endif %}
+        {% include 'operations/components/form_actions.html' with cancel_url=cancel_href submit_label='Save document' classes='form-actions form-submit-actions' %}
     </form>
 </section>
 {% endblock %}

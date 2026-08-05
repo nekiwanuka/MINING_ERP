@@ -30,16 +30,8 @@
     </div>
     <form method="post" action="{% url 'transport_customer_add' record.pk %}" class="step-save-form">
         {% csrf_token %}
-        <div class="step-form-grid customer-step-grid">
-            {% include 'operations/partials/form_fields.html' with form=customer_form %}
-        </div>
-        <div class="transport-save-bar simple-save-bar">
-            <div>
-                <strong>Save this customer</strong>
-                <span>You can add another customer before moving to in-transit charges.</span>
-            </div>
-            <button class="primary-button" type="submit">Save customer</button>
-        </div>
+        {% include 'operations/partials/form_fieldsets.html' with form=customer_form %}
+        {% include 'operations/components/form_actions.html' with classes='transport-save-bar simple-save-bar' title='Save this customer' helper='You can add another customer before moving to in-transit charges.' submit_label='Save customer' %}
     </form>
 </section>
 

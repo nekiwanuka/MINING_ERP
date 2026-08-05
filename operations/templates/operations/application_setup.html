@@ -18,10 +18,8 @@
     <form method="post" enctype="multipart/form-data" class="stacked-form">
         {% csrf_token %}
         {% include 'operations/partials/form_fields.html' with form=form %}
-        <div class="form-actions">
-            <a class="secondary-button" href="{% url 'dashboard' %}">Cancel</a>
-            <button class="primary-button" type="submit">Save setup</button>
-        </div>
+        {% url 'dashboard' as cancel_href %}
+        {% include 'operations/components/form_actions.html' with cancel_url=cancel_href submit_label='Save setup' %}
     </form>
 </section>
 {% endblock %}

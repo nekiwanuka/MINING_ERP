@@ -115,17 +115,11 @@
                     </tr>
                     {% endwith %}
                 {% empty %}
-                    <tr><td colspan="6" class="empty-cell">No requisitions matched your search.</td></tr>
+                    <tr><td colspan="6" class="empty-cell">{% include 'operations/components/empty_state.html' with title='No requisitions matched your search.' %}</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    {% if page_obj.paginator.num_pages > 1 %}
-        <nav class="pagination-bar" aria-label="Procurement pages">
-            {% if page_obj.has_previous %}<a class="secondary-button" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if date_value %}date={{ date_value|urlencode }}&{% endif %}{% if status != 'all' %}status={{ status|urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
-            <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-            {% if page_obj.has_next %}<a class="secondary-button" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if date_value %}date={{ date_value|urlencode }}&{% endif %}{% if status != 'all' %}status={{ status|urlencode }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>{% endif %}
-        </nav>
-    {% endif %}
+    {% include 'operations/components/pagination.html' with page_obj=page_obj aria_label='Procurement pages' %}
 </section>
 {% endblock %}

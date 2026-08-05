@@ -1,0 +1,29 @@
+{% load operations_i18n %}
+<div class="form-stepper" data-form-steps>
+    <div class="form-stepper-progress" aria-hidden="true">
+        {% for fieldset in form.fieldsets %}
+            <span class="form-step-dot" data-form-step-dot>{{ forloop.counter }}</span>
+        {% endfor %}
+    </div>
+    {% for fieldset in form.fieldsets %}
+        <section class="form-step-panel" data-form-step aria-labelledby="form-step-{{ forloop.counter }}-title"{% if not forloop.first %} hidden aria-hidden="true"{% endif %}>
+            <div class="form-section form-step-heading">
+                <div>
+                    <span class="eyebrow">Step {{ forloop.counter }} of {{ form.fieldsets|length }}</span>
+                    <h2 id="form-step-{{ forloop.counter }}-title">{{ fieldset.title }}</h2>
+                    {% if fieldset.helper %}<p>{{ fieldset.helper }}</p>{% endif %}
+                </div>
+            </div>
+            <div class="{{ fieldset.classes|default:'form-step-grid' }}">
+                {% for field_name in fieldset.fields %}
+                    {% get_field form field_name as field %}
+                    {% if field %}{% include 'operations/partials/form_field.html' with field=field %}{% endif %}
+                {% endfor %}
+            </div>
+            <div class="form-step-actions">
+                <button class="secondary-button" type="button" data-form-step-back{% if forloop.first %} disabled{% endif %}>Back</button>
+                {% if not forloop.last %}<button class="primary-button" type="button" data-form-step-next>Next</button>{% endif %}
+            </div>
+        </section>
+    {% endfor %}
+</div>

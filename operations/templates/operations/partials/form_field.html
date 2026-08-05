@@ -1,0 +1,21 @@
+{% if field.is_hidden %}
+    {{ field }}
+{% else %}
+    <label class="field-block{% if field.field.required %} field-required{% endif %}{% if field.errors %} field-invalid{% endif %}{% if field.field.disabled %} field-disabled{% endif %}{% if field.name == 'urgent' %} simple-checkbox-field{% endif %}"{% if field.id_for_label %} for="{{ field.id_for_label }}"{% endif %}>
+        <span class="field-label-text">
+            <span>{{ field.label }}</span>
+            {% if field.field.required %}<span class="required-indicator" aria-label="required">Required</span>{% endif %}
+            {% if field.help_text %}<span class="tooltip-indicator" title="{{ field.help_text }}" aria-label="{{ field.help_text }}">?</span>{% endif %}
+        </span>
+        {{ field }}
+        {% if field.errors or field.help_text %}
+            <span class="field-helper"{% if field.id_for_label %} id="{{ field.id_for_label }}-helper"{% endif %} {% if field.errors %}role="alert" aria-live="polite"{% endif %}>
+                {% if field.errors %}
+                    {% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+                {% else %}
+                    <small>{{ field.help_text }}</small>
+                {% endif %}
+            </span>
+        {% endif %}
+    </label>
+{% endif %}

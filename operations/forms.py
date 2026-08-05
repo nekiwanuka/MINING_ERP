@@ -1,8 +1,18 @@
 from decimal import Decimal
+from io import BytesIO
+from pathlib import Path
+from xml.sax.saxutils import escape
 
 from django import forms
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
+from django.core.files.uploadedfile import UploadedFile
 from django.forms import formset_factory, inlineformset_factory
+from PIL import Image, UnidentifiedImageError
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 from .models import (
     ApplicationSetting,
@@ -35,6 +45,7 @@ DATE_WIDGET = forms.DateInput(attrs={"type": "date"})
 MONEY_WIDGET = forms.NumberInput(attrs={"step": "0.01", "min": "0"})
 WHOLE_MONEY_WIDGET = forms.NumberInput(attrs={"step": "1", "min": "0"})
 MEASURE_WIDGET = forms.NumberInput(attrs={"step": "0.001", "min": "0"})
+PDF_UPLOAD_ACCEPT = "application/pdf,image/*,text/plain"
 
 TEXT_FORMAT_EXCLUDED_NAMES = {
     "username",
@@ -121,6 +132,84 @@ def field_entry_tip(field_name, field):
     return f"Enter the {label.lower()}."
 
 
+def pdf_upload_name(original_name):
+    stem = Path(original_name or "uploaded-document").stem or "uploaded-document"
+    clean_stem = "-".join(stem.strip().split()) or "uploaded-document"
+    return f"{clean_stem}.pdf"
+
+
+def upload_to_pdf(upload):
+    if not isinstance(upload, UploadedFile):
+        return upload
+
+    content_type = (upload.content_type or "").lower()
+    suffix = Path(upload.name or "").suffix.lower()
+    if content_type == "application/pdf" or suffix == ".pdf":
+        upload.name = pdf_upload_name(upload.name)
+        return upload
+
+    upload.seek(0)
+    data = upload.read()
+    upload.seek(0)
+    output = BytesIO()
+    pdf_name = pdf_upload_name(upload.name)
+
+    if content_type.startswith("image/") or suffix in {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+        ".bmp",
+        ".tif",
+        ".tiff",
+    }:
+        try:
+            image = Image.open(BytesIO(data))
+            if image.mode in {"RGBA", "LA"}:
+                background = Image.new("RGB", image.size, "white")
+                background.paste(image, mask=image.getchannel("A"))
+                image = background
+            else:
+                image = image.convert("RGB")
+            image.save(output, format="PDF", resolution=120.0)
+        except UnidentifiedImageError as exc:
+            raise ValidationError(
+                "Upload a readable PDF, photo/image, or plain text file."
+            ) from exc
+        return ContentFile(output.getvalue(), name=pdf_name)
+
+    if content_type.startswith("text/") or suffix in {".txt", ".csv"}:
+        text = data.decode("utf-8", errors="replace")
+        document = SimpleDocTemplate(output, pagesize=A4, title=pdf_name)
+        styles = getSampleStyleSheet()
+        story = []
+        for line in text.splitlines() or [""]:
+            story.append(Paragraph(escape(line) or "&nbsp;", styles["BodyText"]))
+            story.append(Spacer(1, 6))
+        document.build(story)
+        return ContentFile(output.getvalue(), name=pdf_name)
+
+    raise ValidationError(
+        "Upload a PDF, photo/image, or plain text file. Export Word or Excel files to PDF before uploading."
+    )
+
+
+def convert_file_fields_to_pdf(form, cleaned_data):
+    for field_name, field in form.fields.items():
+        if not isinstance(field, forms.FileField) or isinstance(
+            field, forms.ImageField
+        ):
+            continue
+        upload = cleaned_data.get(field_name)
+        if not upload:
+            continue
+        try:
+            cleaned_data[field_name] = upload_to_pdf(upload)
+        except ValidationError as exc:
+            form.add_error(field_name, exc)
+    return cleaned_data
+
+
 def style_form_fields(fields):
     for field_name, field in fields.items():
         css_class = field.widget.attrs.get("class", "")
@@ -132,6 +221,12 @@ def style_form_fields(fields):
         tip = field_entry_tip(field_name, field)
         if not field.help_text:
             field.help_text = tip
+        if isinstance(field, forms.FileField) and not isinstance(
+            field, forms.ImageField
+        ):
+            field.help_text = f"{field.help_text} PDFs, photos, images, and text files are saved as PDF."
+            field.widget.attrs.setdefault("accept", PDF_UPLOAD_ACCEPT)
+            field.widget.attrs.setdefault("capture", "environment")
         field.widget.attrs.setdefault("title", tip)
         field.widget.attrs.setdefault("aria-label", field.label or "Field")
         if should_format_text_entry(field_name, field):
@@ -155,7 +250,7 @@ class StyledModelForm(forms.ModelForm):
                 cleaned_data[field_name] = format_text_entry(
                     cleaned_data[field_name], isinstance(field.widget, forms.Textarea)
                 )
-        return cleaned_data
+        return convert_file_fields_to_pdf(self, cleaned_data)
 
 
 class StyledForm(forms.Form):
@@ -172,7 +267,7 @@ class StyledForm(forms.Form):
                 cleaned_data[field_name] = format_text_entry(
                     cleaned_data[field_name], isinstance(field.widget, forms.Textarea)
                 )
-        return cleaned_data
+        return convert_file_fields_to_pdf(self, cleaned_data)
 
 
 class ManagedUserForm(StyledModelForm):
@@ -375,6 +470,32 @@ class PurchaseOrderForm(StyledModelForm):
 
 
 class DirectPurchaseOrderForm(StyledForm):
+    fieldsets = [
+        {
+            "title": "Supplier",
+            "helper": "Choose an existing supplier or create a new supplier contact for this order.",
+            "fields": (
+                "supplier",
+                "new_supplier_name",
+                "new_supplier_contact",
+                "new_supplier_email",
+                "new_supplier_phone",
+            ),
+        },
+        {
+            "title": "Order details",
+            "helper": "Enter the item, quantity, amount, delivery method, and supplier message.",
+            "fields": (
+                "description",
+                "quantity",
+                "amount",
+                "order_date",
+                "delivery_method",
+                "supplier_message",
+            ),
+        },
+    ]
+
     supplier = forms.ModelChoiceField(
         queryset=Supplier.objects.all(),
         required=False,
@@ -467,6 +588,43 @@ class BusinessClientForm(StyledModelForm):
 
 
 class CommercialDocumentForm(StyledModelForm):
+    fieldsets = [
+        {
+            "title": "Document",
+            "helper": "Classify the document and give it a clear title for search and reporting.",
+            "fields": ("document_type", "status", "title", "business_reference"),
+        },
+        {
+            "title": "Client and links",
+            "helper": "Connect this file to a client and any related requisition, order, trip, invoice, or supplier.",
+            "fields": (
+                "client",
+                "new_client_name",
+                "new_client_contact",
+                "new_client_email",
+                "new_client_phone",
+                "requisition",
+                "purchase_order",
+                "transport",
+                "transport_invoice",
+                "supplier",
+            ),
+        },
+        {
+            "title": "Values and file",
+            "helper": "Add dates, amount, notes, and the original attachment.",
+            "fields": (
+                "document_date",
+                "due_date",
+                "currency",
+                "amount",
+                "description",
+                "notes",
+                "attachment",
+            ),
+        },
+    ]
+
     new_client_name = forms.CharField(
         required=False,
         label="Or enter client / customer name",
@@ -547,6 +705,30 @@ class CommercialDocumentForm(StyledModelForm):
 
 
 class RequisitionDocumentUploadForm(StyledModelForm):
+    fieldsets = [
+        {
+            "title": "Supplier",
+            "helper": "Select the supplier or enter a new supplier name for this document.",
+            "fields": ("supplier", "new_supplier_name", "new_supplier_contact"),
+        },
+        {
+            "title": "Document details",
+            "helper": "Capture the reference, dates, amount, description, and file attachment.",
+            "fields": (
+                "document_type",
+                "title",
+                "document_date",
+                "due_date",
+                "currency",
+                "amount",
+                "business_reference",
+                "description",
+                "notes",
+                "attachment",
+            ),
+        },
+    ]
+
     new_supplier_name = forms.CharField(
         required=False,
         label="Or enter supplier name",
@@ -612,6 +794,19 @@ class RequisitionDocumentUploadForm(StyledModelForm):
 
 
 class FinancialRecordForm(StyledModelForm):
+    fieldsets = [
+        {
+            "title": "Record summary",
+            "helper": "Define the transaction type, date, description, and reference.",
+            "fields": ("record_type", "record_date", "description", "reference"),
+        },
+        {
+            "title": "Parties and amount",
+            "helper": "Link the client, supplier, document, amount, currency, and notes.",
+            "fields": ("client", "supplier", "document", "amount", "currency", "notes"),
+        },
+    ]
+
     class Meta:
         model = FinancialRecord
         fields = [
@@ -683,6 +878,32 @@ class FuelStockBatchForm(StyledModelForm):
 
 
 class FuelIssueForm(StyledModelForm):
+    fieldsets = [
+        {
+            "title": "Issue target",
+            "helper": "Choose the fuel stock, asset, date, route, and responsible operator.",
+            "fields": (
+                "batch",
+                "asset",
+                "issue_date",
+                "route_or_location",
+                "driver_operator",
+            ),
+        },
+        {
+            "title": "Usage readings",
+            "helper": "Enter refill readings and operating measurements for consumption tracking.",
+            "fields": (
+                "fuel_before_refill",
+                "fuel_after_refill",
+                "litres_issued",
+                "operating_hours",
+                "odometer_or_hour_meter",
+                "notes",
+            ),
+        },
+    ]
+
     class Meta:
         model = FuelIssue
         fields = [
@@ -769,6 +990,31 @@ class FuelIssueForm(StyledModelForm):
 
 
 class VisaEmbassyForm(StyledModelForm):
+    fieldsets = [
+        {
+            "title": "Embassy contact",
+            "helper": "Record contact details and address for visa follow-up.",
+            "fields": (
+                "name",
+                "country",
+                "contact_person",
+                "email",
+                "phone",
+                "address",
+            ),
+        },
+        {
+            "title": "Processing rules",
+            "helper": "Capture renewal requirements, standard fee, currency, and processing days.",
+            "fields": (
+                "renewal_requirements",
+                "standard_fee",
+                "currency",
+                "processing_days",
+            ),
+        },
+    ]
+
     class Meta:
         model = VisaEmbassy
         fields = [
@@ -791,6 +1037,33 @@ class VisaEmbassyForm(StyledModelForm):
 
 
 class ExpatriateForm(StyledModelForm):
+    fieldsets = [
+        {
+            "title": "Identity",
+            "helper": "Capture passport identity and nationality details.",
+            "fields": (
+                "first_name",
+                "last_name",
+                "nationality",
+                "passport_number",
+                "passport_expiry_date",
+            ),
+        },
+        {
+            "title": "Work and contact",
+            "helper": "Add job details, contact information, emergency contact, status, and notes.",
+            "fields": (
+                "job_title",
+                "department",
+                "phone",
+                "email",
+                "emergency_contact",
+                "status",
+                "notes",
+            ),
+        },
+    ]
+
     class Meta:
         model = Expatriate
         fields = [
@@ -815,6 +1088,34 @@ class ExpatriateForm(StyledModelForm):
 
 
 class ExpatriateVisaForm(StyledModelForm):
+    fieldsets = [
+        {
+            "title": "Visa identity",
+            "helper": "Choose the expatriate, embassy, visa type, reference, and validity dates.",
+            "fields": (
+                "expatriate",
+                "embassy",
+                "visa_type",
+                "visa_reference",
+                "issue_date",
+                "expiry_date",
+            ),
+        },
+        {
+            "title": "Renewal tracking",
+            "helper": "Record renewal status, requirements, fee, reminder owner, email, and notes.",
+            "fields": (
+                "renewal_status",
+                "renewal_requirements",
+                "renewal_fee",
+                "fee_currency",
+                "reminder_owner",
+                "reminder_email",
+                "notes",
+            ),
+        },
+    ]
+
     class Meta:
         model = ExpatriateVisa
         fields = [
@@ -849,6 +1150,27 @@ class ExpatriateVisaForm(StyledModelForm):
 
 
 class TransportRecordForm(StyledModelForm):
+    fieldsets = [
+        {
+            "title": "Trip route",
+            "helper": "Set the date, truck, crew, container, origin, and destination.",
+            "fields": (
+                "date",
+                "vehicle",
+                "driver",
+                "turn_boy",
+                "container_number",
+                "origin",
+                "destination",
+            ),
+        },
+        {
+            "title": "Trip value",
+            "helper": "Enter distance and total trip charge before adding customers and expenses.",
+            "fields": ("distance_km", "overall_charge"),
+        },
+    ]
+
     OPTIONAL_DECIMAL_FIELDS = [
         "transit_start_km",
         "common_route_end_km",
@@ -919,6 +1241,27 @@ class TransportRecordForm(StyledModelForm):
 
 
 class TransportCustomerOrderForm(StyledModelForm):
+    fieldsets = [
+        {
+            "title": "Customer and cargo",
+            "helper": "Identify the customer, linked requisition, goods, delivery address, and route points.",
+            "fields": (
+                "customer_name",
+                "requisition",
+                "cargo_description",
+                "package_type",
+                "destination",
+                "loading_point",
+                "offloading_point",
+            ),
+        },
+        {
+            "title": "Space and invoice amount",
+            "helper": "Enter the space used and the customer invoice amount. Loading and offloading fees remain internal notes.",
+            "fields": ("pieces", "loading_charge", "offloading_charge", "cargo_charge"),
+        },
+    ]
+
     OPTIONAL_DECIMAL_FIELDS = [
         "cargo_charge",
     ]
@@ -1061,6 +1404,19 @@ TransportCustomerOrderFormSet = inlineformset_factory(
 
 
 class TransportInitialChargeForm(StyledForm):
+    fieldsets = [
+        {
+            "title": "Charge type",
+            "helper": "Name the expense, choose the internal cost type, and enter the amount.",
+            "fields": ("cost_type", "custom_name", "amount"),
+        },
+        {
+            "title": "Location and assignment",
+            "helper": "Attach the charge to a route point, kilometre location, customer, and notes.",
+            "fields": ("transit_point", "km_location", "charge_target", "notes"),
+        },
+    ]
+
     cost_type = forms.ChoiceField(
         choices=TransportTransitCost.CostType.choices,
         initial=TransportTransitCost.CostType.OTHER,
@@ -1288,6 +1644,19 @@ class TransportGovernmentChargeForm(StyledModelForm):
 
 
 class TransportTransitCostForm(StyledModelForm):
+    fieldsets = [
+        {
+            "title": "Expense type",
+            "helper": "Choose the cost category, name the expense, and enter the amount and date.",
+            "fields": ("cost_type", "custom_name", "amount", "cost_date"),
+        },
+        {
+            "title": "Place and notes",
+            "helper": "Add the road section, border, checkpoint, town, or explanation for this expense.",
+            "fields": ("transit_point", "notes"),
+        },
+    ]
+
     class Meta:
         model = TransportTransitCost
         fields = [

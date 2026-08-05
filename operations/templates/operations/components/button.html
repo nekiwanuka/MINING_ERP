@@ -1,0 +1,5 @@
+{% if href %}
+    <a class="{{ classes|default:'secondary-button' }}" href="{{ href }}"{% if target %} target="{{ target }}"{% endif %}{% if rel %} rel="{{ rel }}"{% endif %}{% if aria_label %} aria-label="{{ aria_label }}"{% endif %}>{{ label }}</a>
+{% else %}
+    <button class="{{ classes|default:'secondary-button' }}" type="{{ type|default:'button' }}"{% if data_dialog_target %} data-dialog-target="{{ data_dialog_target }}"{% endif %}{% if data_dialog_close %} data-dialog-close{% endif %}{% if aria_label %} aria-label="{{ aria_label }}"{% endif %}>{{ label }}</button>
+{% endif %}

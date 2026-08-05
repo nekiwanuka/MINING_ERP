@@ -48,10 +48,7 @@
                     </div>
                 </div>
             {% empty %}
-                <div class="empty-state">
-                    <strong>No fuel stock yet</strong>
-                    <span>Record fuel brought on site before field refills.</span>
-                </div>
+                {% include 'operations/components/empty_state.html' with title='No fuel stock yet' message='Record fuel brought on site before field refills.' %}
             {% endfor %}
         </div>
     </article>
@@ -74,10 +71,7 @@
                     </div>
                 </div>
             {% empty %}
-                <div class="empty-state">
-                    <strong>No fleet registered</strong>
-                    <span>Add machines, cars, generators, or mine lines before issuing fuel.</span>
-                </div>
+                {% include 'operations/components/empty_state.html' with title='No fleet registered' message='Add machines, cars, generators, or mine lines before issuing fuel.' %}
             {% endfor %}
         </div>
     </article>

@@ -69,14 +69,4 @@
         </table>
     </div>
 </section>
-<script>
-    const transportFilter = document.querySelector('[data-transport-table-filter]');
-    const transportRows = Array.from(document.querySelectorAll('[data-transport-table] tbody tr[data-filter-text]'));
-    transportFilter?.addEventListener('input', () => {
-        const query = transportFilter.value.trim().toLowerCase();
-        transportRows.forEach((row) => {
-            row.hidden = query && !row.dataset.filterText.toLowerCase().includes(query);
-        });
-    });
-</script>
 {% endblock %}

@@ -31,23 +31,23 @@
 </section>
 
 {% for label, visas in alert_groups.items %}
-    <section class="panel visa-alert-section">
+    <section class="panel visa-alert-section{% if label == 'Expired' %} visa-alert-expired{% elif label == '3 days' %} visa-alert-critical{% elif label == '7 days' %} visa-alert-warning{% elif label == '14 days' %} visa-alert-watch{% elif label == '30 days' %} visa-alert-upcoming{% else %} visa-alert-valid{% endif %}">
         <div class="panel-header">
             <div>
                 <p class="eyebrow">Reminder group</p>
                 <h2>{{ label }}</h2>
             </div>
-            <span class="visa-alert-count">{{ visas|length }} records</span>
+            <span class="visa-alert-count{% if label == 'Expired' %} visa-alert-expired{% elif label == '3 days' %} visa-alert-critical{% elif label == '7 days' %} visa-alert-warning{% elif label == '14 days' %} visa-alert-watch{% elif label == '30 days' %} visa-alert-upcoming{% else %} visa-alert-valid{% endif %}">{{ visas|length }} records</span>
         </div>
         <div class="visa-alert-card-grid">
             {% for visa in visas %}
-                <article class="visa-alert-card">
+                <article class="visa-alert-card{% if visa.expiry_alert == 'Expired' %} visa-alert-expired{% elif visa.expiry_alert == '3 days' %} visa-alert-critical{% elif visa.expiry_alert == '7 days' %} visa-alert-warning{% elif visa.expiry_alert == '14 days' %} visa-alert-watch{% elif visa.expiry_alert == '30 days' %} visa-alert-upcoming{% else %} visa-alert-valid{% endif %}">
                     <div class="visa-alert-card-top">
                         <div>
                             <strong>{{ visa.expatriate.full_name }}</strong>
                             <span>{{ visa.get_visa_type_display }} visa</span>
                         </div>
-                        <span class="visa-alert-badge">{{ visa.expiry_alert }}</span>
+                        <span class="visa-alert-badge{% if visa.expiry_alert == 'Expired' %} visa-alert-expired{% elif visa.expiry_alert == '3 days' %} visa-alert-critical{% elif visa.expiry_alert == '7 days' %} visa-alert-warning{% elif visa.expiry_alert == '14 days' %} visa-alert-watch{% elif visa.expiry_alert == '30 days' %} visa-alert-upcoming{% else %} visa-alert-valid{% endif %}">{{ visa.expiry_alert }}</span>
                     </div>
 
                     <dl class="visa-alert-details">
@@ -82,7 +82,7 @@
                     {% endif %}
                 </article>
             {% empty %}
-                <div class="empty-state"><strong>No records</strong><span>No visas in this reminder group.</span></div>
+                {% include 'operations/components/empty_state.html' with title='No records' message='No visas in this reminder group.' %}
             {% endfor %}
         </div>
     </section>

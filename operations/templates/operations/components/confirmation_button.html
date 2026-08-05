@@ -1,0 +1,5 @@
+{% if href %}
+    <a class="{{ classes|default:'secondary-button' }}" href="{{ href }}" data-confirm-action data-confirm-message="{{ message|default:'Please confirm this action before continuing.' }}"{% if expected %} data-confirm-value="{{ expected }}"{% endif %}>{{ label }}</a>
+{% else %}
+    <button class="{{ classes|default:'secondary-button' }}" type="{{ type|default:'submit' }}" data-confirm-action data-confirm-message="{{ message|default:'Please confirm this action before continuing.' }}"{% if expected %} data-confirm-value="{{ expected }}"{% endif %}>{{ label }}</button>
+{% endif %}

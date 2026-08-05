@@ -1,0 +1,9 @@
+<section class="{{ section_classes|default:'panel list-filter-panel' }}" aria-label="{{ aria_label|default:'Search' }}">
+    <form method="get" class="{{ form_classes|default:'search-form' }}">
+        <label class="{{ field_classes|default:'field-block' }}" for="{{ input_id|default:'page-search' }}">
+            <span>{{ label|default:'Search' }}</span>
+            <input id="{{ input_id|default:'page-search' }}" class="field-control" type="search" name="{{ name|default:'q' }}" value="{{ value|default:'' }}" placeholder="{{ placeholder|default:'Search' }}">
+        </label>
+        {% include 'operations/components/filter_actions.html' with submit_label=submit_label|default:'Search' clear_url=clear_url classes=actions_classes|default:'list-filter-actions' only %}
+    </form>
+</section>

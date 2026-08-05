@@ -132,116 +132,31 @@
         </div>
     </header>
     <main id="main-content" class="page-shell" tabindex="-1">
-        {% if messages %}
-            <div class="messages">
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
+        {% include 'operations/components/toast_stack.html' %}
         {% block content %}{% endblock %}
     </main>
+    <div class="global-progress" data-global-progress aria-hidden="true"><span></span></div>
+    <div class="page-loading-overlay" data-page-loading-overlay hidden aria-hidden="true">
+        <div class="page-loading-card" role="status" aria-live="polite">
+            <span class="page-loading-icon" aria-hidden="true"></span>
+            <strong class="sr-only">Loading</strong>
+        </div>
+    </div>
+    <dialog class="confirm-dialog" data-confirm-dialog aria-labelledby="confirm-dialog-title">
+        <form method="dialog" class="confirm-dialog-panel">
+            <div>
+                <p class="eyebrow">Confirm action</p>
+                <h2 id="confirm-dialog-title">Continue?</h2>
+                <p data-confirm-dialog-message>Please confirm this action before continuing.</p>
+            </div>
+            <div class="form-actions">
+                <button class="secondary-button" value="cancel" type="submit">Cancel</button>
+                <button class="primary-button action-danger" value="confirm" type="submit">Continue</button>
+            </div>
+        </form>
+    </dialog>
+    <div class="sr-only" data-app-live-region aria-live="polite" aria-atomic="true"></div>
     {{ ui_translations|json_script:"ui-translations" }}
-    <script>
-        (function () {
-            var script = document.getElementById('ui-translations');
-            if (!script) { return; }
-            var translations = JSON.parse(script.textContent || '{}');
-            var skipTags = { SCRIPT: true, STYLE: true, TEXTAREA: true };
-            var phraseKeys = Object.keys(translations).sort(function (left, right) {
-                return right.length - left.length;
-            });
-
-            function escapeRegExp(value) {
-                return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            }
-
-            function translateValue(value) {
-                var trimmed = String(value || '').replace(/\s+/g, ' ').trim();
-                if (!trimmed) { return null; }
-                return translations[trimmed] || null;
-            }
-
-            function translateMixedText(value) {
-                var translated = String(value || '');
-                phraseKeys.forEach(function (key) {
-                        if (key.trim().length < 2 || translated.toLowerCase().indexOf(key.toLowerCase()) === -1) { return; }
-                    if (/^[A-Za-z][A-Za-z0-9 /().,-]*$/.test(key)) {
-                        translated = translated.replace(
-                                new RegExp('(^|[^A-Za-z0-9])(' + escapeRegExp(key) + ')(?=$|[^A-Za-z0-9])', 'gi'),
-                            function (match, prefix) { return prefix + translations[key]; }
-                        );
-                    } else {
-                            translated = translated.replace(new RegExp(escapeRegExp(key), 'gi'), translations[key]);
-                    }
-                });
-                return translated === value ? null : translated;
-            }
-
-            function translateTextNodes(root) {
-                var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-                var nodes = [];
-                while (walker.nextNode()) { nodes.push(walker.currentNode); }
-                nodes.forEach(function (node) {
-                    if (!node.parentElement || skipTags[node.parentElement.tagName]) { return; }
-                    if (node.parentElement.closest('.language-form, .login-language-form')) { return; }
-                    var translated = translateValue(node.nodeValue);
-                    if (translated) {
-                        node.nodeValue = node.nodeValue.replace(/\S(?:.|\n)*\S|\S/, translated);
-                        return;
-                    }
-                    translated = translateMixedText(node.nodeValue);
-                    if (translated) {
-                        node.nodeValue = translated;
-                    }
-                });
-            }
-
-            function translateAttributes(root) {
-                root.querySelectorAll('[placeholder], [title], [aria-label], input[type="submit"]').forEach(function (element) {
-                    ['placeholder', 'title', 'aria-label', 'value'].forEach(function (attribute) {
-                        if (!element.hasAttribute(attribute)) { return; }
-                        var translated = translateValue(element.getAttribute(attribute));
-                        if (translated) { element.setAttribute(attribute, translated); }
-                    });
-                });
-            }
-
-            translateTextNodes(document.body);
-            translateAttributes(document.body);
-
-            var menuToggle = document.querySelector('.mobile-menu-toggle');
-            var menuDrawer = document.getElementById('mobile-menu');
-            var menuBackdrop = document.querySelector('.mobile-menu-backdrop');
-            var menuCloseControls = document.querySelectorAll('[data-mobile-menu-close]');
-
-            function setMenuOpen(isOpen) {
-                if (!menuToggle || !menuDrawer || !menuBackdrop) { return; }
-                document.body.classList.toggle('mobile-menu-open', isOpen);
-                menuToggle.setAttribute('aria-expanded', String(isOpen));
-                menuBackdrop.hidden = !isOpen;
-                if (isOpen) {
-                    menuDrawer.querySelector('a, button, summary, select')?.focus();
-                } else {
-                    menuToggle.focus();
-                }
-            }
-
-            if (menuToggle && menuDrawer && menuBackdrop) {
-                menuToggle.addEventListener('click', function () {
-                    setMenuOpen(!document.body.classList.contains('mobile-menu-open'));
-                });
-                menuCloseControls.forEach(function (control) {
-                    control.addEventListener('click', function () { setMenuOpen(false); });
-                });
-                menuDrawer.querySelectorAll('a').forEach(function (link) {
-                    link.addEventListener('click', function () { setMenuOpen(false); });
-                });
-                document.addEventListener('keydown', function (event) {
-                    if (event.key === 'Escape') { setMenuOpen(false); }
-                });
-            }
-        }());
-    </script>
+    <script src="{% static 'js/app.js' %}" defer></script>
 </body>
 </html>

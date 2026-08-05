@@ -1,9 +1,10 @@
 from collections import defaultdict
+import csv
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 from io import BytesIO
 import os
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from xml.sax.saxutils import escape
 
 from django.contrib import messages
@@ -1146,14 +1147,18 @@ def dashboard(request):
 @login_required
 @access_required(UserModuleAccess.Module.REQUISITIONS, ACTION_READ)
 def requisition_list(request):
-    if has_only_requisition_access(request.user) and has_module_access(
-        request.user, UserModuleAccess.Module.REQUISITIONS, ACTION_CREATE
-    ):
-        return redirect("requisition_create")
-
     query = request.GET.get("q", "").strip()
     status = request.GET.get("status", "all").strip() or "all"
+    sort = request.GET.get("sort", "-created").strip() or "-created"
     allowed_statuses = {code for code, _label in Requisition.Status.choices}
+    sort_map = {
+        "number": "requisition_number",
+        "-number": "-requisition_number",
+        "status": "status",
+        "-status": "-status",
+        "created": "created_at",
+        "-created": "-created_at",
+    }
     queryset = Requisition.objects.select_related("requester").prefetch_related("items")
     can_see_all = (
         request.user.is_superuser
@@ -1177,8 +1182,52 @@ def requisition_list(request):
         ).distinct()
     if status in allowed_statuses:
         queryset = queryset.filter(status=status)
+    queryset = queryset.order_by(sort_map.get(sort, "-created_at"), "-id")
 
-    requisitions = list(queryset[:LIST_RESULTS_LIMIT])
+    filtered_count = queryset.count()
+    if request.GET.get("export") == "csv":
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="requisitions.csv"'
+        writer = csv.writer(response)
+        writer.writerow(
+            [
+                "Number",
+                "Urgency",
+                "Source",
+                "Items",
+                "Language",
+                "Pieces",
+                "Status",
+                "Company / site",
+                "Suggested supplier",
+                "Submitted by",
+                "Created",
+            ]
+        )
+        for requisition in queryset:
+            writer.writerow(
+                [
+                    requisition.requisition_number,
+                    "Urgent" if requisition.urgent else "Not urgent",
+                    (
+                        "Uploaded file"
+                        if requisition.uploaded_document
+                        else "Generated form"
+                    ),
+                    requisition.item_summary,
+                    requisition.get_language_display(),
+                    requisition.total_pieces,
+                    friendly_requisition_status(requisition.status),
+                    requisition.requester_label,
+                    requisition.supplier_suggestion or "",
+                    requisition.requester.username,
+                    requisition.created_at.strftime("%Y-%m-%d"),
+                ]
+            )
+        return response
+
+    page_obj = Paginator(queryset, LIST_RESULTS_LIMIT).get_page(request.GET.get("page"))
+    requisitions = list(page_obj.object_list)
     for requisition in requisitions:
         requisition.can_edit_pending = can_edit_requisition(request.user, requisition)
         requisition.display_status = friendly_requisition_status(requisition.status)
@@ -1187,6 +1236,7 @@ def requisition_list(request):
         row["status"]: row["total"]
         for row in base_queryset.values("status").annotate(total=Count("id"))
     }
+    pagination_query = urlencode({"q": query, "status": status, "sort": sort}) + "&"
     return render(
         request,
         "operations/requisition_list.html",
@@ -1194,6 +1244,10 @@ def requisition_list(request):
             "requisitions": requisitions,
             "query": query,
             "status": status,
+            "sort": sort,
+            "page_obj": page_obj,
+            "pagination_query": pagination_query,
+            "filtered_count": filtered_count,
             "status_options": [
                 (code, friendly_requisition_status(code))
                 for code, label in Requisition.Status.choices
@@ -1953,10 +2007,16 @@ def requisition_process_list(request):
             | Q(commercial_documents__supplier__name__icontains=query)
         ).distinct()
     page_obj = Paginator(requisitions.distinct(), 10).get_page(request.GET.get("page"))
+    pagination_query = urlencode({"q": query}) + "&" if query else ""
     return render(
         request,
         "operations/requisition_process.html",
-        {"requisitions": page_obj.object_list, "page_obj": page_obj, "query": query},
+        {
+            "requisitions": page_obj.object_list,
+            "page_obj": page_obj,
+            "query": query,
+            "pagination_query": pagination_query,
+        },
     )
 
 

@@ -1,0 +1,8 @@
+<details class="nav-group">
+    <summary aria-label="Open {{ label|lower }} menu">{{ label }}</summary>
+    <span class="nav-submenu" aria-label="{{ label }} menu links">
+        {% for item in items %}
+            {% if item.visible %}<a href="{{ item.href }}">{{ item.label }}</a>{% endif %}
+        {% endfor %}
+    </span>
+</details>

@@ -9,33 +9,18 @@
 </head>
 <body class="login-body cpanel-login-body">
     <main class="login-shell">
-        <header class="login-brand-row" aria-label="Application logo">
-            <span class="login-brand-mark">
-                {% if app_setting.logo %}
-                    <img class="login-brand-logo" src="{{ app_setting.logo.url }}" alt="{{ app_setting.application_name }} logo">
-                {% else %}
-                    {{ app_setting.application_name|default:"Mining ERP"|slice:":2"|upper }}
-                {% endif %}
-            </span>
-            <span class="login-system-name">{{ app_setting.application_name|default:"Mining ERP" }}</span>
-        </header>
-        {% if app_setting.enable_language_switcher %}
-            <form action="{% url 'language_change' %}" method="get" class="login-language-form" aria-label="{{ 'Change language'|tr:active_language }}">
-                <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                <label><span>{{ 'Language'|tr:active_language }}</span>
-                    <select name="language" onchange="this.form.submit()">
-                        {% for option in app_language_options %}
-                            <option value="{{ option.code }}" {% if option.code == active_language %}selected{% endif %}>{{ option.label }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-            </form>
-        {% endif %}
+        <aside class="login-logo-side" aria-label="{{ app_setting.application_name|default:'Mining ERP' }}">
+            {% if app_setting.logo %}
+                <img class="login-side-logo" src="{{ app_setting.logo.url }}" alt="{{ app_setting.application_name|default:'Mining ERP' }} logo">
+            {% else %}
+                <span class="login-side-mark" aria-hidden="true">{{ app_setting.application_name|default:"Mining ERP"|slice:":2"|upper }}</span>
+            {% endif %}
+        </aside>
         <section class="login-panel">
-            <div class="login-panel-heading">
-                <span>Control Panel</span>
-                <h2>{{ 'Log in'|tr:active_language }}</h2>
-            </div>
+            <header class="login-panel-heading">
+                <h1 id="login-title">{{ 'Log in'|tr:active_language }}</h1>
+                <p>{{ app_setting.application_name|default:"Mining ERP" }}</p>
+            </header>
             {% if form.errors %}
                 <div class="alert alert-error">Invalid username or password.</div>
             {% endif %}
@@ -44,23 +29,41 @@
                 {% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next }}">{% endif %}
                 <label class="login-field">
                     <span>{{ 'Username'|tr:active_language }}</span>
-                    <input type="text" name="username" autofocus autocapitalize="none" autocomplete="username" maxlength="150" required id="id_username" value="{{ form.username.value|default:remembered_username|default:'' }}" placeholder="Username">
+                    <input type="text" name="username" autofocus autocapitalize="none" autocomplete="username" maxlength="150" required id="id_username" value="{{ form.username.value|default:remembered_username|default:'' }}" placeholder="Enter your username">
                 </label>
                 <label class="login-field">
                     <span>{{ 'Password'|tr:active_language }}</span>
                     <span class="password-control">
-                        <input type="password" name="password" autocomplete="current-password" required id="id_password" placeholder="Password">
+                        <input type="password" name="password" autocomplete="current-password" required id="id_password" placeholder="Enter your password">
                         <button type="button" class="password-toggle" aria-label="Show password" title="Show password" aria-controls="id_password" aria-pressed="false"><span class="password-toggle-icon" aria-hidden="true"></span></button>
                     </span>
                 </label>
-                <p class="forgot-password-note">{{ 'Forgot password? Contact administrator.'|tr:active_language }}</p>
-                <label class="login-remember-row">
-                    <input type="checkbox" name="remember_me" id="remember_me" {% if remembered_username %}checked{% endif %}>
-                    <span>{{ 'Remember my username on this computer.'|tr:active_language }}</span>
-                </label>
-                <button class="primary-button" type="submit">{{ 'Sign in'|tr:active_language }}</button>
+                <div class="login-support-row">
+                    <span class="forgot-password-note">Forgot password? Contact administrator.</span>
+                    <label class="login-remember-row">
+                        <input type="checkbox" name="remember_me" id="remember_me" {% if remembered_username %}checked{% endif %}>
+                        <span>Remember username</span>
+                    </label>
+                </div>
+                <button class="primary-button" type="submit">Login</button>
             </form>
+            {% if app_setting.enable_language_switcher %}
+                <form action="{% url 'language_change' %}" method="get" class="login-language-form" aria-label="{{ 'Change language'|tr:active_language }}">
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <label><span>{{ 'Language'|tr:active_language }}</span>
+                        <select name="language" onchange="this.form.submit()">
+                            {% for option in app_language_options %}
+                                <option value="{{ option.code }}" {% if option.code == active_language %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                </form>
+            {% endif %}
         </section>
+        <aside class="login-key-side" aria-hidden="true">
+            <img src="{% static 'img/login-keys.svg' %}" alt="">
+        </aside>
+        <footer class="login-footer">{{ app_setting.application_name|default:"Mining ERP" }}. All rights reserved.</footer>
     </main>
     {{ ui_translations|json_script:"ui-translations" }}
     <script>
@@ -100,6 +103,11 @@
 
             if (usernameInput && rememberInput) {
                 document.querySelector('.login-form').addEventListener('submit', function () {
+                    var submitButton = document.querySelector('.login-form .primary-button');
+                    if (submitButton) {
+                        submitButton.textContent = 'Signing in...';
+                        submitButton.disabled = true;
+                    }
                     if (rememberInput.checked) {
                         window.localStorage.setItem('miningErpUsername', usernameInput.value);
                     } else {

@@ -17,9 +17,9 @@
 <section class="fuel-summary-grid visa-summary-grid" aria-label="Visa expiry summary">
     <article class="fuel-summary-card visa-alert-expired"><span>Expired</span><strong>{{ expired_count }}</strong></article>
     <article class="fuel-summary-card visa-alert-critical"><span>Due in 3 days</span><strong>{{ due_3_count }}</strong></article>
-    <article class="fuel-summary-card"><span>Due in 7 days</span><strong>{{ due_7_count }}</strong></article>
-    <article class="fuel-summary-card"><span>Due in 14 days</span><strong>{{ due_14_count }}</strong></article>
-    <article class="fuel-summary-card"><span>Due in 30 days</span><strong>{{ due_30_count }}</strong></article>
+    <article class="fuel-summary-card visa-alert-warning"><span>Due in 7 days</span><strong>{{ due_7_count }}</strong></article>
+    <article class="fuel-summary-card visa-alert-watch"><span>Due in 14 days</span><strong>{{ due_14_count }}</strong></article>
+    <article class="fuel-summary-card visa-alert-upcoming"><span>Due in 30 days</span><strong>{{ due_30_count }}</strong></article>
 </section>
 
 <section class="panel list-filter-panel" aria-label="Search visa records">
@@ -71,7 +71,7 @@
                         <td>{{ visa.get_visa_type_display }}</td>
                         <td>{{ visa.embassy.name }}</td>
                         <td>{{ visa.expiry_date }}</td>
-                        <td><strong class="visa-alert-chip">{{ visa.expiry_alert }}</strong></td>
+                        <td><strong class="visa-alert-chip{% if visa.expiry_alert == 'Expired' %} visa-alert-expired{% elif visa.expiry_alert == '3 days' %} visa-alert-critical{% elif visa.expiry_alert == '7 days' %} visa-alert-warning{% elif visa.expiry_alert == '14 days' %} visa-alert-watch{% elif visa.expiry_alert == '30 days' %} visa-alert-upcoming{% else %} visa-alert-valid{% endif %}">{{ visa.expiry_alert }}</strong></td>
                         <td>{{ visa.get_renewal_status_display }}</td>
                         <td>{{ visa.reminder_recipient|default:"-" }}</td>
                         <td>{{ visa.fee_currency }} {{ visa.renewal_fee|floatformat:2 }}</td>
@@ -103,7 +103,7 @@
                     </div>
                 </div>
             {% empty %}
-                <div class="empty-state"><strong>No expatriates yet</strong><span>Add expatriate details before recording visa validity.</span></div>
+                {% include 'operations/components/empty_state.html' with title='No expatriates yet' message='Add expatriate details before recording visa validity.' %}
             {% endfor %}
         </div>
     </article>
@@ -125,7 +125,7 @@
                     </div>
                 </div>
             {% empty %}
-                <div class="empty-state"><strong>No embassies yet</strong><span>Add responsible embassies and renewal requirements.</span></div>
+                {% include 'operations/components/empty_state.html' with title='No embassies yet' message='Add responsible embassies and renewal requirements.' %}
             {% endfor %}
         </div>
     </article>

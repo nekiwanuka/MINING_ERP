@@ -53,18 +53,9 @@
                 </div>
             </article>
         {% empty %}
-            <div class="empty-state">
-                <strong>No business documents yet</strong>
-                <span>Create a document or upload one directly from a requisition.</span>
-            </div>
+            {% include 'operations/components/empty_state.html' with title='No business documents yet' message='Create a document or upload one directly from a requisition.' %}
         {% endfor %}
     </div>
-    {% if page_obj.paginator.num_pages > 1 %}
-        <nav class="pagination-bar" aria-label="Document pages">
-            {% if page_obj.has_previous %}<a class="secondary-button" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if document_type != 'all' %}type={{ document_type|urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
-            <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-            {% if page_obj.has_next %}<a class="secondary-button" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if document_type != 'all' %}type={{ document_type|urlencode }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>{% endif %}
-        </nav>
-    {% endif %}
+    {% include 'operations/components/pagination.html' with page_obj=page_obj aria_label='Document pages' %}
 </section>
 {% endblock %}

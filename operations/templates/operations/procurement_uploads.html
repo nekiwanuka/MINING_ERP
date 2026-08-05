@@ -47,17 +47,11 @@
                         <td>{% if document.attachment %}<a class="small-button" href="{{ document.attachment.url }}" target="_blank" rel="noopener noreferrer">Open</a>{% else %}-{% endif %}</td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="7" class="empty-cell">No requisition uploads matched your search.</td></tr>
+                    <tr><td colspan="7" class="empty-cell">{% include 'operations/components/empty_state.html' with title='No requisition uploads matched your search.' %}</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    {% if page_obj.paginator.num_pages > 1 %}
-        <nav class="pagination-bar" aria-label="Procurement upload pages">
-            {% if page_obj.has_previous %}<a class="secondary-button" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if document_type != 'all' %}type={{ document_type|urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
-            <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-            {% if page_obj.has_next %}<a class="secondary-button" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if document_type != 'all' %}type={{ document_type|urlencode }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>{% endif %}
-        </nav>
-    {% endif %}
+    {% include 'operations/components/pagination.html' with page_obj=page_obj aria_label='Procurement upload pages' %}
 </section>
 {% endblock %}

@@ -2,42 +2,70 @@
 {% load operations_i18n %}
 {% block title %}Requisition Process | Mining ERP{% endblock %}
 {% block content %}
-<section class="page-heading">
-    <div>
-        <p class="eyebrow">Procurement</p>
-        <h1>Requisition process</h1>
-        <p>Search a requisition and trace its split supplier POs, uploaded invoices, and receipts.</p>
+<div class="process-sticky-shell">
+    <section class="page-heading process-page-heading">
+        <div>
+            <p class="eyebrow">Procurement</p>
+            <h1>Requisition process</h1>
+            <p>Search requisitions, then open View to trace supplier POs, uploaded invoices, receipts, and instructions.</p>
+        </div>
+        <div class="button-row">
+            {% url 'procurement_dashboard' as procurement_url %}{% include 'operations/components/button.html' with href=procurement_url label='Back to procurement' classes='secondary-button' %}
+            {% url 'requisition_process_list' as process_url %}{% include 'operations/components/button.html' with href=process_url label='Refresh' classes='secondary-button' %}
+        </div>
+    </section>
+
+    <section class="panel process-search-panel">
+        <form method="get" class="search-form">
+            <label class="field-block">
+                <span>Search requisition, supplier, PO, invoice, or receipt</span>
+                <input class="field-control" type="search" name="q" value="{{ query }}" placeholder="REQ, company, site, PO, supplier, invoice, receipt">
+            </label>
+            {% include 'operations/components/button.html' with label='Search' classes='primary-button action-view' type='submit' %}
+        </form>
+    </section>
+</div>
+
+<section class="panel process-list-panel">
+    <div class="panel-header">
+        <h2>Process list</h2>
+        <span>{{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</span>
     </div>
-    <a class="secondary-button" href="{% url 'procurement_dashboard' %}">Back to procurement</a>
+    <div class="table-wrap">
+        <table class="data-table process-table">
+            <caption>Requisitions available for procurement process tracing</caption>
+            <thead>
+                <tr><th scope="col">Requisition</th><th scope="col">Status</th><th scope="col">Summary</th><th scope="col">Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for requisition in requisitions %}
+                    <tr class="dialog-list-row" role="button" tabindex="0" data-dialog-row="process-detail-{{ requisition.pk }}" aria-label="View process details for requisition {{ requisition.requisition_number }}">
+                        <td data-label="Requisition"><strong>{{ requisition.requisition_number }}</strong></td>
+                        <td data-label="Status"><span class="status-pill">{{ requisition.get_status_display }}</span></td>
+                        <td data-label="Summary">{{ requisition.item_summary|truncatechars:120 }}</td>
+                        <td data-label="Actions"><span class="table-actions"><button class="small-button action-view" type="button" data-dialog-target="process-detail-{{ requisition.pk }}">View</button>{% url 'requisition_document_upload' requisition.pk as upload_url %}{% include 'operations/components/button.html' with href=upload_url label='Upload document' classes='small-button action-create' %}</span></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="4" class="empty-cell">{% include 'operations/components/empty_state.html' with title='No requisitions matched your search' message='Try a requisition number, supplier, PO, invoice, or receipt.' %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </section>
 
-<section class="panel process-search-panel">
-    <form method="get" class="search-form">
-        <label class="field-block">
-            <span>Search requisition, supplier, PO, invoice, or receipt</span>
-            <input class="field-control" type="search" name="q" value="{{ query }}" placeholder="REQ, company, site, PO, supplier, invoice, receipt">
-        </label>
-        <button class="primary-button" type="submit">Search</button>
-    </form>
-</section>
+{% include 'operations/components/pagination.html' with page_obj=page_obj querystring=pagination_query classes='process-pagination' aria_label='Requisition process pages' %}
 
-<section class="process-list">
-    {% for requisition in requisitions %}
-        <article class="panel process-card">
-            <div class="panel-header">
+{% for requisition in requisitions %}
+    <dialog class="entry-modal process-detail-modal" id="process-detail-{{ requisition.pk }}" aria-labelledby="process-detail-title-{{ requisition.pk }}">
+        <article class="entry-modal-panel process-detail-panel">
+            <header class="requisition-detail-header">
                 <div>
-                    <h2>{{ requisition.requisition_number }}</h2>
-                    <p class="muted-copy">{{ requisition.requester_label }} · {{ requisition.total_pieces }} pieces · {{ requisition.get_status_display }}</p>
+                    <p class="eyebrow">Process trace</p>
+                    <h2 id="process-detail-title-{{ requisition.pk }}">{{ requisition.requisition_number }}</h2>
+                    <p>{{ requisition.requester_label }} · {{ requisition.total_pieces }} pieces · {{ requisition.get_status_display }}</p>
                 </div>
-                <div class="button-row">
-                    <a class="small-button" href="{% url 'requisition_download' requisition.pk %}">Download requester copy</a>
-                    {% if requisition.uploaded_document %}
-                        <a class="small-button" href="{% url 'requisition_uploaded_document_download' requisition.pk %}">Uploaded file</a>
-                    {% endif %}
-                    <a class="small-button" href="{% url 'requisition_document_upload' requisition.pk %}">Upload supplier document</a>
-                    <span class="status-pill">{{ requisition.get_status_display }}</span>
-                </div>
-            </div>
+                {% include 'operations/components/dialog_close.html' %}
+            </header>
 
             <div class="process-summary-grid">
                 <div><span>Items</span><strong>{{ requisition.items.count }}</strong></div>
@@ -45,8 +73,18 @@
                 <div><span>Company / site</span><strong>{{ requisition.requester_label }}</strong></div>
                 <div><span>Suggested supplier</span><strong>{{ requisition.supplier_suggestion|default:"-" }}</strong></div>
                 <div><span>Source</span><strong>{% if requisition.uploaded_document %}Uploaded file{% else %}Generated form{% endif %}</strong></div>
-                <div><span>Requested</span><strong>{{ requisition.item_summary|truncatechars:80 }}</strong></div>
+                <div><span>Requested</span><strong>{{ requisition.item_summary|truncatechars:120 }}</strong></div>
             </div>
+
+            <section class="requisition-instructions" aria-label="Process instructions">
+                <h3>Further instructions</h3>
+                <ol>
+                    <li>Confirm the requisition status, item count, supplier suggestion, and source document.</li>
+                    <li>Open supplier documents before generating or approving purchase orders.</li>
+                    <li>Check every purchase inquiry for supplier invoices, purchase orders, and receipts.</li>
+                    <li>Upload missing supplier documents from this popup before continuing the procurement flow.</li>
+                </ol>
+            </section>
 
             <section class="process-item-block">
                 <div class="process-item-heading">
@@ -63,7 +101,7 @@
                         </div>
                         <div class="process-document-actions">
                             <strong>{% money document.amount %}</strong>
-                            {% if document.attachment %}<a class="small-button" href="{{ document.attachment.url }}">Open file</a>{% endif %}
+                            {% if document.attachment %}{% include 'operations/components/button.html' with href=document.attachment.url label='Open file' classes='small-button action-view' %}{% endif %}
                         </div>
                     </article>
                 {% empty %}
@@ -120,17 +158,15 @@
                     <p class="empty-copy">No item rows recorded for this requisition.</p>
                 </section>
             {% endfor %}
-        </article>
-    {% empty %}
-        <section class="panel"><p class="empty-copy">No requisitions matched your search.</p></section>
-    {% endfor %}
-</section>
 
-{% if page_obj.paginator.num_pages > 1 %}
-    <nav class="pagination-bar process-pagination" aria-label="Requisition process pages">
-        {% if page_obj.has_previous %}<a class="secondary-button" href="?{% if query %}q={{ query|urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
-        <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-        {% if page_obj.has_next %}<a class="secondary-button" href="?{% if query %}q={{ query|urlencode }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>{% endif %}
-    </nav>
-{% endif %}
+            <footer class="requisition-detail-actions">
+                {% url 'requisition_download' requisition.pk as download_url %}{% include 'operations/components/button.html' with href=download_url label='Download requester copy' classes='small-button action-view' %}
+                {% if requisition.uploaded_document %}
+                    {% url 'requisition_uploaded_document_download' requisition.pk as uploaded_url %}{% include 'operations/components/button.html' with href=uploaded_url label='Uploaded file' classes='small-button action-view' %}
+                {% endif %}
+                {% url 'requisition_document_upload' requisition.pk as upload_url %}{% include 'operations/components/button.html' with href=upload_url label='Upload supplier document' classes='small-button action-create' %}
+            </footer>
+        </article>
+    </dialog>
+{% endfor %}
 {% endblock %}

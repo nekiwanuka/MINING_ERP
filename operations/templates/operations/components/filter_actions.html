@@ -1,0 +1,4 @@
+<div class="{{ classes|default:'list-filter-actions' }}">
+    {% include 'operations/components/button.html' with label=submit_label|default:'Search' classes=submit_classes|default:'primary-button' type='submit' only %}
+    {% if clear_url %}{% include 'operations/components/button.html' with href=clear_url label=clear_label|default:'Clear' classes='secondary-button' only %}{% endif %}
+</div>

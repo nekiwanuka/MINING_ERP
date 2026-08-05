@@ -31,3 +31,22 @@ def money(context, value):
         amount *= exchange_rate
     amount = amount.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
     return f"{currency} {amount:.0f}"
+
+
+@register.simple_tag(takes_context=True)
+def querystring_without_page(context):
+    request = context.get("request")
+    if not request:
+        return ""
+    query = request.GET.copy()
+    query.pop("page", None)
+    encoded = query.urlencode()
+    return f"{encoded}&" if encoded else ""
+
+
+@register.simple_tag
+def get_field(form, field_name):
+    try:
+        return form[field_name]
+    except Exception:
+        return None

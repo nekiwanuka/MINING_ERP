@@ -5,11 +5,14 @@
     <div class="requisition-heading-copy">
         <p class="eyebrow">Requisitions</p>
         <h1>Requested items</h1>
-        <p>Find recent requests quickly, check their status, and open editable requisitions from one cleaner page.</p>
+        <p>Find recent requests quickly, then open View for the full details, documents, and next instructions.</p>
     </div>
     <div class="button-row">
-        {% if can_read_procurement %}<a class="secondary-button" href="{% url 'requisition_process_list' %}">Business process search</a>{% endif %}
-        {% if can_create_requisitions %}<a class="primary-button" href="{% url 'requisition_create' %}">New requisition</a>{% endif %}
+        {% url 'dashboard' as dashboard_url %}{% include 'operations/components/button.html' with href=dashboard_url label='Back' classes='secondary-button' %}
+        {% if can_read_procurement %}{% url 'requisition_process_list' as process_url %}{% include 'operations/components/button.html' with href=process_url label='Business process search' classes='secondary-button' %}{% endif %}
+        <a class="secondary-button" href="?q={{ query|urlencode }}&status={{ status }}&sort={{ sort }}&export=csv">Export</a>
+        {% url 'requisition_list' as list_url %}{% include 'operations/components/button.html' with href=list_url label='Refresh' classes='secondary-button' %}
+        {% if can_create_requisitions %}{% url 'requisition_create' as create_url %}{% include 'operations/components/button.html' with href=create_url label='New requisition' classes='primary-button action-create' %}{% endif %}
     </div>
 </section>
 
@@ -43,85 +46,90 @@
                 {% endfor %}
             </select>
         </label>
+        <input type="hidden" name="sort" value="{{ sort }}">
         <div class="requisition-search-actions">
-            <button class="primary-button" type="submit">Search</button>
-            {% if query or status != 'all' %}<a class="secondary-button" href="{% url 'requisition_list' %}">Clear</a>{% endif %}
+            {% include 'operations/components/button.html' with label='Search' classes='primary-button action-view' type='submit' %}
+            {% if query or status != 'all' %}{% url 'requisition_list' as clear_url %}{% include 'operations/components/button.html' with href=clear_url label='Clear' classes='secondary-button' %}{% endif %}
         </div>
     </form>
-    <p>Showing up to 20 recent requisitions. Use search for older requests by number, requester, item name, or keyword.</p>
-</section>
-
-<section class="requisition-card-list" aria-label="Requisition results">
-    {% for requisition in requisitions %}
-        <article class="requisition-result-card">
-            <div class="requisition-result-copy">
-                <div class="requisition-result-header">
-                    <div>
-                        <p class="eyebrow">{{ requisition.get_language_display }}</p>
-                        <h2>{{ requisition.requisition_number }}</h2>
-                    </div>
-                    <span class="status-pill">{{ requisition.display_status }}</span>
-                </div>
-                <p>{{ requisition.item_summary|truncatechars:180 }}</p>
-                <dl class="requisition-meta-list">
-                    <div><dt>Source</dt><dd>{% if requisition.uploaded_document %}Uploaded file{% else %}Generated form{% endif %}</dd></div>
-                    <div><dt>Pieces</dt><dd>{{ requisition.total_pieces }}</dd></div>
-                    <div><dt>Company / site</dt><dd>{{ requisition.requester_label }}</dd></div>
-                    {% if requisition.supplier_suggestion %}<div><dt>Suggested supplier</dt><dd>{{ requisition.supplier_suggestion }}</dd></div>{% endif %}
-                    <div><dt>Submitted by</dt><dd>{{ requisition.requester }}</dd></div>
-                    <div><dt>Created</dt><dd>{{ requisition.created_at|date:"Y-m-d" }}</dd></div>
-                    <div><dt>Urgency</dt><dd>{% if requisition.urgent %}Urgent{% else %}Not urgent{% endif %}</dd></div>
-                </dl>
-            </div>
-            <div class="requisition-result-actions">
-                <a class="small-button" href="{% url 'requisition_download' requisition.pk %}">Download copy</a>
-                {% if requisition.uploaded_document %}
-                    <a class="small-button" href="{% url 'requisition_uploaded_document_download' requisition.pk %}">Uploaded file</a>
-                {% endif %}
-                {% if requisition.can_edit_pending %}
-                    <a class="small-button" href="{% url 'requisition_edit' requisition.pk %}">Edit</a>
-                {% else %}
-                    <span class="status-pill muted-pill">Locked</span>
-                {% endif %}
-            </div>
-        </article>
-    {% empty %}
-        <div class="empty-state requisition-empty-state">
-            <strong>No requisitions found</strong>
-            <span>Try a different search term or status filter.</span>
-        </div>
-    {% endfor %}
+    <p>{{ filtered_count }} matching requisition{{ filtered_count|pluralize }}. Use search for older requests by number, requester, item name, or keyword.</p>
 </section>
 
 <section class="panel requisition-table-panel">
     <div class="panel-header">
-        <h2>Compact table view</h2>
-        <span>Same results</span>
+        <h2>Requisition list</h2>
+        <span>{{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ filtered_count }}</span>
     </div>
     <div class="table-wrap">
-        <table>
+        <table class="data-table">
+            <caption>Requisition search results with sortable columns and row actions</caption>
             <thead>
-                <tr><th>Number</th><th>Urgency</th><th>Source</th><th>Items</th><th>Language</th><th>Pieces</th><th>Status</th><th>Company / site</th><th>Suggested supplier</th><th>Action</th></tr>
+                <tr><th scope="col"><a href="?q={{ query|urlencode }}&status={{ status }}&sort={% if sort == 'number' %}-number{% else %}number{% endif %}">Number</a></th><th scope="col">Items</th><th scope="col"><a href="?q={{ query|urlencode }}&status={{ status }}&sort={% if sort == 'status' %}-status{% else %}status{% endif %}">Status</a></th><th scope="col"><a href="?q={{ query|urlencode }}&status={{ status }}&sort={% if sort == 'created' %}-created{% else %}created{% endif %}">Created</a></th><th scope="col">Actions</th></tr>
             </thead>
             <tbody>
                 {% for requisition in requisitions %}
-                    <tr>
-                        <td>{{ requisition.requisition_number }}</td>
-                        <td>{% if requisition.urgent %}<span class="urgent-pill">Urgent</span>{% else %}<span class="status-pill muted-pill">Not urgent</span>{% endif %}</td>
-                        <td>{% if requisition.uploaded_document %}Uploaded{% else %}Generated{% endif %}</td>
-                        <td>{{ requisition.item_summary|truncatechars:120 }}</td>
-                        <td>{{ requisition.get_language_display }}</td>
-                        <td>{{ requisition.total_pieces }}</td>
-                        <td><span class="status-pill">{{ requisition.display_status }}</span></td>
-                        <td>{{ requisition.requester_label }}</td>
-                        <td>{{ requisition.supplier_suggestion|default:"-" }}</td>
-                        <td><a class="small-button" href="{% url 'requisition_download' requisition.pk %}">Download</a> {% if requisition.uploaded_document %}<a class="small-button" href="{% url 'requisition_uploaded_document_download' requisition.pk %}">File</a>{% endif %} {% if requisition.can_edit_pending %}<a class="small-button" href="{% url 'requisition_edit' requisition.pk %}">Edit</a>{% else %}<span class="muted-copy">Locked</span>{% endif %}</td>
+                    <tr class="dialog-list-row" role="button" tabindex="0" data-dialog-row="requisition-detail-{{ requisition.pk }}" aria-label="View details for requisition {{ requisition.requisition_number }}">
+                        <td data-label="Number">{{ requisition.requisition_number }}</td>
+                        <td data-label="Items">{{ requisition.item_summary|truncatechars:120 }}</td>
+                        <td data-label="Status"><span class="status-pill">{{ requisition.display_status }}</span></td>
+                        <td data-label="Created">{{ requisition.created_at|date:"Y-m-d" }}</td>
+                        <td data-label="Actions"><span class="table-actions"><button class="small-button action-view" type="button" data-dialog-target="requisition-detail-{{ requisition.pk }}">View</button>{% if requisition.can_edit_pending %}{% url 'requisition_edit' requisition.pk as edit_url %}{% include 'operations/components/button.html' with href=edit_url label='Edit' classes='small-button action-edit' %}{% else %}<span class="muted-copy">Locked</span>{% endif %}</span></td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="10" class="empty-cell">No requisitions found.</td></tr>
+                    <tr><td colspan="5" class="empty-cell">{% include 'operations/components/empty_state.html' with title='No requisitions found' message='No data matches the current search and filter.' %}</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+    {% include 'operations/components/pagination.html' with page_obj=page_obj querystring=pagination_query aria_label='Requisition pagination' %}
 </section>
+
+{% for requisition in requisitions %}
+    <dialog class="entry-modal requisition-detail-modal" id="requisition-detail-{{ requisition.pk }}" aria-labelledby="requisition-detail-title-{{ requisition.pk }}">
+        <article class="entry-modal-panel requisition-detail-panel">
+            <header class="requisition-detail-header">
+                <div>
+                    <p class="eyebrow">Requisition details</p>
+                    <h2 id="requisition-detail-title-{{ requisition.pk }}">{{ requisition.requisition_number }}</h2>
+                    <p>{{ requisition.item_summary|truncatechars:220 }}</p>
+                </div>
+                {% include 'operations/components/dialog_close.html' %}
+            </header>
+
+            <dl class="requisition-detail-grid">
+                <div><dt>Status</dt><dd><span class="status-pill">{{ requisition.display_status }}</span></dd></div>
+                <div><dt>Urgency</dt><dd>{% if requisition.urgent %}<span class="urgent-pill">Urgent</span>{% else %}<span class="status-pill muted-pill">Not urgent</span>{% endif %}</dd></div>
+                <div><dt>Source</dt><dd>{% if requisition.uploaded_document %}Uploaded file{% else %}Generated form{% endif %}</dd></div>
+                <div><dt>Language</dt><dd>{{ requisition.get_language_display }}</dd></div>
+                <div><dt>Pieces</dt><dd>{{ requisition.total_pieces }}</dd></div>
+                <div><dt>Company / site</dt><dd>{{ requisition.requester_label }}</dd></div>
+                <div><dt>Suggested supplier</dt><dd>{{ requisition.supplier_suggestion|default:"Not supplied" }}</dd></div>
+                <div><dt>Submitted by</dt><dd>{{ requisition.requester }}</dd></div>
+                <div><dt>Created</dt><dd>{{ requisition.created_at|date:"Y-m-d H:i" }}</dd></div>
+            </dl>
+
+            <section class="requisition-instructions" aria-label="Further instructions">
+                <h3>Further instructions</h3>
+                <ol>
+                    <li>Review the item description, pieces, requester, company or site, urgency, and supplier suggestion.</li>
+                    <li>Download the generated copy or uploaded file when supporting documentation is required.</li>
+                    <li>If the request is still editable, use Edit to correct the request before procurement processing continues.</li>
+                    <li>If the request is locked, continue through the procurement business process instead of changing this record directly.</li>
+                </ol>
+            </section>
+
+            <footer class="requisition-detail-actions">
+                {% url 'requisition_download' requisition.pk as download_url %}{% include 'operations/components/button.html' with href=download_url label='Download copy' classes='small-button action-view' %}
+                {% if requisition.uploaded_document %}
+                    {% url 'requisition_uploaded_document_download' requisition.pk as uploaded_url %}{% include 'operations/components/button.html' with href=uploaded_url label='Uploaded file' classes='small-button action-view' %}
+                {% endif %}
+                {% if requisition.can_edit_pending %}
+                    {% url 'requisition_edit' requisition.pk as edit_url %}{% include 'operations/components/button.html' with href=edit_url label='Edit requisition' classes='small-button action-edit' %}
+                {% else %}
+                    <span class="status-pill muted-pill">Locked for editing</span>
+                {% endif %}
+            </footer>
+        </article>
+    </dialog>
+{% endfor %}
 {% endblock %}

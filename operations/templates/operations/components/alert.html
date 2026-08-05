@@ -1,0 +1,4 @@
+<div class="alert alert-{{ tone|default:'info' }}{% if classes %} {{ classes }}{% endif %}" role="{{ role|default:'status' }}">
+    {% if title %}<strong>{{ title }}</strong>{% endif %}
+    {% if message %}<span>{{ message }}</span>{% endif %}
+</div>

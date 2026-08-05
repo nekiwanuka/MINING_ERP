@@ -23,59 +23,71 @@
 <section class="panel narrow-panel centered-form-panel requisition-panel">
     <form method="post" class="stacked-form requisition-entry-form" {% if multipart %}enctype="multipart/form-data"{% endif %}>
         {% csrf_token %}
-        {% if form.non_field_errors %}
-            <div class="alert alert-error">{{ form.non_field_errors }}</div>
-        {% endif %}
-        <div class="simple-requisition-grid">
-            {% for field in form %}
-                <label class="field-block {% if field.name == 'uploaded_document' %}wide-field{% endif %} {% if field.name == 'urgent' %}simple-checkbox-field{% endif %}">
-                    <span class="field-label-text">{{ field.label }}{% if field.help_text %}<span class="tooltip-indicator" title="{{ field.help_text }}" aria-label="{{ field.help_text }}">?</span>{% endif %}</span>
-                    {{ field }}
-                    {% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
-                </label>
-            {% endfor %}
-        </div>
-
-        <div class="form-section item-section-header">
-            <div>
-                <h2>{{ 'Items'|tr:active_language }}</h2>
-                <p>Use item lines, or leave them blank if you uploaded a prepared requisition.</p>
+        <div class="form-stepper" data-form-steps>
+            <div class="form-stepper-progress" aria-hidden="true">
+                <span class="form-step-dot" data-form-step-dot>1</span>
+                <span class="form-step-dot" data-form-step-dot>2</span>
             </div>
-            <button class="secondary-button add-item-trigger" type="button" id="add-item-button">Add another item</button>
-        </div>
-        {{ item_formset.management_form }}
-        {% if item_formset.non_form_errors %}
-            <div class="alert alert-error">{{ item_formset.non_form_errors }}</div>
-        {% endif %}
-        <div class="item-form-list" data-item-form-list>
-            {% for item_form in item_formset %}
-                <div class="item-accordion simple-item-card" {% if item_form.description.value or item_form.pieces.value or item_form.errors %}{% else %}data-empty-item="true"{% endif %}>
-                    <div class="simple-item-heading">
-                        <span class="item-number">{{ forloop.counter }}</span>
-                        <strong>Item {{ forloop.counter }}</strong>
-                    </div>
-                    <div class="item-form-row">
-                        {% include 'operations/partials/form_fields.html' with form=item_form %}
+            <section class="form-step-panel" data-form-step aria-labelledby="requisition-step-details-title">
+                <div class="form-section form-step-heading">
+                    <div>
+                        <span class="eyebrow">Step 1 of 2</span>
+                        <h2 id="requisition-step-details-title">Request details</h2>
+                        <p>Choose the company or site, supplier suggestion, language, urgency, and optional upload.</p>
                     </div>
                 </div>
-            {% endfor %}
-        </div>
-        <template id="empty-item-template">
-            <div class="item-accordion simple-item-card">
-                <div class="simple-item-heading">
-                    <span class="item-number">__number__</span>
-                    <strong>Item __number__</strong>
+                {% include 'operations/partials/form_fields.html' with form=form %}
+                <div class="form-step-actions">
+                    <button class="secondary-button" type="button" data-form-step-back disabled>Back</button>
+                    <button class="primary-button" type="button" data-form-step-next>Next</button>
                 </div>
-                <div class="item-form-row">
-                    {% include 'operations/partials/form_fields.html' with form=item_formset.empty_form %}
-                </div>
-            </div>
-        </template>
+            </section>
 
-        <div class="form-actions">
-            <a class="secondary-button" href="{% url cancel_url %}">{{ 'Cancel'|tr:active_language }}</a>
-            <button class="primary-button" type="submit">{{ action_label }}</button>
+            <section class="form-step-panel" data-form-step aria-labelledby="requisition-step-items-title" hidden aria-hidden="true">
+                <div class="form-section item-section-header form-step-heading">
+                    <div>
+                        <span class="eyebrow">Step 2 of 2</span>
+                        <h2 id="requisition-step-items-title">{{ 'Items'|tr:active_language }}</h2>
+                        <p>Use item lines, or leave them blank if you uploaded a prepared requisition.</p>
+                    </div>
+                    <button class="secondary-button add-item-trigger" type="button" id="add-item-button">Add another item</button>
+                </div>
+                {{ item_formset.management_form }}
+                {% if item_formset.non_form_errors %}
+                    <div class="alert alert-error">{{ item_formset.non_form_errors }}</div>
+                {% endif %}
+                <div class="item-form-list" data-item-form-list>
+                    {% for item_form in item_formset %}
+                        <div class="item-accordion simple-item-card" {% if item_form.description.value or item_form.pieces.value or item_form.errors %}{% else %}data-empty-item="true"{% endif %}>
+                            <div class="simple-item-heading">
+                                <span class="item-number">{{ forloop.counter }}</span>
+                                <strong>Item {{ forloop.counter }}</strong>
+                            </div>
+                            <div class="item-form-row">
+                                {% include 'operations/partials/form_fields.html' with form=item_form %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                <template id="empty-item-template">
+                    <div class="item-accordion simple-item-card">
+                        <div class="simple-item-heading">
+                            <span class="item-number">__number__</span>
+                            <strong>Item __number__</strong>
+                        </div>
+                        <div class="item-form-row">
+                            {% include 'operations/partials/form_fields.html' with form=item_formset.empty_form %}
+                        </div>
+                    </div>
+                </template>
+                <div class="form-step-actions">
+                    <button class="secondary-button" type="button" data-form-step-back>Back</button>
+                </div>
+            </section>
         </div>
+
+        {% url cancel_url as cancel_href %}
+        {% include 'operations/components/form_actions.html' with cancel_url=cancel_href cancel_label='Cancel'|tr:active_language submit_label=action_label classes='form-actions form-submit-actions' %}
     </form>
 </section>
 
@@ -115,33 +127,4 @@
     <span>After you submit a request, it will appear here until it is accepted.</span>
 </section>
 {% endif %}
-<script>
-    const itemList = document.querySelector('[data-item-form-list]');
-    const addItemButton = document.querySelector('#add-item-button');
-    const totalForms = document.querySelector('#id_items-TOTAL_FORMS');
-    const itemTemplate = document.querySelector('#empty-item-template');
-
-    document.querySelectorAll('.item-accordion').forEach((item, index) => {
-        const hasValue = item.querySelector('textarea')?.value || item.querySelector('input[type="number"]')?.value;
-        item.hidden = index > 0 && !hasValue;
-    });
-
-    addItemButton.addEventListener('click', () => {
-        const hiddenItem = itemList.querySelector('.item-accordion[hidden]');
-        if (hiddenItem) {
-            hiddenItem.hidden = false;
-            hiddenItem.querySelector('textarea, input, select')?.focus();
-            return;
-        }
-
-        const nextIndex = Number.parseInt(totalForms.value, 10);
-        const nextNumber = nextIndex + 1;
-        const markup = itemTemplate.innerHTML
-            .replaceAll('__prefix__', nextIndex)
-            .replaceAll('__number__', nextNumber);
-        itemList.insertAdjacentHTML('beforeend', markup);
-        totalForms.value = nextNumber;
-        itemList.lastElementChild.querySelector('textarea, input, select')?.focus();
-    });
-</script>
 {% endblock %}

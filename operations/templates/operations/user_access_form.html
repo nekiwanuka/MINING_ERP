@@ -37,10 +37,8 @@
             {% endfor %}
         </div>
 
-        <div class="form-actions">
-            <a class="secondary-button" href="{% url 'user_access_list' %}">Cancel</a>
-            <button class="primary-button" type="submit">Save access</button>
-        </div>
+        {% url 'user_access_list' as cancel_href %}
+        {% include 'operations/components/form_actions.html' with cancel_url=cancel_href submit_label='Save access' %}
     </form>
 </section>
 {% endblock %}

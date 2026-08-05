@@ -1,0 +1,5 @@
+<article class="{{ classes|default:'metric-card' }}">
+    {% if eyebrow %}<p class="eyebrow">{{ eyebrow }}</p>{% endif %}
+    {% if title %}<strong>{{ title }}</strong>{% endif %}
+    {% if body %}<span>{{ body }}</span>{% endif %}
+</article>

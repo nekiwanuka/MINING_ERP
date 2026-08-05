@@ -1,5 +1,5 @@
 from datetime import timedelta
-from io import StringIO
+from io import BytesIO, StringIO
 from decimal import Decimal
 
 from django.core import mail
@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.utils import timezone
+from PIL import Image
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -194,8 +195,8 @@ class ProtectedApiTests(TestCase):
         response = self.client.get("/login/")
 
         self.assertContains(response, "cpanel-login-body")
-        self.assertContains(response, "Control Panel")
-        self.assertContains(response, "login-brand-mark")
+        self.assertContains(response, "Log in")
+        self.assertContains(response, "login-side-mark")
 
     def test_requisition_submitted_page_offers_next_actions(self):
         requisition = self.create_requisition()
@@ -222,7 +223,9 @@ class ProtectedApiTests(TestCase):
     def test_template_requisition_create_accepts_uploaded_document(self):
         self.client.login(username="requester", password="MiningERP2026!")
         upload = SimpleUploadedFile(
-            "manual-requisition.txt", b"Manual requisition document"
+            "manual-requisition.txt",
+            b"Manual requisition document",
+            content_type="text/plain",
         )
 
         response = self.client.post(
@@ -247,9 +250,45 @@ class ProtectedApiTests(TestCase):
         self.assertEqual(response.status_code, 302)
         requisition = Requisition.objects.prefetch_related("items").get()
         self.assertEqual(requisition.requesting_company, "Kolwezi Mining Center")
-        self.assertTrue(requisition.uploaded_document.name)
+        self.assertTrue(requisition.uploaded_document.name.endswith(".pdf"))
+        requisition.uploaded_document.open("rb")
+        self.assertEqual(requisition.uploaded_document.read(4), b"%PDF")
+        requisition.uploaded_document.close()
         self.assertEqual(requisition.item_description, "Uploaded requisition document")
         self.assertEqual(requisition.items.count(), 0)
+
+    def test_template_requisition_create_converts_photo_upload_to_pdf(self):
+        self.client.login(username="requester", password="MiningERP2026!")
+        image_buffer = BytesIO()
+        Image.new("RGB", (24, 24), "white").save(image_buffer, format="JPEG")
+        image_buffer.seek(0)
+        upload = SimpleUploadedFile(
+            "photo-requisition.jpg",
+            image_buffer.read(),
+            content_type="image/jpeg",
+        )
+
+        response = self.client.post(
+            "/requisitions/new/",
+            {
+                "requesting_company": "Kolwezi Mining Center",
+                "uploaded_document": upload,
+                "language": "en",
+                "items-TOTAL_FORMS": "1",
+                "items-INITIAL_FORMS": "0",
+                "items-MIN_NUM_FORMS": "0",
+                "items-MAX_NUM_FORMS": "1000",
+                "items-0-description": "",
+                "items-0-pieces": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        requisition = Requisition.objects.get()
+        self.assertTrue(requisition.uploaded_document.name.endswith(".pdf"))
+        requisition.uploaded_document.open("rb")
+        self.assertEqual(requisition.uploaded_document.read(4), b"%PDF")
+        requisition.uploaded_document.close()
 
     def test_requester_can_download_uploaded_requisition_document(self):
         requisition = self.create_requisition()
@@ -277,8 +316,8 @@ class ProtectedApiTests(TestCase):
 
         self.assertEqual(dashboard_response.status_code, 302)
         self.assertEqual(dashboard_response.headers["Location"], "/requisitions/new/")
-        self.assertEqual(requisition_response.status_code, 302)
-        self.assertEqual(requisition_response.headers["Location"], "/requisitions/new/")
+        self.assertEqual(requisition_response.status_code, 200)
+        self.assertContains(requisition_response, "Requisition list")
         self.assertContains(request_page_response, "Requester quick guide")
         self.assertContains(request_page_response, "Request page")
         self.assertNotContains(request_page_response, "Procurement")
@@ -287,6 +326,52 @@ class ProtectedApiTests(TestCase):
         self.assertNotContains(request_page_response, "View history")
         self.assertNotIn(">API<", content)
         self.assertEqual(restricted_response.status_code, 302)
+
+    def test_requester_history_only_lists_own_requisitions(self):
+        own_requisition = self.create_requisition()
+        other_user = get_user_model().objects.create_user(
+            username="other-requester", password="MiningERP2026!"
+        )
+        other_requisition = Requisition.objects.create(
+            requester=other_user,
+            requesting_company="Other Mine Site",
+            item_description="Other user conveyor belt",
+            language=Requisition.Language.ENGLISH,
+            quantity=Decimal("1.00"),
+        )
+        self.client.login(username="requester", password="MiningERP2026!")
+
+        response = self.client.get("/requisitions/")
+
+        self.assertContains(response, own_requisition.requisition_number)
+        self.assertNotContains(response, other_requisition.requisition_number)
+
+    def test_procurement_dashboard_lists_all_requesters_requisitions(self):
+        own_requisition = self.create_requisition()
+        other_user = get_user_model().objects.create_user(
+            username="other-requester", password="MiningERP2026!"
+        )
+        other_requisition = Requisition.objects.create(
+            requester=other_user,
+            requesting_company="Other Mine Site",
+            item_description="Other user conveyor belt",
+            language=Requisition.Language.ENGLISH,
+            quantity=Decimal("1.00"),
+        )
+        procurement_user = get_user_model().objects.create_user(
+            username="procurement", password="MiningERP2026!"
+        )
+        UserModuleAccess.objects.create(
+            user=procurement_user,
+            module=UserModuleAccess.Module.PROCUREMENT,
+            can_read=True,
+        )
+        self.client.login(username="procurement", password="MiningERP2026!")
+
+        response = self.client.get("/procurement/")
+
+        self.assertContains(response, own_requisition.requisition_number)
+        self.assertContains(response, other_requisition.requisition_number)
 
     def test_procurement_can_upload_supplier_document_directly_to_requisition(self):
         requisition = self.create_requisition()
@@ -438,13 +523,13 @@ class LoginExperienceTests(TestCase):
     def test_login_page_has_password_preview_and_remember_controls(self):
         response = self.client.get("/login/?next=/api/")
 
-        self.assertContains(response, "Sign in")
+        self.assertContains(response, "Login")
         self.assertNotContains(response, "Secure department access")
         self.assertNotContains(response, "Requisitions")
         self.assertContains(response, "password-toggle")
         self.assertContains(response, "Contact administrator")
         self.assertContains(response, "password-toggle-icon")
-        self.assertContains(response, "Remember my username")
+        self.assertContains(response, "Remember username")
         self.assertContains(response, 'autocomplete="username"')
         self.assertContains(response, 'autocomplete="current-password"')
         self.assertContains(response, 'name="next" value="/api/"')
@@ -1576,10 +1661,10 @@ class FinancialReportTests(TestCase):
         response = self.client.get("/finance/")
 
         self.assertContains(response, "Cash movement report")
-        self.assertContains(response, "1000.00")
-        self.assertContains(response, "325.00")
-        self.assertContains(response, "75.00")
-        self.assertContains(response, "675.00")
+        self.assertContains(response, "USD 1000")
+        self.assertContains(response, "USD 325")
+        self.assertContains(response, "USD 75")
+        self.assertContains(response, "USD 675")
 
     def test_financial_record_create_records_expense_as_cash_out(self):
         response = self.client.post(

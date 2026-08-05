@@ -1,0 +1,5 @@
+<span class="table-actions">
+    {% for action in actions %}
+        {% if action.visible %}{% include 'operations/components/button.html' with href=action.href label=action.label classes=action.classes only %}{% endif %}
+    {% endfor %}
+</span>

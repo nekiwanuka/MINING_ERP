@@ -30,16 +30,8 @@
     </div>
     <form method="post" action="{% url 'transport_transit_cost_add' record.pk %}" class="step-save-form">
         {% csrf_token %}
-        <div class="step-form-grid expense-step-grid">
-            {% include 'operations/partials/form_fields.html' with form=transit_cost_form %}
-        </div>
-        <div class="transport-save-bar simple-save-bar">
-            <div>
-                <strong>Save this charge</strong>
-                <span>Add as many actuals as needed before moving to status and invoices.</span>
-            </div>
-            <button class="primary-button" type="submit">Save in-transit charge</button>
-        </div>
+        {% include 'operations/partials/form_fieldsets.html' with form=transit_cost_form %}
+        {% include 'operations/components/form_actions.html' with classes='transport-save-bar simple-save-bar' title='Save this charge' helper='Add as many actuals as needed before moving to status and invoices.' submit_label='Save in-transit charge' %}
     </form>
 </section>
 

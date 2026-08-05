@@ -20,15 +20,7 @@
         </div>
         <span>Save this first, then add customers and expenses.</span>
     </div>
-    <div class="simple-trip-grid">
-        {% include 'operations/partials/form_fields.html' with form=form %}
-    </div>
-    <div class="transport-save-bar simple-save-bar">
-        <div>
-            <strong>Next: add customers</strong>
-            <span>This keeps every step saved separately.</span>
-        </div>
-        <button class="primary-button" type="submit">Save trip and next</button>
-    </div>
+    {% include 'operations/partials/form_fieldsets.html' with form=form %}
+    {% include 'operations/components/form_actions.html' with classes='transport-save-bar simple-save-bar' title='Next: add customers' helper='This keeps every step saved separately.' submit_label='Save trip and next' %}
 </form>
 {% endblock %}

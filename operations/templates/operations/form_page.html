@@ -12,31 +12,13 @@
 <section class="panel narrow-panel centered-form-panel">
     <form method="post" class="stacked-form" {% if multipart %}enctype="multipart/form-data"{% endif %}>
         {% csrf_token %}
-        {% include 'operations/partials/form_fields.html' with form=form %}
-        <div class="form-actions">
-            <a class="secondary-button" href="{% url cancel_url %}">Cancel</a>
-            <button class="primary-button" type="submit">{{ action_label }}</button>
-        </div>
+        {% if form.fieldsets %}
+            {% include 'operations/partials/form_fieldsets.html' with form=form %}
+        {% else %}
+            {% include 'operations/partials/form_fields.html' with form=form %}
+        {% endif %}
+        {% url cancel_url as cancel_href %}
+        {% include 'operations/components/form_actions.html' with cancel_url=cancel_href submit_label=action_label classes='form-actions form-submit-actions' %}
     </form>
 </section>
-<script>
-    const fuelBeforeInput = document.querySelector('[data-fuel-before-refill]');
-    const fuelAfterInput = document.querySelector('[data-fuel-after-refill]');
-    const litresIssuedInput = document.querySelector('[data-fuel-litres-issued]');
-
-    function calculateFuelRefillLitres() {
-        if (!fuelBeforeInput || !fuelAfterInput || !litresIssuedInput) return;
-        const beforeValue = Number.parseFloat(fuelBeforeInput.value || '0');
-        const afterValue = Number.parseFloat(fuelAfterInput.value || '0');
-        if (Number.isNaN(beforeValue) || Number.isNaN(afterValue) || afterValue < beforeValue) {
-            litresIssuedInput.value = '';
-            return;
-        }
-        litresIssuedInput.value = (afterValue - beforeValue).toFixed(3);
-    }
-
-    fuelBeforeInput?.addEventListener('input', calculateFuelRefillLitres);
-    fuelAfterInput?.addEventListener('input', calculateFuelRefillLitres);
-    calculateFuelRefillLitres();
-</script>
 {% endblock %}

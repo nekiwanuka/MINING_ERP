@@ -1,11 +1,8 @@
 {% if form.non_field_errors %}
-    <div class="alert alert-error">{{ form.non_field_errors }}</div>
+    {% include 'operations/components/alert.html' with tone='error' role='alert' message=form.non_field_errors %}
 {% endif %}
-{% for field in form %}
-    <label class="field-block">
-        <span class="field-label-text">{{ field.label }}{% if field.help_text %}<span class="tooltip-indicator" title="{{ field.help_text }}" aria-label="{{ field.help_text }}">?</span>{% endif %}</span>
-        {{ field }}
-        {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
-        {% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
-    </label>
-{% endfor %}
+<div class="form-grid">
+    {% for field in form %}
+        {% include 'operations/partials/form_field.html' with field=field %}
+    {% endfor %}
+</div>
