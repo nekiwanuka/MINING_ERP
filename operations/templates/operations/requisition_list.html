@@ -1,4 +1,5 @@
 {% extends 'operations/base.html' %}
+{% load operations_i18n %}
 {% block title %}Requisitions | Mining ERP{% endblock %}
 {% block content %}
 <section class="page-heading requisition-page-heading">
@@ -71,7 +72,7 @@
                     <tr class="dialog-list-row" role="button" tabindex="0" data-dialog-row="requisition-detail-{{ requisition.pk }}" aria-label="View details for requisition {{ requisition.requisition_number }}">
                         <td data-label="Number">{{ requisition.requisition_number }}</td>
                         <td data-label="Items">{{ requisition.item_summary|truncatechars:120 }}</td>
-                        <td data-label="Status"><span class="status-pill">{{ requisition.display_status }}</span></td>
+                        <td data-label="Status"><span class="status-pill {{ requisition.display_status|status_class }}">{{ requisition.display_status }}</span></td>
                         <td data-label="Created">{{ requisition.created_at|date:"Y-m-d" }}</td>
                         <td data-label="Actions"><span class="table-actions"><button class="small-button action-view" type="button" data-dialog-target="requisition-detail-{{ requisition.pk }}">View</button>{% if requisition.can_edit_pending %}{% url 'requisition_edit' requisition.pk as edit_url %}{% include 'operations/components/button.html' with href=edit_url label='Edit' classes='small-button action-edit' %}{% else %}<span class="muted-copy">Locked</span>{% endif %}</span></td>
                     </tr>
@@ -97,7 +98,7 @@
             </header>
 
             <dl class="requisition-detail-grid">
-                <div><dt>Status</dt><dd><span class="status-pill">{{ requisition.display_status }}</span></dd></div>
+                <div><dt>Status</dt><dd><span class="status-pill {{ requisition.display_status|status_class }}">{{ requisition.display_status }}</span></dd></div>
                 <div><dt>Urgency</dt><dd>{% if requisition.urgent %}<span class="urgent-pill">Urgent</span>{% else %}<span class="status-pill muted-pill">Not urgent</span>{% endif %}</dd></div>
                 <div><dt>Source</dt><dd>{% if requisition.uploaded_document %}Uploaded file{% else %}Generated form{% endif %}</dd></div>
                 <div><dt>Language</dt><dd>{{ requisition.get_language_display }}</dd></div>

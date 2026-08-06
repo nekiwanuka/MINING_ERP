@@ -9,23 +9,60 @@
     </div>
 </section>
 
-<section class="panel narrow-panel centered-form-panel">
-    <div class="form-section"><h2>1. Review the requester requisition</h2></div>
-    <p class="muted-copy">Open Procurement, then choose Review / edit. Confirm the requester's items, urgency, language, and pieces. Correct descriptions or item counts before accepting.</p>
-
-    <div class="form-section"><h2>2. Accept after review</h2></div>
-    <p class="muted-copy">Saving the review accepts the requisition and makes each item available for supplier purchase orders.</p>
-
-    <div class="form-section"><h2>3. Split by item type or quantity</h2></div>
-    <p class="muted-copy">For each item, click Split / Create PO. Enter the quantity to order now. Use the full remaining quantity for one supplier, or enter a smaller quantity to split the item across multiple suppliers.</p>
-
-    <div class="form-section"><h2>4. Create the supplier purchase order</h2></div>
-    <p class="muted-copy">Choose an existing supplier or type a new supplier name with contact, email, and phone. Confirm the item description, split quantity, amount, order date, send method, and supplier message.</p>
-
-    <div class="form-section"><h2>5. Send to supplier</h2></div>
-    <p class="muted-copy">Open the purchase order detail page. Use Send email when the supplier has email, Send WhatsApp when the supplier has a phone number, or Print PO for a hard copy.</p>
-
-    <div class="form-section"><h2>6. Continue until complete</h2></div>
-    <p class="muted-copy">If an item was split, repeat purchase order creation for the remaining quantity. Once every item quantity is fully ordered, the requisition becomes Purchased.</p>
+<section class="panel manual-panel">
+    <div class="manual-flow" aria-label="Procurement workflow illustration">
+        <article>
+            <span>01</span>
+            <strong>Requester submits</strong>
+            <p>Requisition enters procurement review.</p>
+        </article>
+        <article>
+            <span>02</span>
+            <strong>Review / edit</strong>
+            <p>Procurement checks items, pieces, urgency, and language.</p>
+        </article>
+        <article>
+            <span>03</span>
+            <strong>Accept</strong>
+            <p>Approved items become available for supplier ordering.</p>
+        </article>
+        <article>
+            <span>04</span>
+            <strong>Split / Create PO</strong>
+            <p>One item can become one or more purchase orders.</p>
+        </article>
+        <article>
+            <span>05</span>
+            <strong>Send PO</strong>
+            <p>Email, WhatsApp, print, or download the supplier copy.</p>
+        </article>
+        <article>
+            <span>06</span>
+            <strong>Purchased</strong>
+            <p>Requisition completes when all quantities are ordered.</p>
+        </article>
+    </div>
 </section>
+
+<section class="panel manual-panel">
+    <div class="manual-step"><span>1</span><div><h2>Review the requester requisition</h2><p>Open Procurement, then choose Review / edit. Confirm the requester's items, urgency, language, and pieces. Correct descriptions or item counts before accepting.</p></div></div>
+
+    <div class="manual-step"><span>2</span><div><h2>Accept after review</h2><p>Saving the review accepts the requisition and makes each item available for supplier purchase orders.</p></div></div>
+
+    <div class="manual-illustration" aria-label="Split requisition illustration">
+        <div><span>Accepted item</span><strong>Crusher filters - 10 pcs</strong></div>
+        <div class="manual-arrow">-&gt;</div>
+        <div><span>PO A</span><strong>6 pcs to Supplier A</strong></div>
+        <div><span>PO B</span><strong>4 pcs to Supplier B</strong></div>
+    </div>
+
+    <div class="manual-step"><span>3</span><div><h2>Split by item type or quantity</h2><p>For each item, click Split / Create PO. Enter the quantity to order now. Use the full remaining quantity for one supplier, or enter a smaller quantity to split the item across multiple suppliers.</p></div></div>
+
+    <div class="manual-step"><span>4</span><div><h2>Create the supplier purchase order</h2><p>Choose an existing supplier or type a new supplier name with contact, email, and phone. Confirm the item description, split quantity, amount, order date, send method, and supplier message.</p></div></div>
+
+    <div class="manual-step"><span>5</span><div><h2>Send to supplier</h2><p>Open the purchase order detail page. Use Send email when the supplier has email, Send WhatsApp when the supplier has a phone number, or Print PO for a hard copy.</p></div></div>
+
+    <div class="manual-step"><span>6</span><div><h2>Continue until complete</h2><p>If an item was split, repeat purchase order creation for the remaining quantity. Once every item quantity is fully ordered, the requisition becomes Purchased.</p></div></div>
+</section>
+
 {% endblock %}

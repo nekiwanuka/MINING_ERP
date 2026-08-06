@@ -63,7 +63,7 @@
                             {% if requisition.urgent %}<span class="urgent-pill">Urgent</span>{% endif %}
                             <small>{{ requisition.requester_label }}</small>
                             <small>{{ requisition.item_summary|truncatechars:90 }}</small>
-                            <span class="status-pill">{{ requisition.get_status_display }}</span>
+                            <span class="status-pill {{ requisition.get_status_display|status_class }}">{{ requisition.get_status_display }}</span>
                         </td>
                         <td>
                             <div class="procurement-doc-counts">

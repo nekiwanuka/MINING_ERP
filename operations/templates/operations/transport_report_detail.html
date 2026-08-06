@@ -1,11 +1,12 @@
 {% extends 'operations/base.html' %}
+{% load operations_i18n %}
 {% block title %}{{ record.transit_number }} Report | Mining ERP{% endblock %}
 {% block content %}
 <section class="page-heading">
     <div>
         <p class="eyebrow">Trip Report</p>
         <h1>{{ record.transit_number }}</h1>
-        <p class="muted-copy">{{ record.origin }} to {{ record.destination }} · {{ record.vehicle }} · {{ record.get_status_display }}</p>
+        <p class="muted-copy">{{ record.origin }} to {{ record.destination }} · {{ record.vehicle }} · <span class="status-pill {{ record.get_status_display|status_class }}">{{ record.get_status_display }}</span></p>
     </div>
     <div class="button-row">
         <a class="secondary-button" href="{% url 'transport_reports' %}">Back to reports</a>

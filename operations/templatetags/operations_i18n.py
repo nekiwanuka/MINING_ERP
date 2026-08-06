@@ -12,6 +12,45 @@ def tr(text, language="en"):
     return translate(text, language)
 
 
+@register.filter
+def status_class(value):
+    normalized = str(value or "").strip().lower().replace("_", "-").replace(" ", "-")
+    status_map = {
+        "submitted": "status-submitted",
+        "draft": "status-draft",
+        "pending": "status-pending",
+        "pending-invoice": "status-pending",
+        "accepted": "status-accepted",
+        "accepted-by-procurement": "status-accepted",
+        "purchase-inquiries-sent": "status-inquiry",
+        "inquiries-sent": "status-inquiry",
+        "invoice-loaded": "status-inquiry",
+        "ordered": "status-issued",
+        "issued": "status-issued",
+        "finalized": "status-issued",
+        "receipt-uploaded": "status-paid",
+        "receipt-issued": "status-paid",
+        "paid": "status-paid",
+        "purchased": "status-paid",
+        "in-delivery": "status-transit",
+        "in-transportation": "status-transit",
+        "in-transit": "status-transit",
+        "delivered": "status-delivered",
+        "active": "status-active",
+        "inactive": "status-inactive",
+        "cancelled": "status-cancelled",
+        "expired": "status-expired",
+        "expires-soon": "status-warning",
+        "valid": "status-active",
+        "not-started": "status-draft",
+        "preparing-documents": "status-warning",
+        "submitted-to-embassy": "status-submitted",
+        "approved-renewed": "status-paid",
+        "rejected": "status-cancelled",
+    }
+    return status_map.get(normalized, "status-neutral")
+
+
 @register.simple_tag(takes_context=True)
 def money(context, value):
     currency = context.get("display_currency", "USD")

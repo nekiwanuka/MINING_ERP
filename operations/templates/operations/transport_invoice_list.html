@@ -43,16 +43,17 @@
                         <td><a href="{% url 'transport_detail' invoice.transport.pk %}">{{ invoice.transport.transit_number }}</a></td>
                         <td>{{ invoice.transport.vehicle }}</td>
                         <td>{{ invoice.invoice_date }}</td>
-                        <td><span class="status-pill">{{ invoice.get_status_display }}</span></td>
+                        <td><span class="status-pill {% if invoice.receipt_document %}status-paid{% else %}{{ invoice.get_status_display|status_class }}{% endif %}">{% if invoice.receipt_document %}Receipt issued{% else %}{{ invoice.get_status_display }}{% endif %}</span></td>
                         <td>{% money invoice.total_amount %}</td>
                         <td>
                             <div class="table-actions">
                                 <a href="{% url 'transport_invoice_detail' invoice.pk %}">View</a>
                                 {% if invoice.status == invoice.Status.DRAFT %}
                                     <form method="post" action="{% url 'transport_invoice_issue' invoice.pk %}">{% csrf_token %}<button type="submit">Issue</button></form>
-                                {% elif invoice.status == invoice.Status.FINALIZED %}
-                                    <form method="post" action="{% url 'transport_invoice_pay' invoice.pk %}">{% csrf_token %}<button type="submit">Pay</button></form>
+                                {% elif invoice.status == invoice.Status.FINALIZED and not invoice.receipt_document %}
+                                    <form method="post" action="{% url 'transport_invoice_pay' invoice.pk %}">{% csrf_token %}<button type="submit">Generate receipt</button></form>
                                 {% endif %}
+                                {% if invoice.receipt_document %}<a href="{% url 'commercial_document_detail' invoice.receipt_document.pk %}">Receipt</a>{% endif %}
                                 <a href="{% url 'transport_invoice_print' invoice.pk %}" target="_blank" rel="noopener">Print</a>
                                 <a href="{% url 'transport_invoice_download' invoice.pk %}">Download</a>
                             </div>

@@ -5,46 +5,43 @@
     <div>
         <p class="eyebrow">Workflow Manual</p>
         <h1>Simplified transport billing</h1>
-        <p>Create one transit, add customers by distance and rate per km, issue invoices, accept payment, then generate the delivery note after goods reach.</p>
+        <p>Create one transit, add customers by distance and rate per km, issue invoices, generate receipts for payments, then lock the trip when the delivery note is issued.</p>
     </div>
 </section>
 
-<section class="panel narrow-panel centered-form-panel">
-    <div class="form-section"><h2>1. Transit details</h2></div>
-    <p class="muted-copy">Create one transport record for the vehicle trip. Enter the overall charge, vehicle, driver, origin, destination, and total route distance if known. The system can infer the common route and final distance from customer distances.</p>
-
-    <div class="form-section"><h2>2. Customers</h2></div>
-    <p class="muted-copy">Add the customers and their delivery details. Enter each customer's total distance from the start of the transit and the customer's rate per km. Leave the manual agreed amount blank unless management wants to override the automatic calculation.</p>
-
-    <div class="form-section"><h2>3. Distance sharing</h2></div>
-    <p class="muted-copy">If Martha is at 240 km, Peter is at 389 km, and Kresto is at 400 km, the system treats 240 km as the first branch-off because all customers share the route up to that distance.</p>
-
-    <div class="form-section"><h2>4. In transit charges</h2></div>
-    <p class="muted-copy">Enter internal costs once. Use this section for fuel, driver allowances, turn-boy allowances, taxes, border fees, tolls, ferry fees, parking, and other trip deductions.</p>
-
-    <div class="form-section"><h2>5. Internal cost assignment</h2></div>
-    <p class="muted-copy">Use General trip cost for shared trip deductions. Choose a specific customer only when that cost belongs to one customer's delivery for internal profit analysis. These costs stay hidden from customer invoices.</p>
-
-    <div class="form-section"><h2>6. Generate customer invoices</h2></div>
-    <p class="muted-copy">Open the transport detail page and click Generate invoices. The system creates one pending customer invoice for each saved customer and opens the generated invoice or filtered invoice list.</p>
-
-    <div class="form-section"><h2>7. Issue invoice</h2></div>
-    <p class="muted-copy">Open each pending invoice and click Issue after checking customer name, transit reference, route, goods, and amount. Issued invoices can be printed, downloaded, or sent to the customer.</p>
-
-    <div class="form-section"><h2>8. Accept payment</h2></div>
-    <p class="muted-copy">After money is received, open the issued invoice and click Pay. The system creates a payment number, marks the invoice Paid, prints a red paid stamp over the invoice, and moves the related trip to In Transit.</p>
-
-    <div class="form-section"><h2>9. Goods reached and delivery note</h2></div>
-    <p class="muted-copy">When the goods reach the customer, use GR - Goods Reached. The system marks the trip delivered and generates the delivery note. Paid invoice and payment references are shown on the delivery note.</p>
-
-    <div class="form-section"><h2>10. Fair sharing rule</h2></div>
-    <p class="muted-copy">The system divides the shared first leg equally across all customers, then adds the private distance after the branch-off for customers who travel farther.</p>
-
-    <div class="form-section"><h2>11. Profit tracking</h2></div>
-    <p class="muted-copy">The transport detail page still keeps the accounting view. It compares customer invoice revenue against in transit charges and recorded expenses to show profit or loss.</p>
+<section class="panel manual-panel">
+    <div class="manual-flow manual-flow-wide" aria-label="Transport workflow illustration">
+        <article><span>01</span><strong>Transit</strong><p>Create trip, vehicle, route, and driver.</p></article>
+        <article><span>02</span><strong>Customers</strong><p>Add cargo rows, distance, rate, and destination.</p></article>
+        <article><span>03</span><strong>Costs</strong><p>Enter fuel, allowances, taxes, tolls, and border fees.</p></article>
+        <article><span>04</span><strong>Invoice</strong><p>Generate pending invoices per customer.</p></article>
+        <article><span>05</span><strong>Issue</strong><p>Approve and send the invoice.</p></article>
+        <article><span>06</span><strong>Receipt</strong><p>Accept payment and generate a receipt.</p></article>
+        <article><span>07</span><strong>GR</strong><p>Goods reached generates the delivery note and locks edits.</p></article>
+    </div>
 </section>
 
-<section class="panel narrow-panel centered-form-panel">
+<section class="panel manual-panel">
+    <div class="manual-step"><span>1</span><div><h2>Transit details</h2><p>Create one transport record for the vehicle trip. Enter the overall charge, vehicle, driver, origin, destination, and total route distance if known. The system can infer the common route and final distance from customer distances.</p></div></div>
+    <div class="manual-step"><span>2</span><div><h2>Customers</h2><p>Add the customers and their delivery details. Enter each customer's total distance from the start of the transit and the customer's rate per km. Leave the manual agreed amount blank unless management wants to override the automatic calculation.</p></div></div>
+    <div class="manual-step"><span>3</span><div><h2>Distance sharing</h2><p>If Martha is at 240 km, Peter is at 389 km, and Kresto is at 400 km, the system treats 240 km as the first branch-off because all customers share the route up to that distance.</p></div></div>
+
+    <div class="manual-route-diagram" aria-label="Shared route illustration">
+        <div class="route-line"><span>Depot</span><span>240 km branch-off</span><span>389 km</span><span>400 km</span></div>
+        <div class="route-customers"><strong>Martha exits</strong><strong>Peter exits</strong><strong>Kresto exits</strong></div>
+    </div>
+
+    <div class="manual-step"><span>4</span><div><h2>In transit charges</h2><p>Enter internal costs once. Use this section for fuel, driver allowances, turn-boy allowances, taxes, border fees, tolls, ferry fees, parking, and other trip deductions.</p></div></div>
+    <div class="manual-step"><span>5</span><div><h2>Internal cost assignment</h2><p>Use General trip cost for shared trip deductions. Choose a specific customer only when that cost belongs to one customer's delivery for internal profit analysis. These costs stay hidden from customer invoices.</p></div></div>
+    <div class="manual-step"><span>6</span><div><h2>Generate customer invoices</h2><p>Open the transport detail page and click Generate invoices. The system creates one pending customer invoice for each saved customer and opens the generated invoice or filtered invoice list.</p></div></div>
+    <div class="manual-step"><span>7</span><div><h2>Issue invoice</h2><p>Open each pending invoice and click Issue after checking customer name, transit reference, route, goods, and amount. Issued invoices can be printed, downloaded, or sent to the customer.</p></div></div>
+    <div class="manual-step"><span>8</span><div><h2>Accept payment</h2><p>After money is received, open the issued invoice and click Generate receipt. The system creates an official receipt, links it to the invoice, and moves the related trip to In Transit while the invoice remains issued.</p></div></div>
+    <div class="manual-step"><span>9</span><div><h2>Goods reached and delivery note</h2><p>When the goods reach the customer, use GR - Goods Reached. The system marks the trip delivered and generates the delivery note. Receipt references are shown on the delivery note, and the trip is locked from further edits.</p></div></div>
+    <div class="manual-step"><span>10</span><div><h2>Fair sharing rule</h2><p>The system divides the shared first leg equally across all customers, then adds the private distance after the branch-off for customers who travel farther.</p></div></div>
+    <div class="manual-step"><span>11</span><div><h2>Profit tracking</h2><p>The transport detail page still keeps the accounting view. It compares customer invoice revenue against in transit charges and recorded expenses to show profit or loss.</p></div></div>
+</section>
+
+<section class="panel manual-panel">
     <div class="form-section"><h2>Example: three customers on one truck</h2></div>
     <p class="muted-copy">A truck leaves the depot with cargo for Martha, Peter, and Kresto. Martha is delivered at 240 km, Peter at 389 km, and Kresto at 400 km. The first branch-off is therefore 240 km.</p>
 
@@ -85,7 +82,7 @@
     </div>
 
     <div class="form-section"><h2>Invoice and payment result</h2></div>
-    <p class="muted-copy">The customer invoice stays simple. It does not list fuel, driver, border, toll, loading, or offloading details separately. After payment is accepted, the paid invoice carries the official payment stamp and payment number.</p>
+    <p class="muted-copy">The customer invoice stays simple. It does not list fuel, driver, border, toll, loading, or offloading details separately. After payment is accepted, the system generates an official receipt linked to the issued invoice.</p>
     <div class="table-wrap compact">
         <table>
             <thead><tr><th>Invoice line</th><th>Martha</th><th>Peter</th><th>Kresto</th></tr></thead>

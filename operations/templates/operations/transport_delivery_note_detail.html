@@ -1,4 +1,5 @@
 {% extends 'operations/base.html' %}
+{% load operations_i18n %}
 {% block title %}{{ document.document_number }} | Mining ERP{% endblock %}
 {% block content %}
 <section class="page-heading invoice-action-heading">
@@ -46,17 +47,17 @@
     </section>
 
     <section class="invoice-route-strip">
-        <div><span>Status</span><strong>{{ document.transport.get_status_display }}</strong></div>
+        <div><span>Status</span><strong><span class="status-pill {{ document.transport.get_status_display|status_class }}">{{ document.transport.get_status_display }}</span></strong></div>
         <div><span>Driver</span><strong>{{ document.transport.driver }}</strong></div>
         <div><span>Requisition</span><strong>{{ document.requisition|default:'-' }}</strong></div>
         <div><span>Reference</span><strong>{{ document.business_reference|default:'-' }}</strong></div>
     </section>
 
-    {% if paid_invoices %}
+    {% if receipt_documents %}
         <section class="delivery-note-body payment-reference-block">
-            <span>Payment reference</span>
-            {% for invoice in paid_invoices %}
-                <p>{{ invoice.invoice_number }} · {{ invoice.payment_number }} · {{ invoice.get_status_display }}</p>
+            <span>Receipt reference</span>
+            {% for receipt in receipt_documents %}
+                <p>{% if receipt.transport_invoice %}{{ receipt.transport_invoice.invoice_number }} · {% endif %}{{ receipt.document_number }} · <span class="status-pill {{ receipt.get_status_display|status_class }}">{{ receipt.get_status_display }}</span></p>
             {% endfor %}
         </section>
     {% endif %}

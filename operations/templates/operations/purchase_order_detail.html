@@ -21,7 +21,7 @@
 <section class="metric-grid">
     <article class="metric-card"><span>{{ 'Amount'|tr:active_language }}</span><strong>{% money order.amount %}</strong></article>
     <article class="metric-card"><span>{{ 'Quantity'|tr:active_language }}</span><strong>{{ order.inquiry.quantity|floatformat:2 }}</strong></article>
-    <article class="metric-card"><span>{{ 'Status'|tr:active_language }}</span><strong>{{ order.get_status_display }}</strong></article>
+    <article class="metric-card"><span>{{ 'Status'|tr:active_language }}</span><strong><span class="status-pill {{ order.get_status_display|status_class }}">{{ order.get_status_display }}</span></strong></article>
     <article class="metric-card"><span>Sent by</span><strong>{{ order.get_delivery_method_display }}</strong></article>
 </section>
 

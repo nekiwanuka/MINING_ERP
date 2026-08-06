@@ -41,7 +41,7 @@
                 {% for requisition in requisitions %}
                     <tr class="dialog-list-row" role="button" tabindex="0" data-dialog-row="process-detail-{{ requisition.pk }}" aria-label="View process details for requisition {{ requisition.requisition_number }}">
                         <td data-label="Requisition"><strong>{{ requisition.requisition_number }}</strong></td>
-                        <td data-label="Status"><span class="status-pill">{{ requisition.get_status_display }}</span></td>
+                        <td data-label="Status"><span class="status-pill {{ requisition.get_status_display|status_class }}">{{ requisition.get_status_display }}</span></td>
                         <td data-label="Summary">{{ requisition.item_summary|truncatechars:120 }}</td>
                         <td data-label="Actions"><span class="table-actions"><button class="small-button action-view" type="button" data-dialog-target="process-detail-{{ requisition.pk }}">View</button>{% url 'requisition_document_upload' requisition.pk as upload_url %}{% include 'operations/components/button.html' with href=upload_url label='Upload document' classes='small-button action-create' %}</span></td>
                     </tr>
@@ -62,7 +62,7 @@
                 <div>
                     <p class="eyebrow">Process trace</p>
                     <h2 id="process-detail-title-{{ requisition.pk }}">{{ requisition.requisition_number }}</h2>
-                    <p>{{ requisition.requester_label }} · {{ requisition.total_pieces }} pieces · {{ requisition.get_status_display }}</p>
+                    <p>{{ requisition.requester_label }} · {{ requisition.total_pieces }} pieces · <span class="status-pill {{ requisition.get_status_display|status_class }}">{{ requisition.get_status_display }}</span></p>
                 </div>
                 {% include 'operations/components/dialog_close.html' %}
             </header>
@@ -120,7 +120,7 @@
                         <div class="process-step-card">
                             <div class="process-step-heading">
                                 <strong>{{ inquiry.inquiry_number }}</strong>
-                                <span>{{ inquiry.supplier.name }} · {{ inquiry.quantity|floatformat:2 }} pcs · {{ inquiry.get_status_display }}</span>
+                                <span>{{ inquiry.supplier.name }} · {{ inquiry.quantity|floatformat:2 }} pcs · <span class="status-pill {{ inquiry.get_status_display|status_class }}">{{ inquiry.get_status_display }}</span></span>
                             </div>
                             <div class="process-columns">
                                 <div>

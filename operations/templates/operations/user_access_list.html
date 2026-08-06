@@ -36,7 +36,7 @@
                     <tr>
                         <td><strong>{{ managed_user.username }}</strong></td>
                         <td>{{ managed_user.email|default:'-' }}</td>
-                        <td>{% if managed_user.is_active %}<span class="status-pill">Active</span>{% else %}<span class="urgent-pill">Inactive</span>{% endif %}</td>
+                        <td>{% if managed_user.is_active %}<span class="status-pill status-active">Active</span>{% else %}<span class="status-pill status-inactive">Inactive</span>{% endif %}</td>
                         <td>
                             <div class="access-chip-list">
                                 {% for access in managed_user.module_access.all %}

@@ -1,4 +1,5 @@
 {% extends 'operations/base.html' %}
+{% load operations_i18n %}
 {% block title %}In Transit | Mining ERP{% endblock %}
 {% block content %}
 <section class="page-heading">
@@ -20,7 +21,7 @@
             <tbody>
                 {% for row in records %}
                     <tr>
-                        <td><a href="{% url 'transport_report_detail' row.record.pk %}">{{ row.record.transit_number }}</a><br><span class="status-pill">{{ row.record.get_status_display }}</span></td>
+                        <td><a href="{% url 'transport_report_detail' row.record.pk %}">{{ row.record.transit_number }}</a><br><span class="status-pill {{ row.record.get_status_display|status_class }}">{{ row.record.get_status_display }}</span></td>
                         <td>{{ row.record.origin }} to {{ row.record.destination }}<br><span class="muted-copy">{{ row.record.vehicle }} · {{ row.record.driver }}</span></td>
                         <td>{{ row.record.customer_names_summary|default:'-' }}</td>
                         <td>{{ currency }} {{ row.trip_charge|floatformat:0 }}</td>

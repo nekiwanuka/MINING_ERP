@@ -33,7 +33,7 @@
                 <div><dt>{{ 'Requisition'|tr:active_language }}</dt><dd>{{ order.inquiry.requisition.requisition_number }}</dd></div>
                 <div><dt>{{ 'Prepared by'|tr:active_language }}</dt><dd>{{ order.created_by }}</dd></div>
                 <div><dt>{{ 'Delivery'|tr:active_language }}</dt><dd>{{ order.get_delivery_method_display }}</dd></div>
-                <div><dt>{{ 'Status'|tr:active_language }}</dt><dd>{{ order.get_status_display }}</dd></div>
+                <div><dt>{{ 'Status'|tr:active_language }}</dt><dd><span class="status-pill {{ order.get_status_display|status_class }}">{{ order.get_status_display }}</span></dd></div>
             </dl>
         </article>
     </section>

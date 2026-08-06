@@ -22,7 +22,7 @@
             <small>{{ document.document_date }}</small>
         </div>
         <div class="document-viewer-total">
-            <span>{{ document.get_status_display }}</span>
+            <span class="status-pill {{ document.get_status_display|status_class }}">{{ document.get_status_display }}</span>
             <strong>{% money document.amount %}</strong>
         </div>
     </header>
@@ -38,6 +38,7 @@
             <span>Business links</span>
             <dl class="document-mini-list">
                 <div><dt>Transit</dt><dd>{% if document.transport %}<a href="{% url 'transport_detail' document.transport.pk %}">{{ document.transport.transit_number }}</a>{% else %}-{% endif %}</dd></div>
+                <div><dt>Transport invoice</dt><dd>{% if document.transport_invoice %}<a href="{% url 'transport_invoice_detail' document.transport_invoice.pk %}">{{ document.transport_invoice.invoice_number }}</a>{% else %}-{% endif %}</dd></div>
                 <div><dt>Purchase order</dt><dd>{{ document.purchase_order|default:'-' }}</dd></div>
                 <div><dt>Requisition</dt><dd>{{ document.requisition|default:'-' }}</dd></div>
                 <div><dt>Supplier</dt><dd>{{ document.supplier|default:'-' }}</dd></div>

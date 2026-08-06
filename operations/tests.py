@@ -115,6 +115,8 @@ class ProtectedApiTests(TestCase):
         read_response = self.client.get("/api/suppliers/")
 
         self.assertEqual(api_root_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(api_root_response["Content-Type"], "application/json")
+        self.assertNotIn(b"Django REST framework", api_root_response.content)
         self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(read_response.status_code, status.HTTP_200_OK)
         self.assertTrue(Supplier.objects.filter(name="Admin Drill Supply").exists())
@@ -344,6 +346,7 @@ class ProtectedApiTests(TestCase):
         response = self.client.get("/requisitions/")
 
         self.assertContains(response, own_requisition.requisition_number)
+        self.assertContains(response, "status-submitted")
         self.assertNotContains(response, other_requisition.requisition_number)
 
     def test_procurement_dashboard_lists_all_requesters_requisitions(self):
@@ -564,8 +567,17 @@ class LoginExperienceTests(TestCase):
         response = self.client.get("/wrong-address-route/")
 
         self.assertEqual(response.status_code, 404)
-        self.assertContains(response, "Module not found", status_code=404)
-        self.assertContains(response, "Contact administrator", status_code=404)
+        self.assertContains(response, "Page not found", status_code=404)
+        self.assertContains(response, "Return to dashboard", status_code=404)
+        self.assertNotContains(response, "Traceback", status_code=404)
+        self.assertNotContains(response, "Django REST framework", status_code=404)
+
+    def test_api_auth_browser_login_route_is_not_exposed(self):
+        response = self.client.get("/api-auth/login/")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(response, "Page not found", status_code=404)
+        self.assertNotContains(response, "Django REST framework", status_code=404)
 
 
 class UserAccessManagementTests(TestCase):
@@ -1258,6 +1270,7 @@ class TransportCalculationTests(TestCase):
         self.assertContains(invoice_list_page, first_invoice.invoice_number)
         self.assertContains(invoice_list_page, "Customer invoices")
         self.assertContains(invoice_list_page, "Payments")
+        self.assertContains(invoice_list_page, "status-pending")
         self.assertEqual(paid_invoice_list_page.status_code, 200)
         self.assertContains(invoice_page, first_invoice.invoice_number)
         self.assertContains(invoice_page, "Items / goods")
@@ -1280,19 +1293,31 @@ class TransportCalculationTests(TestCase):
             first_invoice.status, TransportCustomerInvoice.Status.FINALIZED
         )
         issued_page = self.client.get(f"/transport/invoices/{first_invoice.pk}/")
-        self.assertContains(issued_page, "Pay")
+        self.assertContains(issued_page, "Generate receipt")
+        self.assertContains(issued_page, "status-issued")
         pay_response = self.client.post(f"/transport/invoices/{first_invoice.pk}/pay/")
         self.assertEqual(pay_response.status_code, 302)
         first_invoice.refresh_from_db()
         record.refresh_from_db()
-        self.assertEqual(first_invoice.status, TransportCustomerInvoice.Status.PAID)
-        self.assertTrue(first_invoice.payment_number.startswith("PAY-"))
+        self.assertEqual(
+            first_invoice.status, TransportCustomerInvoice.Status.FINALIZED
+        )
+        receipt = CommercialDocument.objects.get(
+            transport=record,
+            transport_invoice=first_invoice,
+            document_type=CommercialDocument.DocumentType.RECEIPT,
+        )
+        self.assertIn(f"/documents/{receipt.pk}/", pay_response["Location"])
+        self.assertEqual(receipt.status, CommercialDocument.Status.ISSUED)
+        self.assertEqual(receipt.amount, first_invoice.total_amount)
+        self.assertEqual(first_invoice.payment_number, receipt.document_number)
         self.assertIsNotNone(first_invoice.paid_at)
         self.assertEqual(first_invoice.paid_by, self.user)
         self.assertEqual(record.status, TransportRecord.Status.IN_TRANSIT)
         paid_page = self.client.get(f"/transport/invoices/{first_invoice.pk}/")
-        self.assertContains(paid_page, "PAID")
-        self.assertContains(paid_page, first_invoice.payment_number)
+        self.assertContains(paid_page, "Receipt generated")
+        self.assertContains(paid_page, receipt.document_number)
+        self.assertContains(paid_page, "status-issued")
         self.assertEqual(invoice_download.status_code, 200)
         self.assertEqual(invoice_print.status_code, 200)
         self.assertEqual(invoice_download["Content-Type"], "application/pdf")
@@ -1310,6 +1335,7 @@ class TransportCalculationTests(TestCase):
         self.assertContains(manual_page, "Simplified transport billing")
         self.assertContains(manual_page, "Generate customer invoices")
         self.assertContains(manual_page, "Accept payment")
+        self.assertContains(manual_page, "Generate receipt")
         self.assertContains(manual_page, "Goods reached and delivery note")
         self.assertNotContains(manual_page, "Generate and issue invoices")
         detail_page = self.client.get(f"/transport/{record.pk}/")
@@ -1324,17 +1350,36 @@ class TransportCalculationTests(TestCase):
         self.assertEqual(delivered_response.status_code, 302)
         delivered_response = self.client.get(delivered_response["Location"])
         self.assertEqual(delivered_response.status_code, 302)
-        document = CommercialDocument.objects.get(transport=record)
+        document = CommercialDocument.objects.get(
+            transport=record,
+            document_type=CommercialDocument.DocumentType.DELIVERY_NOTE,
+        )
         self.assertIn(
             f"/transport/{record.pk}/delivery-notes/{document.pk}/",
             delivered_response["Location"],
         )
         delivery_note_page = self.client.get(delivered_response["Location"])
         self.assertContains(delivery_note_page, "Delivery Note")
-        self.assertContains(delivery_note_page, first_invoice.payment_number)
+        self.assertContains(delivery_note_page, "Receipt reference")
+        self.assertContains(delivery_note_page, receipt.document_number)
+        self.assertContains(delivery_note_page, "status-delivered")
+        self.assertContains(delivery_note_page, "status-issued")
         self.assertContains(delivery_note_page, "Send WhatsApp")
         record.refresh_from_db()
         self.assertEqual(record.status, TransportRecord.Status.DELIVERED)
+        locked_charge_response = self.client.post(
+            f"/transport/{record.pk}/transit-costs/",
+            {
+                "cost_type": TransportTransitCost.CostType.FUEL,
+                "amount": "25.00",
+                "cost_date": timezone.localdate(),
+            },
+        )
+        self.assertEqual(locked_charge_response.status_code, 302)
+        self.assertFalse(record.transit_costs.filter(amount=Decimal("25.00")).exists())
+        locked_detail_page = self.client.get(f"/transport/{record.pk}/")
+        self.assertContains(locked_detail_page, "locked because the delivery note")
+        self.assertNotContains(locked_detail_page, "Add charge")
         second_transit = TransportRecord.objects.create(
             date=timezone.localdate(),
             vehicle="TRK-77",
@@ -1686,8 +1731,10 @@ class BusinessDocumentTests(TestCase):
         list_page = self.client.get("/documents/?q=JOB-445")
         detail_page = self.client.get(f"/documents/{document.pk}/")
         self.assertContains(list_page, document.document_number)
+        self.assertContains(list_page, "status-issued")
         self.assertContains(detail_page, "Proforma Invoice")
         self.assertContains(detail_page, "Kilembe Smelter")
+        self.assertContains(detail_page, "status-issued")
 
 
 class FinancialReportTests(TestCase):
@@ -1997,6 +2044,7 @@ class VisaManagementTests(TestCase):
         self.assertContains(dashboard_response, "14 days")
         self.assertContains(dashboard_response, "hr@example.com")
         self.assertContains(dashboard_response, "USD 250.00")
+        self.assertContains(dashboard_response, "status-warning")
         self.assertContains(alerts_response, "Passport, work permit letter, photos")
         self.assertEqual(ExpatriateVisa.objects.get().expiry_alert, "14 days")
 

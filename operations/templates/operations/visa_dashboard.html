@@ -1,4 +1,5 @@
 {% extends 'operations/base.html' %}
+{% load operations_i18n %}
 {% block title %}Visa Department | Mining ERP{% endblock %}
 {% block content %}
 <section class="page-heading fuel-heading">
@@ -72,7 +73,7 @@
                         <td>{{ visa.embassy.name }}</td>
                         <td>{{ visa.expiry_date }}</td>
                         <td><strong class="visa-alert-chip{% if visa.expiry_alert == 'Expired' %} visa-alert-expired{% elif visa.expiry_alert == '3 days' %} visa-alert-critical{% elif visa.expiry_alert == '7 days' %} visa-alert-warning{% elif visa.expiry_alert == '14 days' %} visa-alert-watch{% elif visa.expiry_alert == '30 days' %} visa-alert-upcoming{% else %} visa-alert-valid{% endif %}">{{ visa.expiry_alert }}</strong></td>
-                        <td>{{ visa.get_renewal_status_display }}</td>
+                        <td><span class="status-pill {{ visa.get_renewal_status_display|status_class }}">{{ visa.get_renewal_status_display }}</span></td>
                         <td>{{ visa.reminder_recipient|default:"-" }}</td>
                         <td>{{ visa.fee_currency }} {{ visa.renewal_fee|floatformat:2 }}</td>
                     </tr>

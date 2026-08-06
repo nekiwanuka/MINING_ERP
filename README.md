@@ -59,6 +59,16 @@ Note: the current test deployment uses SQLite. On Render free/test services, SQL
 
 Use **Procurement > Workflow manual** in the app for operator instructions.
 
+```text
+Requester requisition
+	-> Procurement review / edit
+	-> Accept reviewed items
+	-> Split item quantities when needed
+	-> Create supplier PO
+	-> Send / print / download PO
+	-> Requisition marked Purchased
+```
+
 1. Requester submits a requisition.
 2. Procurement opens **Review / edit**, confirms or adjusts item descriptions and pieces, then saves the review to accept the requisition.
 3. Procurement creates supplier purchase orders from each reviewed item.
@@ -71,6 +81,23 @@ Use **Procurement > Workflow manual** in the app for operator instructions.
 
 Use **Transport > Billing manual** in the app for the operator workflow.
 
+```text
+Transport record
+	-> Customer cargo rows
+	-> Internal transit costs
+	-> Generate pending invoices
+	-> Issue invoice
+	-> Generate payment receipt
+	-> Trip moves to In Transit
+	-> GR - Goods Reached generates delivery note and locks edits
+```
+
+```text
+Shared-route example:
+Depot -> 240 km branch-off -> 389 km -> 400 km
+					Martha exits        Peter     Kresto
+```
+
 1. Create one transport record per transit. The system generates one unique transit number.
 2. Add one cargo row for each customer sharing the vehicle.
 3. Record each customer's loading point, offloading point, loading sequence, offloading sequence, billable distance, cargo units, and direct customer charges.
@@ -78,6 +105,6 @@ Use **Transport > Billing manual** in the app for the operator workflow.
 5. Set the fee route sequence so the system knows which customers were still onboard when that fee happened.
 6. Open the transport detail page and click **Generate invoices**. The system creates one pending invoice per customer.
 7. Open each pending invoice, review customer, route, goods, and amount, then click **Issue**.
-8. After money is received, click **Pay** on the issued invoice. The system creates a payment number, marks the invoice paid, prints the paid stamp over the invoice, and moves the trip to **In Transit**.
-9. When goods reach the customer, click **GR - Goods Reached** to generate the delivery note. The delivery note shows the linked paid invoice and payment reference.
+8. After money is received, click **Generate receipt** on the issued invoice. The system creates an official receipt linked to the invoice and moves the trip to **In Transit** while the invoice remains issued.
+9. Transit charges can continue to be entered while the trip is not delivered. When goods reach the customer, click **GR - Goods Reached** to generate the delivery note. The delivery note shows the linked receipt reference and locks the trip from further edits.
 10. Direct charges stay with the customer, shared fleet charges are split by chargeable units and distance, and transit/government fees are split only among customers onboard at that fee point.

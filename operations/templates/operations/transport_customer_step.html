@@ -17,7 +17,7 @@
 <section class="transport-balance-strip" aria-label="Trip financial summary">
     <article><span>Total trip charge</span><strong>{% money record.overall_charge %}</strong></article>
     <article><span>Customer invoice entries</span><strong>{% money record.customer_charge_total %}</strong></article>
-    <article><span>Status</span><strong>{{ record.get_status_display }}</strong></article>
+    <article><span>Status</span><strong><span class="status-pill {{ record.get_status_display|status_class }}">{{ record.get_status_display }}</span></strong></article>
 </section>
 
 <section class="panel transport-focus-panel">

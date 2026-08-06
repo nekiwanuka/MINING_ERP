@@ -532,18 +532,22 @@ tbody tr:last-child td { border-bottom: 0; }
 .command-table th { position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 0 var(--line); }
 .command-table tbody tr:nth-child(even) { background: #fcfbf7; }
 .status-badge, .profit-pill { display: inline-flex; align-items: center; min-height: 32px; padding: 6px 10px; border-radius: 999px; font-size: 0.82rem; font-weight: 900; white-space: nowrap; }
-.status-transit { background: #e7f0f7; color: #1d4c63; }
-.status-ready { background: #fff0d9; color: #8a4c04; }
-.status-issued { background: #e8f2ed; color: var(--accent-dark); }
-.status-paid { background: #fff5f5; color: #b91c1c; }
-.status-delivered { background: #e8f2ed; color: var(--accent-dark); }
 .internal-money { color: #888; font-size: 0.92rem; }
 .profit-cell, .profit-pill { font-weight: 950; }
 .is-profit { color: #14563f; background: #e8f2ed; }
 .is-loss { color: #9f2f2d; background: #fff0ef; }
 .empty-cell, .empty-copy { color: var(--muted); }
 .muted-copy { color: var(--muted); }
-.status-pill { display: inline-flex; align-items: center; min-height: 24px; padding: 3px 8px; border-radius: 999px; background: #e8f2ed; color: var(--accent-dark); font-size: 0.78rem; font-weight: 800; }
+.status-pill { display: inline-flex; align-items: center; min-height: 24px; padding: 3px 8px; border-radius: 999px; background: #eef1ee; color: #59665f; font-size: 0.78rem; font-weight: 800; }
+.status-pill.status-draft, .status-pill.status-neutral, .status-badge.status-draft, .status-badge.status-neutral { background: #eef1ee; color: #59665f; }
+.status-pill.status-submitted, .status-pill.status-pending, .status-pill.status-ready, .status-badge.status-submitted, .status-badge.status-pending, .status-badge.status-ready { background: #fff7cc; color: #8a5a00; }
+.status-pill.status-accepted, .status-pill.status-inquiry, .status-badge.status-accepted, .status-badge.status-inquiry { background: #e7f0ff; color: #1d4ed8; }
+.status-pill.status-issued, .status-badge.status-issued { background: #e9e5ff; color: #5b21b6; }
+.status-pill.status-transit, .status-badge.status-transit { background: #e0f2fe; color: #075985; }
+.status-pill.status-paid, .status-pill.status-active, .status-badge.status-paid, .status-badge.status-active { background: #dcfce7; color: #166534; }
+.status-pill.status-delivered, .status-badge.status-delivered { background: #d1fae5; color: #065f46; }
+.status-pill.status-cancelled, .status-pill.status-inactive, .status-pill.status-expired, .status-badge.status-cancelled, .status-badge.status-inactive, .status-badge.status-expired { background: #fee2e2; color: #991b1b; }
+.status-pill.status-warning, .status-badge.status-warning { background: #ffedd5; color: #9a3412; }
 .urgent-pill { display: inline-flex; align-items: center; min-height: 24px; padding: 3px 8px; border-radius: 999px; background: #fff0d9; color: #8a4c04; font-size: 0.78rem; font-weight: 900; }
 .muted-pill { background: #eef1ee; color: var(--muted); }
 .procurement-table-panel { width: min(1240px, 100%); margin-inline: auto; }
@@ -958,6 +962,27 @@ tbody tr:last-child td { border-bottom: 0; }
 .process-document-card small { color: var(--muted); font-weight: 750; overflow-wrap: anywhere; }
 .process-document-actions { display: grid; justify-items: end; gap: 8px; }
 .process-document-actions > strong { font-size: 1.16rem; white-space: nowrap; }
+.manual-panel { display: grid; gap: 18px; width: min(1120px, 100%); margin-inline: auto; }
+.manual-flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; counter-reset: manual-flow; }
+.manual-flow article { position: relative; display: grid; gap: 6px; min-height: 132px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: linear-gradient(180deg, #fff 0%, #f8fbf7 100%); }
+.manual-flow article:not(:last-child)::after { content: "->"; position: absolute; top: 50%; right: -13px; z-index: 1; display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--accent-dark); font-weight: 950; transform: translateY(-50%); }
+.manual-flow span, .manual-step > span { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 950; }
+.manual-flow strong { color: var(--ink); font-size: 1.02rem; }
+.manual-flow p, .manual-step p { margin: 0; color: var(--muted); font-weight: 720; line-height: 1.42; }
+.manual-step { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.manual-step:last-child { border-bottom: 0; padding-bottom: 0; }
+.manual-step h2 { margin: 0 0 5px; color: var(--ink); font-size: 1.06rem; }
+.manual-illustration { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: stretch; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #fffdf8; }
+.manual-illustration div:not(.manual-arrow), .route-line, .route-customers { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.manual-illustration span { color: var(--muted); font-size: 0.76rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; }
+.manual-illustration strong { color: var(--ink); }
+.manual-arrow { align-self: center; color: var(--accent-dark); font-weight: 950; }
+.manual-route-diagram { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #fffdf8; }
+.route-line { position: relative; grid-template-columns: repeat(4, minmax(0, 1fr)); border-color: #c8d8cf; }
+.route-line::before { content: ""; position: absolute; left: 12px; right: 12px; top: 50%; height: 3px; background: var(--accent); transform: translateY(-50%); }
+.route-line span { position: relative; z-index: 1; justify-self: start; padding: 5px 7px; border-radius: 999px; background: #fff; color: var(--accent-dark); font-size: 0.78rem; font-weight: 950; }
+.route-customers { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.route-customers strong { color: var(--ink); font-size: 0.9rem; }
 .transport-invoice-document { position: relative; display: grid; gap: 18px; width: min(920px, 100%); margin: 0 auto 24px; padding: clamp(18px, 4vw, 34px); border: 1px solid var(--line); border-radius: 8px; background: linear-gradient(180deg, #fff 0%, #fffdf8 100%); box-shadow: var(--shadow); }
 .invoice-document-header { display: flex; justify-content: space-between; gap: 24px; padding-bottom: 18px; border-bottom: 3px solid var(--ink); }
 .invoice-brand-block, .invoice-title-block { display: grid; gap: 4px; }
@@ -991,10 +1016,10 @@ tbody tr:last-child td { border-bottom: 0; }
 .delivery-note-body p { margin: 0 0 8px; color: var(--ink); font-weight: 700; line-height: 1.5; }
 .invoice-document-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; padding-top: 28px; }
 .invoice-document-footer div { display: grid; gap: 10px; min-height: 76px; border-top: 1px solid var(--ink); padding-top: 8px; }
-.paid-stamp { display: inline-grid; place-items: center; gap: 3px; min-width: 178px; min-height: 92px; padding: 10px 18px; border: 3px double #b91c1c; border-radius: 18px; color: #b91c1c; background: color-mix(in srgb, #fff5f5 52%, transparent); text-align: center; box-shadow: inset 0 0 0 2px rgba(185, 28, 28, 0.18); text-transform: uppercase; }
-.paid-stamp-overlay { position: absolute; top: clamp(138px, 20vw, 178px); right: clamp(28px, 7vw, 82px); z-index: 3; pointer-events: none; transform: rotate(-11deg); opacity: 0.92; mix-blend-mode: multiply; }
-.paid-stamp strong { font-size: 2rem; line-height: 1; letter-spacing: 0.16em; }
-.paid-stamp span { font-weight: 900; font-size: 0.72rem; letter-spacing: 0.04em; }
+.paid-stamp { display: inline-grid; place-items: center; gap: 3px; min-width: 148px; min-height: 72px; padding: 8px 14px; border: 3px double #b91c1c; border-radius: 15px; color: #b91c1c; background: color-mix(in srgb, #fff5f5 42%, transparent); text-align: center; box-shadow: inset 0 0 0 2px rgba(185, 28, 28, 0.16); text-transform: uppercase; }
+.paid-stamp-overlay { position: absolute; top: clamp(106px, 15vw, 138px); right: clamp(24px, 6vw, 68px); z-index: 3; pointer-events: none; transform: rotate(-10deg); opacity: 0.9; mix-blend-mode: multiply; }
+.paid-stamp strong { font-size: 1.55rem; line-height: 1; letter-spacing: 0.16em; }
+.paid-stamp span { font-weight: 900; font-size: 0.64rem; letter-spacing: 0.04em; }
 .payment-reference-block { border-color: #b91c1c; background: #fff5f5; }
 .trip-card-scroll { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 14px; max-height: 680px; overflow: auto; padding-right: 4px; }
 .trip-profit-card { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
@@ -1187,7 +1212,16 @@ tbody tr:last-child td { border-bottom: 0; }
     .secondary-button, .logout-form button, .toast-close, .field-control, .field-block input, .field-block select, .field-block textarea, table, .data-table caption { background: var(--field); color: var(--ink); }
     th, tbody tr:hover, .empty-state, .requisition-meta-list div { background: #1f2937; }
     .field-block input:focus, .field-block select:focus, .field-block textarea:focus, .login-panel input:focus, .field-control:focus { background: #111827; }
-    .status-pill { background: #063f32; color: #a7f3d0; }
+    .status-pill { background: #1f2937; color: #d1d5db; }
+    .status-pill.status-draft, .status-pill.status-neutral, .status-badge.status-draft, .status-badge.status-neutral { background: #27313f; color: #cbd5e1; }
+    .status-pill.status-submitted, .status-pill.status-pending, .status-pill.status-ready, .status-badge.status-submitted, .status-badge.status-pending, .status-badge.status-ready { background: #422006; color: #fde68a; }
+    .status-pill.status-accepted, .status-pill.status-inquiry, .status-badge.status-accepted, .status-badge.status-inquiry { background: #172554; color: #bfdbfe; }
+    .status-pill.status-issued, .status-badge.status-issued { background: #2e1065; color: #ddd6fe; }
+    .status-pill.status-transit, .status-badge.status-transit { background: #082f49; color: #bae6fd; }
+    .status-pill.status-paid, .status-pill.status-active, .status-badge.status-paid, .status-badge.status-active { background: #052e25; color: #a7f3d0; }
+    .status-pill.status-delivered, .status-badge.status-delivered { background: #064e3b; color: #bbf7d0; }
+    .status-pill.status-cancelled, .status-pill.status-inactive, .status-pill.status-expired, .status-badge.status-cancelled, .status-badge.status-inactive, .status-badge.status-expired { background: #4c0519; color: #fecdd3; }
+    .status-pill.status-warning, .status-badge.status-warning { background: #431407; color: #fed7aa; }
     .urgent-pill { background: #422006; color: #fde68a; }
     .required-indicator { background: #4c0519; color: #fecdd3; }
     .alert-success, .toast-success { background: #052e25; color: #a7f3d0; }
@@ -1858,7 +1892,7 @@ tbody tr:hover { background: #fbfcf8; }
     border-radius: var(--radius-pill);
 }
 
-.status-delivered, .status-pill, .document-type-pill, .access-chip { background: var(--color-brand-soft); color: var(--color-brand-strong); }
+.document-type-pill, .access-chip { background: var(--color-brand-soft); color: var(--color-brand-strong); }
 .urgent-pill, .phase-count, .visa-alert-badge { background: #fff0d9; color: var(--color-warning-text); }
 .muted-pill { background: #eef1ee; color: var(--color-muted); }
 .document-card, .requester-pending-card, .requisition-result-card, .visa-alert-card, .fuel-list-item, .work-item { gap: var(--space-3); padding: var(--space-4); }

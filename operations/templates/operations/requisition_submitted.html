@@ -1,4 +1,5 @@
 {% extends 'operations/base.html' %}
+{% load operations_i18n %}
 {% block title %}Requisition submitted | Mining ERP{% endblock %}
 {% block content %}
 <section class="page-heading requisition-heading">
@@ -13,7 +14,7 @@
     <div class="process-summary-grid">
         <div><span>Company / site</span><strong>{{ requisition.requester_label }}</strong></div>
         <div><span>Pieces</span><strong>{{ requisition.total_pieces }}</strong></div>
-        <div><span>Status</span><strong>{{ requisition.get_status_display }}</strong></div>
+        <div><span>Status</span><strong><span class="status-pill {{ requisition.get_status_display|status_class }}">{{ requisition.get_status_display }}</span></strong></div>
         <div><span>Suggested supplier</span><strong>{{ requisition.supplier_suggestion|default:"-" }}</strong></div>
     </div>
     <p class="muted-copy">{{ requisition.item_summary|truncatechars:180 }}</p>

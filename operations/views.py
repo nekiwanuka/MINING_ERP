@@ -28,6 +28,7 @@ from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
+    Flowable,
     Image,
     Paragraph,
     SimpleDocTemplate,
@@ -98,7 +99,6 @@ from .models import (
     TransportCustomerOrder,
     TransportRecord,
     TransportTransitCost,
-    transport_payment_number,
     UserModuleAccess,
     VisaEmbassy,
 )
@@ -852,29 +852,36 @@ def transport_invoice_pdf(invoice, language="en"):
         textColor=colors.HexColor("#14201b"),
     )
 
-    def draw_paid_stamp(canvas, _document):
-        if invoice.status != TransportCustomerInvoice.Status.PAID:
-            return
-        paid_date = (
-            timezone.localtime(invoice.paid_at).date() if invoice.paid_at else "-"
-        )
-        canvas.saveState()
-        canvas.translate(142 * mm, 199 * mm)
-        canvas.rotate(-12)
-        canvas.setStrokeColor(colors.HexColor("#b91c1c"))
-        canvas.setFillColor(colors.HexColor("#b91c1c"))
-        canvas.setLineWidth(1.6)
-        canvas.roundRect(-32 * mm, -16 * mm, 64 * mm, 32 * mm, 5 * mm, stroke=1, fill=0)
-        canvas.setLineWidth(0.7)
-        canvas.roundRect(-29 * mm, -13 * mm, 58 * mm, 26 * mm, 4 * mm, stroke=1, fill=0)
-        canvas.setFont(bold_font_name, 26)
-        canvas.drawCentredString(0, 3 * mm, "PAID")
-        canvas.setFont(bold_font_name, 6.5)
-        canvas.drawCentredString(
-            0, -5 * mm, f"PAYMENT NO: {invoice.payment_number or '-'}"
-        )
-        canvas.drawCentredString(0, -9 * mm, f"DATE PAID: {paid_date}")
-        canvas.restoreState()
+    class PaidStampOverlay(Flowable):
+        def __init__(self, payment_number, paid_date):
+            super().__init__()
+            self.payment_number = payment_number or "-"
+            self.paid_date = paid_date or "-"
+
+        def wrap(self, available_width, available_height):
+            return available_width, 0
+
+        def draw(self):
+            canvas = self.canv
+            canvas.saveState()
+            canvas.translate(130 * mm, 30 * mm)
+            canvas.rotate(-10)
+            canvas.setStrokeColor(colors.HexColor("#b91c1c"))
+            canvas.setFillColor(colors.HexColor("#b91c1c"))
+            canvas.setLineWidth(1.2)
+            canvas.roundRect(
+                -24 * mm, -12 * mm, 48 * mm, 24 * mm, 4 * mm, stroke=1, fill=0
+            )
+            canvas.setLineWidth(0.7)
+            canvas.roundRect(
+                -21 * mm, -9 * mm, 42 * mm, 18 * mm, 3 * mm, stroke=1, fill=0
+            )
+            canvas.setFont(bold_font_name, 18)
+            canvas.drawCentredString(0, 2.2 * mm, "PAID")
+            canvas.setFont(bold_font_name, 6.5)
+            canvas.drawCentredString(0, -4.4 * mm, f"PAYMENT NO: {self.payment_number}")
+            canvas.drawCentredString(0, -7.6 * mm, f"DATE PAID: {self.paid_date}")
+            canvas.restoreState()
 
     if app_setting.logo:
         try:
@@ -983,6 +990,11 @@ def transport_invoice_pdf(invoice, language="en"):
         )
     )
     story = [header, Spacer(1, 10), details]
+    if invoice.status == TransportCustomerInvoice.Status.PAID:
+        paid_date = (
+            timezone.localtime(invoice.paid_at).date() if invoice.paid_at else "-"
+        )
+        story.append(PaidStampOverlay(invoice.payment_number, paid_date))
     if item_rows:
         pdf_item_rows = [
             [translate("Item detail", language), translate("Value", language)]
@@ -1041,7 +1053,7 @@ def transport_invoice_pdf(invoice, language="en"):
         )
     )
     story.extend([Spacer(1, 12), lines, Spacer(1, 24), signatures])
-    document.build(story, onFirstPage=draw_paid_stamp, onLaterPages=draw_paid_stamp)
+    document.build(story)
     return buffer.getvalue()
 
 
@@ -1054,6 +1066,52 @@ def transport_invoice_pdf_response(invoice, as_attachment=False, language="en"):
         f'{disposition}; filename="{document_pdf_filename("Transport-Invoice", invoice.invoice_number)}"'
     )
     return response
+
+
+def transport_receipt_for_invoice(invoice):
+    return invoice.commercial_documents.filter(
+        document_type=CommercialDocument.DocumentType.RECEIPT
+    ).first()
+
+
+def create_transport_receipt(invoice, user):
+    receipt = transport_receipt_for_invoice(invoice)
+    if receipt:
+        return receipt, False
+    receipt = CommercialDocument.objects.create(
+        document_type=CommercialDocument.DocumentType.RECEIPT,
+        status=CommercialDocument.Status.ISSUED,
+        title=f"Receipt for {invoice.invoice_number}",
+        client_name=invoice.customer_name,
+        transport=invoice.transport,
+        transport_invoice=invoice,
+        business_reference=invoice.invoice_number,
+        document_date=date.today(),
+        amount=invoice.total_amount,
+        description=f"Payment received for transport invoice {invoice.invoice_number}.",
+        notes=f"Transit: {invoice.transport.transit_number}. Route: {invoice.transport.origin} to {invoice.transport.destination}.",
+        created_by=user,
+    )
+    return receipt, True
+
+
+def transport_record_locked(record):
+    return (
+        record.status == TransportRecord.Status.DELIVERED
+        or record.commercial_documents.filter(
+            document_type=CommercialDocument.DocumentType.DELIVERY_NOTE
+        ).exists()
+    )
+
+
+def redirect_if_transport_locked(request, record, target="transport_detail"):
+    if not transport_record_locked(record):
+        return None
+    messages.error(
+        request,
+        "This transit is locked because a delivery note has already been issued.",
+    )
+    return redirect(target, pk=record.pk)
 
 
 def digits_only(value):
@@ -2513,7 +2571,10 @@ def transport_list(request):
     records = TransportRecord.objects.select_related(
         "supplier", "requisition", "purchase_order"
     ).prefetch_related(
-        "customer_orders__purchase_order", "transit_points", "customer_invoices"
+        "customer_orders__purchase_order",
+        "transit_points",
+        "customer_invoices",
+        "commercial_documents",
     )
     if query:
         records = records.filter(
@@ -2533,10 +2594,23 @@ def transport_list(request):
     matching_count = records.count()
     records = list(records[:200])
     for record in records:
+        has_receipt = any(
+            document.document_type == CommercialDocument.DocumentType.RECEIPT
+            for document in record.commercial_documents.all()
+        )
         invoice_statuses = [
             invoice.status for invoice in record.customer_invoices.all()
         ]
-        if not invoice_statuses:
+        if record.status == TransportRecord.Status.DELIVERED:
+            record.invoice_status_label = "Delivered"
+            record.invoice_status_class = "status-delivered"
+        elif has_receipt:
+            record.invoice_status_label = "Paid"
+            record.invoice_status_class = "status-paid"
+        elif record.status == TransportRecord.Status.IN_TRANSIT:
+            record.invoice_status_label = "In Transit"
+            record.invoice_status_class = "status-transit"
+        elif not invoice_statuses:
             record.invoice_status_label = record.get_status_display()
             record.invoice_status_class = "status-transit"
         elif any(
@@ -2605,6 +2679,9 @@ def transport_create(request):
 @access_required(UserModuleAccess.Module.TRANSPORT, ACTION_UPDATE)
 def transport_edit(request, pk):
     record = get_object_or_404(TransportRecord, pk=pk)
+    locked_response = redirect_if_transport_locked(request, record)
+    if locked_response:
+        return locked_response
     form = TransportRecordForm(request.POST or None, instance=record)
     if request.method == "POST" and form.is_valid():
         record = form.save()
@@ -2665,6 +2742,9 @@ def transport_customer_add(request, pk):
         ),
         pk=pk,
     )
+    locked_response = redirect_if_transport_locked(request, record)
+    if locked_response:
+        return locked_response
     form = TransportCustomerOrderForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         customer_order = form.save(commit=False)
@@ -2692,6 +2772,9 @@ def transport_invoices_generate(request, pk):
         TransportRecord.objects.prefetch_related("customer_orders", "transit_points"),
         pk=pk,
     )
+    locked_response = redirect_if_transport_locked(request, record)
+    if locked_response:
+        return locked_response
     invoices = generate_transport_customer_invoices(record, request.user)
     messages.success(request, f"Generated {len(invoices)} pending customer invoice(s).")
     if len(invoices) == 1:
@@ -2711,7 +2794,7 @@ def transport_invoice_list(request):
     }
     invoices = TransportCustomerInvoice.objects.select_related(
         "transport", "customer_order", "generated_by"
-    ).prefetch_related("lines")
+    ).prefetch_related("lines", "commercial_documents")
     if query:
         invoices = invoices.filter(
             Q(invoice_number__icontains=query)
@@ -2721,11 +2804,21 @@ def transport_invoice_list(request):
             | Q(transport__vehicle__icontains=query)
         )
     if status in allowed_statuses:
-        invoices = invoices.filter(status=status)
+        if status == TransportCustomerInvoice.Status.PAID:
+            invoices = invoices.filter(
+                Q(status=TransportCustomerInvoice.Status.PAID)
+                | Q(
+                    commercial_documents__document_type=CommercialDocument.DocumentType.RECEIPT
+                )
+            ).distinct()
+        else:
+            invoices = invoices.filter(status=status)
     if search_date:
         invoices = invoices.filter(invoice_date=search_date)
     matching_count = invoices.count()
-    invoices = invoices[:LIST_RESULTS_LIMIT]
+    invoices = list(invoices[:LIST_RESULTS_LIMIT])
+    for invoice in invoices:
+        invoice.receipt_document = transport_receipt_for_invoice(invoice)
     return render(
         request,
         "operations/transport_invoice_list.html",
@@ -2750,12 +2843,14 @@ def transport_invoice_detail(request, invoice_id):
     )
     message = transport_invoice_message(invoice)
     whatsapp_url = f"https://wa.me/?text={quote(message)}"
+    receipt = transport_receipt_for_invoice(invoice)
     return render(
         request,
         "operations/transport_invoice_detail.html",
         {
             "invoice": invoice,
             "invoice_item_rows": transport_invoice_item_rows(invoice.customer_order),
+            "receipt": receipt,
             "whatsapp_url": whatsapp_url,
         },
     )
@@ -2785,14 +2880,13 @@ def transport_invoice_pay(request, invoice_id):
     if invoice.status == TransportCustomerInvoice.Status.DRAFT:
         messages.error(request, "Issue the invoice before accepting payment.")
         return redirect("transport_invoice_detail", invoice_id=invoice.pk)
-    if invoice.status != TransportCustomerInvoice.Status.PAID:
-        invoice.status = TransportCustomerInvoice.Status.PAID
-        invoice.payment_number = invoice.payment_number or transport_payment_number()
+    receipt, created = create_transport_receipt(invoice, request.user)
+    if created:
+        invoice.payment_number = receipt.document_number
         invoice.paid_at = timezone.now()
         invoice.paid_by = request.user
         invoice.save(
             update_fields=[
-                "status",
                 "payment_number",
                 "paid_at",
                 "paid_by",
@@ -2804,11 +2898,11 @@ def transport_invoice_pay(request, invoice_id):
             invoice.transport.save(update_fields=["status", "updated_at"])
         messages.success(
             request,
-            f"Payment {invoice.payment_number} accepted for invoice {invoice.invoice_number}.",
+            f"Receipt {receipt.document_number} generated for invoice {invoice.invoice_number}.",
         )
     else:
-        messages.info(request, f"Invoice {invoice.invoice_number} is already paid.")
-    return redirect("transport_invoice_detail", invoice_id=invoice.pk)
+        messages.info(request, f"Receipt {receipt.document_number} already exists.")
+    return redirect("commercial_document_detail", pk=receipt.pk)
 
 
 @access_required(UserModuleAccess.Module.TRANSPORT, ACTION_READ)
@@ -2913,9 +3007,13 @@ def transport_delivery_note_detail(request, pk, document_id):
         transport_id=pk,
         document_type=CommercialDocument.DocumentType.DELIVERY_NOTE,
     )
-    paid_invoices = document.transport.customer_invoices.filter(
-        status=TransportCustomerInvoice.Status.PAID
-    ).order_by("invoice_number")
+    receipt_documents = (
+        document.transport.commercial_documents.filter(
+            document_type=CommercialDocument.DocumentType.RECEIPT
+        )
+        .select_related("transport_invoice")
+        .order_by("document_number")
+    )
     whatsapp_url = (
         f"https://wa.me/?text={quote(transport_delivery_note_message(document))}"
     )
@@ -2924,7 +3022,7 @@ def transport_delivery_note_detail(request, pk, document_id):
         "operations/transport_delivery_note_detail.html",
         {
             "document": document,
-            "paid_invoices": paid_invoices,
+            "receipt_documents": receipt_documents,
             "whatsapp_url": whatsapp_url,
         },
     )
@@ -2940,6 +3038,9 @@ def transport_status_update(request, pk, status):
         return redirect("transport_detail", pk=record.pk)
     if status == TransportRecord.Status.DELIVERED:
         return redirect("transport_delivery_note_create", pk=record.pk)
+    locked_response = redirect_if_transport_locked(request, record)
+    if locked_response:
+        return locked_response
     record.status = status
     record.save(update_fields=["status", "updated_at"])
     messages.success(
@@ -2970,6 +3071,9 @@ def transport_delivery_note_initial(record):
 @require_POST
 def transport_attachment_add(request, pk):
     record = get_object_or_404(TransportRecord, pk=pk)
+    locked_response = redirect_if_transport_locked(request, record)
+    if locked_response:
+        return locked_response
     form = TransportAttachmentForm(request.POST, request.FILES)
     if form.is_valid():
         attachment = form.save(commit=False)
@@ -2989,6 +3093,9 @@ def transport_attachment_add(request, pk):
 @require_POST
 def transport_charge_add(request, pk):
     record = get_object_or_404(TransportRecord, pk=pk)
+    locked_response = redirect_if_transport_locked(request, record)
+    if locked_response:
+        return locked_response
     form = TransportGovernmentChargeForm(request.POST)
     if form.is_valid():
         charge = form.save(commit=False)
@@ -3005,6 +3112,9 @@ def transport_transit_cost_add(request, pk):
     record = get_object_or_404(
         TransportRecord.objects.prefetch_related("transit_costs"), pk=pk
     )
+    locked_response = redirect_if_transport_locked(request, record)
+    if locked_response:
+        return locked_response
     form = TransportTransitCostForm(request.POST or None, transport=record)
     if request.method == "POST" and form.is_valid():
         cost = form.save(commit=False)
@@ -3241,6 +3351,7 @@ def commercial_document_detail(request, pk):
         CommercialDocument.objects.select_related(
             "client",
             "transport",
+            "transport_invoice",
             "purchase_order",
             "requisition",
             "supplier",

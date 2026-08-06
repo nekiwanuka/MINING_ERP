@@ -47,7 +47,7 @@
                     </dl>
                 </div>
                 <div class="document-card-side">
-                    <span class="status-pill">{{ document.get_status_display }}</span>
+                    <span class="status-pill {{ document.get_status_display|status_class }}">{{ document.get_status_display }}</span>
                     <strong>{% money document.amount %}</strong>
                     <a class="small-button" href="{% url 'commercial_document_detail' document.pk %}">Open</a>
                 </div>

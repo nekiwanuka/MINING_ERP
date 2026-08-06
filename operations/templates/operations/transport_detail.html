@@ -9,13 +9,19 @@
         <p class="muted-copy">{{ record.origin }} to {{ record.destination }}{% if record.distance_km %} · {{ record.distance_km|floatformat:0 }} km{% endif %}</p>
     </div>
     <div class="button-row">
-        <a class="secondary-button" href="{% url 'transport_edit' record.pk %}">Edit trip setup</a>
-        <a class="secondary-button" href="{% url 'transport_customer_add' record.pk %}">Customers</a>
-        <a class="secondary-button" href="{% url 'transport_transit_cost_add' record.pk %}">In-transit charge</a>
+        {% if record.status != record.Status.DELIVERED %}
+            <a class="secondary-button" href="{% url 'transport_edit' record.pk %}">Edit trip setup</a>
+            <a class="secondary-button" href="{% url 'transport_customer_add' record.pk %}">Customers</a>
+            <a class="secondary-button" href="{% url 'transport_transit_cost_add' record.pk %}">In-transit charge</a>
+        {% endif %}
         <a class="secondary-button" href="{% url 'transport_reports' %}">Reports</a>
         <a class="secondary-button" href="{% url 'transport_list' %}">Back to transport</a>
     </div>
 </section>
+
+{% if record.status == record.Status.DELIVERED %}
+    <section class="panel"><p class="muted-copy">This transit is locked because the delivery note has been issued. No more trip setup, customer, invoice, or in-transit charge edits are allowed.</p></section>
+{% endif %}
 
 <section class="transport-balance-strip" aria-label="Trip financial summary">
     <article><span>Total trip charge</span><strong>{% money record.overall_charge %}</strong></article>
@@ -32,7 +38,7 @@
                 <h2>Customer invoice entries</h2>
                 <span>Saved customer cargo and invoice amounts.</span>
             </div>
-            <a class="small-button" href="{% url 'transport_customer_add' record.pk %}">Add customer</a>
+            {% if record.status != record.Status.DELIVERED %}<a class="small-button" href="{% url 'transport_customer_add' record.pk %}">Add customer</a>{% endif %}
         </div>
         <div class="table-wrap compact">
             <table>
@@ -62,7 +68,7 @@
                 <h2>In-transit charges</h2>
                 <span>Expense actuals that deduct from the total trip charge and profit.</span>
             </div>
-            <a class="small-button" href="{% url 'transport_transit_cost_add' record.pk %}">Add charge</a>
+            {% if record.status != record.Status.DELIVERED %}<a class="small-button" href="{% url 'transport_transit_cost_add' record.pk %}">Add charge</a>{% endif %}
         </div>
         <div class="table-wrap compact">
             <table>
@@ -89,10 +95,11 @@
     <div class="panel-header">
         <div>
             <p class="eyebrow">Transit status</p>
-            <h2>{{ record.get_status_display }}</h2>
+            <h2><span class="status-pill {{ record.get_status_display|status_class }}">{{ record.get_status_display }}</span></h2>
             <p class="muted-copy">Use In Transit while the truck is moving. Use GR when goods reached and a delivery note is needed.</p>
         </div>
         <div class="button-row">
+            {% if record.status != record.Status.DELIVERED %}
             <form method="post" action="{% url 'transport_status_update' record.pk 'in_transit' %}">
                 {% csrf_token %}
                 <button class="small-button" type="submit">In Transit</button>
@@ -102,6 +109,7 @@
                 {% csrf_token %}
                 <button class="primary-button" type="submit">GR - Goods Reached</button>
             </form>
+            {% endif %}
         </div>
     </div>
 </section>
@@ -113,10 +121,12 @@
             <h2>Customer invoices</h2>
             <p class="muted-copy">Generates one pending Transit &amp; Logistics Fees invoice per saved customer, then opens the invoice page.</p>
         </div>
-        <form method="post" action="{% url 'transport_invoices_generate' record.pk %}">
-            {% csrf_token %}
-            <button class="small-button" type="submit">Generate invoices</button>
-        </form>
+        {% if record.status != record.Status.DELIVERED %}
+            <form method="post" action="{% url 'transport_invoices_generate' record.pk %}">
+                {% csrf_token %}
+                <button class="small-button" type="submit">Generate invoices</button>
+            </form>
+        {% endif %}
     </div>
     <div class="table-wrap compact">
         <table>
@@ -126,7 +136,7 @@
                     <tr>
                         <td><a href="{% url 'transport_invoice_detail' invoice.pk %}">{{ invoice.invoice_number }}</a></td>
                         <td>{{ invoice.customer_name }}</td>
-                        <td><span class="status-pill">{{ invoice.get_status_display }}</span></td>
+                        <td><span class="status-pill {{ invoice.get_status_display|status_class }}">{{ invoice.get_status_display }}</span></td>
                         <td><strong>{% money invoice.total_amount %}</strong></td>
                         <td>{{ invoice.invoice_date }}</td>
                         <td>
